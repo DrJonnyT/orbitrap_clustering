@@ -95,6 +95,8 @@ ae_input=scaled_df.to_numpy()
 scaled_df_val = pd.DataFrame(pipe_1e6.transform(df_beijing_filters), columns=df_beijing_filters.columns,index=df_beijing_filters.index)
 ae_input_val = scaled_df_val.to_numpy()
 
+df_beijing_summer_1e6 = pd.DataFrame(pipe_1e6.transform(df_beijing_summer),columns=df_beijing_summer.columns)
+
 minmax_Beijing = MinMaxScaler()
 beijing_filters_minmax = minmax_Beijing.fit_transform(df_beijing_filters.to_numpy())
 
@@ -171,8 +173,12 @@ plt.show()
 #%%Fuzzy clustering of top70% of dataset
 num_clusters = 5
 cntr, u, u0, d, jm, p, fpc = fuzz.cluster.cmeans(
-        scaled_top70_np.transpose(), num_clusters, 2, error=0.005, maxiter=1000, init=None)
+        scaled_top70_np.transpose(), num_clusters, 1.1, error=0.005, maxiter=1000, init=None)
 cluster_membership = np.argmax(u, axis=0)
+
+df_scaled_top70_clusters_mtx = pd.DataFrame((scaled_top70_np.sum(axis=1) * u).transpose())
+df_scaled_top70_clusters_mtx.columns = [("clust"+str(num)) for num in range(num_clusters)]
+
 
 #%%t-SNE of data and fuzzy clustering
 #Make an array with the data and cluster centers in
@@ -206,3 +212,30 @@ plt.scatter(pca2_data[:, 0], pca2_data[:, 1],
             cmap=ListedColormap(colormap[0:num_clusters]))
 plt.scatter(pca2_centers[:,0], pca2_centers[:,1],c='k',marker='x',s=250)
 plt.show()
+
+
+
+#%%Load AQ data
+#Load the met data
+df_merge_beijing_summer = pd.read_csv(path+'aphh_summer_filter_aggregate_merge.csv')
+df_merge_beijing_summer["DateTime"] =pd.to_datetime(df_merge_beijing_summer["date_mid"])
+df_merge_beijing_summer.set_index('DateTime',inplace=True)
+
+
+#Photochemical age. Original calculation from Parrish (1992)
+k_toluene = 5.63e-12
+k_benzene = 1.22e-12
+OH_conc = 1.5e6
+df_merge_beijing_summer["toluene_over_benzene_syft"]=  df_merge_beijing_summer["toluene_ppb_syft"] / df_merge_beijing_summer["benzene._ppb_syft"]
+df_merge_beijing_summer["toluene_over_benzene_syft"].values[df_merge_beijing_summer["toluene_over_benzene_syft"] > 5] = np.nan#Remove one big spike
+#benzene/tolluene emission ratio
+benzene_tolluene_ER = df_merge_beijing_summer["toluene_over_benzene_syft"].quantile(0.99)
+
+df_merge_beijing_summer["Photochem_age_h"] = 1/(3600*OH_conc*(k_toluene-k_benzene))  * (np.log(benzene_tolluene_ER) - np.log(df_merge_beijing_summer["toluene_over_benzene_syft"]))
+
+df_merge_beijing_summer["nox_over_noy"] = df_merge_beijing_summer["nox_ppbv"] / df_merge_beijing_summer["noy_ppbv"]
+
+df_merge_beijing_summer = pd.concat([df_merge_beijing_summer, df_beijing_summer_1e6.sum(axis=1)], axis=1).reindex(df_beijing_summer_1e6.index)
+df_merge_beijing_summer.columns.values[-1] = "filters_total"
+
+
