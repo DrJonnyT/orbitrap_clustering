@@ -51,3 +51,76 @@ import pickle
 import os
 os.chdir('C:/Work/Python/Github/Orbitrap_clustering')
 from ae_functions import *
+
+
+# %%Load data
+
+path='C:/Users/mbcx5jt5/Google Drive/Shared_York_Man2/'
+df_beijing_raw, df_beijing_filters, df_beijing_metadata = beijing_load(
+    path + 'BJ_UnAmbNeg9.1.1_20210505-Times_Fixed.xlsx',path + 'BJ_UnAmbNeg9.1.1_20210505-Times_Fixed.xlsx',
+    peaks_sheetname="Compounds",metadata_sheetname="massloading_Beijing")
+
+df_delhi_raw, df_delhi_filters, df_delhi_metadata = delhi_load(
+    path + 'Delhi_Amb3.1_MZ.xlsx',path + 'Delhi/Delhi_massloading_autumn_summer.xlsx')
+
+df_beijing_winter = df_beijing_filters.iloc[0:124].copy()
+df_beijing_summer = df_beijing_filters.iloc[124:].copy()
+
+df_all_filters = df_beijing_filters.append(df_delhi_filters,sort=True).fillna(0)
+df_all_raw = df_beijing_raw.transpose().append(df_delhi_raw.transpose(),sort=True).transpose()
+
+# %%Check largest peaks
+
+#IM STILLL WORKING OUT HOW TO JOIN THEM ALL TOGETHER BEARING IN MIND THAT NOT ALL MOLECULES ARE THE SAME IN THE NAMELISTS
+#YOU END UP WITH SOME AS A LIST, SOME AS [], SOME AS THE RIGHT MOLECULE, ITS QUITE ANNOYING AND I WANT TO JUST USE A FOR LOOP
+#LIKE A NORMAL PERSON
+
+chemform_namelist_beijing = load_chemform_namelist(path + 'Beijing_Amb3.1_MZ.xlsx')
+chemform_namelist_delhi = load_chemform_namelist(path + 'Delhi_Amb3.1_MZ.xlsx')
+
+
+
+#%%
+
+#Augment the data
+df_aug = augment_data_noise(df_beijing_filters,50,1,0)
+
+
+#%%Scale data for input into AE
+scalefactor = 1e6
+pipe_1e6 = FunctionTransformer(lambda x: np.divide(x,scalefactor),inverse_func = lambda x: np.multiply(x,scalefactor))
+pipe_1e6.fit(df_aug)
+scaled_df = pd.DataFrame(pipe_1e6.transform(df_aug),columns=df_beijing_filters.columns)
+ae_input=scaled_df.to_numpy()
+scaled_df_val = pd.DataFrame(pipe_1e6.transform(df_beijing_filters), columns=df_beijing_filters.columns,index=df_beijing_filters.index)
+ae_input_val = scaled_df_val.to_numpy()
+
+minmax_Beijing = MinMaxScaler()
+beijing_filters_minmax = minmax_Beijing.fit_transform(df_beijing_filters.to_numpy())
+
+
+#%%PCA transform the native dataset
+pca7 = PCA(n_components = 7)
+beijing_filters_PCA7_space = pca7.fit_transform(pipe_1e6.transform(df_beijing_filters))
+
+#%%Fuzzy clustering of PCA7 space
+num_clusters = 15
+cntr, u, u0, d, jm, p, fpc = fuzz.cluster.cmeans(
+        beijing_filters_PCA7_space.transpose(), num_clusters, 2, error=0.005, maxiter=1000, init=None)
+cluster_membership = np.argmax(u, axis=0)
+
+#%%t-SNE of data and fuzzy clustering
+#Make an array with the data and cluster centers in
+tsne = TSNE(n_components=2, random_state=0)
+tsne_input = np.concatenate((cntr,beijing_filters_PCA7_space),axis=0)
+tsne_output = tsne.fit_transform(tsne_input)
+tsne_centers, tsne_data = np.array_split(tsne_output,[num_clusters],axis=0)
+
+
+colormap = ['k','blue','red','yellow','gray','purple','aqua','gold','orange']
+
+plt.scatter(tsne_data[:, 0], tsne_data[:, 1],
+            c=cluster_membership,
+            cmap=ListedColormap(colormap[0:num_clusters]))
+plt.scatter(tsne_centers[:,0], tsne_centers[:,1],c='k',marker='x',s=250)
+plt.show()
