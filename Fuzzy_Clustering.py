@@ -45,6 +45,7 @@ import skfuzzy as fuzz
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 
 import pickle
 
@@ -238,4 +239,7 @@ df_merge_beijing_summer["nox_over_noy"] = df_merge_beijing_summer["nox_ppbv"] / 
 df_merge_beijing_summer = pd.concat([df_merge_beijing_summer, df_beijing_summer_1e6.sum(axis=1)], axis=1).reindex(df_beijing_summer_1e6.index)
 df_merge_beijing_summer.columns.values[-1] = "filters_total"
 
-
+#%%
+correlations = df_merge_beijing_summer.corr()
+fig, ax = plt.subplots(figsize=(20,20)) 
+sns.heatmap(correlations,ax=ax)
