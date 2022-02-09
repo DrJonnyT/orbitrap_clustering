@@ -99,12 +99,14 @@ minmax_Beijing = MinMaxScaler()
 beijing_filters_minmax = minmax_Beijing.fit_transform(df_beijing_filters.to_numpy())
 
 
+
+
 #%%PCA transform the native dataset
 pca7 = PCA(n_components = 7)
 beijing_filters_PCA7_space = pca7.fit_transform(pipe_1e6.transform(df_beijing_filters))
 
 #%%Fuzzy clustering of PCA7 space
-num_clusters = 15
+num_clusters = 5
 cntr, u, u0, d, jm, p, fpc = fuzz.cluster.cmeans(
         beijing_filters_PCA7_space.transpose(), num_clusters, 2, error=0.005, maxiter=1000, init=None)
 cluster_membership = np.argmax(u, axis=0)
@@ -123,4 +125,21 @@ plt.scatter(tsne_data[:, 0], tsne_data[:, 1],
             c=cluster_membership,
             cmap=ListedColormap(colormap[0:num_clusters]))
 plt.scatter(tsne_centers[:,0], tsne_centers[:,1],c='k',marker='x',s=250)
+plt.show()
+
+
+
+plt.scatter(tsne_data[:, 0], tsne_data[:, 1],
+            c=u[2,:], cmap='tab20'            )
+
+#%%
+
+pca2 = PCA(n_components = 2)
+pca2_data = pca2.fit_transform(beijing_filters_PCA7_space)
+pca2_centers = pca2.transform(cntr)
+
+plt.scatter(pca2_data[:, 0], pca2_data[:, 1],
+            c=cluster_membership,
+            cmap=ListedColormap(colormap[0:num_clusters]))
+plt.scatter(pca2_centers[:,0], pca2_centers[:,1],c='k',marker='x',s=250)
 plt.show()
