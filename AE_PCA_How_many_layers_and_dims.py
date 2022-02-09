@@ -868,11 +868,6 @@ with localconverter(ro.default_converter + pandas2ri.converter):
   pd_from_r_df = ro.conversion.rpy2py(n_clust_R)
 
 
-
-
-
-
-
 #%%Do fuzzy clustering on the 2-component PCA space
 
 #%%
