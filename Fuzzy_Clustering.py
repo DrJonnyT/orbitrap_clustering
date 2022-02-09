@@ -98,6 +98,26 @@ ae_input_val = scaled_df_val.to_numpy()
 minmax_Beijing = MinMaxScaler()
 beijing_filters_minmax = minmax_Beijing.fit_transform(df_beijing_filters.to_numpy())
 
+#%%Make dataframe with top 70% of data signal
+#Extract the peaks from the real-space data
+peaks_sum = df_beijing_filters.sum()
+#set negative to zero
+peaks_sum = peaks_sum.clip(lower=0)
+peaks_sum_norm = peaks_sum/ peaks_sum.sum()
+peaks_sum_norm_sorted = peaks_sum_norm.sort_values(ascending=False)
+numpeaks_top70 = peaks_sum_norm_sorted.cumsum().searchsorted(0.7)
+peaks_sum_norm_sorted_cumsum = peaks_sum_norm_sorted.cumsum()
+
+fig,ax = plt.subplots(1,figsize=(8,6))
+ax.plot(peaks_sum_norm_sorted_cumsum.values)
+ax.set_xlabel('Peak rank')
+ax.set_ylabel('Cumulative normalised sum')
+plt.show()
+
+#Now pick off the top 70% of peaks
+index_top70 = peaks_sum.nlargest(numpeaks_top70).index
+df_scaled_top70 = scaled_df_val[index_top70]
+scaled_top70_np = df_scaled_top70.to_numpy()
 
 
 
@@ -136,6 +156,49 @@ plt.scatter(tsne_data[:, 0], tsne_data[:, 1],
 
 pca2 = PCA(n_components = 2)
 pca2_data = pca2.fit_transform(beijing_filters_PCA7_space)
+pca2_centers = pca2.transform(cntr)
+
+plt.scatter(pca2_data[:, 0], pca2_data[:, 1],
+            c=cluster_membership,
+            cmap=ListedColormap(colormap[0:num_clusters]))
+plt.scatter(pca2_centers[:,0], pca2_centers[:,1],c='k',marker='x',s=250)
+plt.show()
+
+
+
+
+
+#%%Fuzzy clustering of top70% of dataset
+num_clusters = 5
+cntr, u, u0, d, jm, p, fpc = fuzz.cluster.cmeans(
+        scaled_top70_np.transpose(), num_clusters, 2, error=0.005, maxiter=1000, init=None)
+cluster_membership = np.argmax(u, axis=0)
+
+#%%t-SNE of data and fuzzy clustering
+#Make an array with the data and cluster centers in
+tsne = TSNE(n_components=2, random_state=0)
+tsne_input = np.concatenate((cntr,scaled_top70_np),axis=0)
+tsne_output = tsne.fit_transform(tsne_input)
+tsne_centers, tsne_data = np.array_split(tsne_output,[num_clusters],axis=0)
+
+
+colormap = ['k','blue','red','yellow','gray','purple','aqua','gold','orange']
+
+plt.scatter(tsne_data[:, 0], tsne_data[:, 1],
+            c=cluster_membership,
+            cmap=ListedColormap(colormap[0:num_clusters]))
+plt.scatter(tsne_centers[:,0], tsne_centers[:,1],c='k',marker='x',s=250)
+plt.show()
+
+
+
+# plt.scatter(tsne_data[:, 0], tsne_data[:, 1],
+#             c=u[2,:], cmap='tab20'            )
+
+#%%
+
+pca2 = PCA(n_components = 2)
+pca2_data = pca2.fit_transform(scaled_top70_np)
 pca2_centers = pca2.transform(cntr)
 
 plt.scatter(pca2_data[:, 0], pca2_data[:, 1],
