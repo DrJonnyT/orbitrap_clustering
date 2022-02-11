@@ -18,6 +18,7 @@ import pandas as pd
 import math
 import numpy as np
 import pdb
+import matplotlib.pyplot as plt
 
 import tensorflow.keras.layers as layers
 import tensorflow.keras.optimizers as optimizers
@@ -672,3 +673,28 @@ def augment_data_noise(df,num_copies,sig_noise_pct,t_noise_pct):
     #Efficient version
     #newdf = pd.DataFrame(np.repeat(df.values,num_copies,axis=0)) * np.random.normal(1, sig_noise_pct/100, [num_copies*num_rows,num_cols])
     return newdf
+
+
+
+#Make dataframe with top n% of data signal
+#Extract the peaks from the real-space data
+def extract_top_npercent(df,pct,plot=False):
+    peaks_sum = df.sum()
+    #set negative to zero
+    peaks_sum = peaks_sum.clip(lower=0)
+    peaks_sum_norm = peaks_sum/ peaks_sum.sum()
+    peaks_sum_norm_sorted = peaks_sum_norm.sort_values(ascending=False)
+    numpeaks_top70 = peaks_sum_norm_sorted.cumsum().searchsorted(0.7)
+    peaks_sum_norm_sorted_cumsum = peaks_sum_norm_sorted.cumsum()
+
+    if(plot==True):
+        fig,ax = plt.subplots(1,figsize=(8,6))
+        ax.plot(peaks_sum_norm_sorted_cumsum.values)
+        ax.set_xlabel('Peak rank')
+        ax.set_ylabel('Cumulative normalised sum')
+        plt.show()
+        
+    #Now pick off the top 70% of peaks
+    index_top70 = peaks_sum.nlargest(numpeaks_top70).index
+    df_top70 = df[index_top70]
+    return df_top70

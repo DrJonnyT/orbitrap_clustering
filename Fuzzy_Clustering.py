@@ -102,26 +102,8 @@ minmax_Beijing = MinMaxScaler()
 beijing_filters_minmax = minmax_Beijing.fit_transform(df_beijing_filters.to_numpy())
 
 #%%Make dataframe with top 70% of data signal
-#Extract the peaks from the real-space data
-peaks_sum = df_beijing_filters.sum()
-#set negative to zero
-peaks_sum = peaks_sum.clip(lower=0)
-peaks_sum_norm = peaks_sum/ peaks_sum.sum()
-peaks_sum_norm_sorted = peaks_sum_norm.sort_values(ascending=False)
-numpeaks_top70 = peaks_sum_norm_sorted.cumsum().searchsorted(0.7)
-peaks_sum_norm_sorted_cumsum = peaks_sum_norm_sorted.cumsum()
-
-fig,ax = plt.subplots(1,figsize=(8,6))
-ax.plot(peaks_sum_norm_sorted_cumsum.values)
-ax.set_xlabel('Peak rank')
-ax.set_ylabel('Cumulative normalised sum')
-plt.show()
-
-#Now pick off the top 70% of peaks
-index_top70 = peaks_sum.nlargest(numpeaks_top70).index
-df_scaled_top70 = scaled_df_val[index_top70]
+df_scaled_top70 = extract_top_npercent(scaled_df_val,70,plot=True)
 scaled_top70_np = df_scaled_top70.to_numpy()
-
 
 
 #%%PCA transform the native dataset
