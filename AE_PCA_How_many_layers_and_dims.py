@@ -729,14 +729,7 @@ plt.show()
 #%%Plot all the clustering labels
 
 #%%
-#Relabel cluster labels so the most frequent label is 0, second most is 1 etc
-def relabel(labels):
-    most_frequent_order = np.flip(np.argsort(np.bincount(labels))[-(np.unique(labels).size):])
-    #return most_frequent_order
-    labels_out = labels
-    for lab in range(len(most_frequent_order)):
-        labels_out = np.where(labels == most_frequent_order[lab],lab,labels_out)
-    return labels_out
+
 #%%Plot for 5 clusters
 num_clusters = 5
 agglom = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
@@ -751,15 +744,15 @@ agglom = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
 clustering_ae = agglom.fit(latent_space)
 
 fig,ax = plt.subplots(5,1,figsize=(6,10))
-ax[0].plot(relabel(clustering_real.labels_))
+ax[0].plot(relabel_clusters_most_freq(clustering_real.labels_))
 ax[0].set_title('Real-space cluster labels')
-ax[1].plot(relabel(clustering_top70.labels_))
+ax[1].plot(relabel_clusters_most_freq(clustering_top70.labels_))
 ax[1].set_title('Top 70% of peaks cluster labels')
-ax[2].plot(relabel(clustering_minmax.labels_))
+ax[2].plot(relabel_clusters_most_freq(clustering_minmax.labels_))
 ax[2].set_title('MinMax data cluster labels')
-ax[3].plot(relabel(clustering_pca.labels_))
+ax[3].plot(relabel_clusters_most_freq(clustering_pca.labels_))
 ax[3].set_title('PCA-space cluster labels')
-ax[4].plot(relabel(clustering_ae.labels_))
+ax[4].plot(relabel_clusters_most_freq(clustering_ae.labels_))
 ax[4].set_title('AE latent-space cluster labels')
 plt.tight_layout()
 plt.show()
@@ -813,7 +806,7 @@ best_num = clust_py['Best.nc'][0]
 
 plt.plot(range(2,9),clust_py['All.index'])
 plt.show()
-plt.plot(relabel(clust_py['Best.partition']))
+plt.plot(relabel_clusters_most_freq(clust_py['Best.partition']))
 plt.show()
 
 
@@ -911,7 +904,7 @@ cntr, u, u0, d, jm, p, fpc = fuzz.cluster.cmeans(
 
 
 df_cluster_prob = pd.DataFrame(u)
-fuzzy_labels = relabel(df_cluster_prob.idxmax())
+fuzzy_labels = relabel_clusters_most_freq(df_cluster_prob.idxmax())
 plt.plot(fuzzy_labels)
 
 

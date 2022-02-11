@@ -105,10 +105,12 @@ beijing_filters_minmax = minmax_Beijing.fit_transform(df_beijing_filters.to_nump
 df_scaled_top70 = extract_top_npercent(scaled_df_val,70,plot=True)
 scaled_top70_np = df_scaled_top70.to_numpy()
 
+df_beijing_summer_1e6_top70 = extract_top_npercent(df_beijing_summer_1e6,70)
+
 
 #%%PCA transform the native dataset
 pca7 = PCA(n_components = 7)
-beijing_filters_PCA7_space = pca7.fit_transform(pipe_1e6.transform(df_beijing_filters))
+beijing_filters_PCA7_space = pca7.fit_transform(pipe_1e6.transform(df_beijing_summer_1e6))
 
 #%%Fuzzy clustering of PCA7 space
 num_clusters = 5
@@ -156,18 +158,18 @@ plt.show()
 #%%Fuzzy clustering of top70% of dataset
 num_clusters = 5
 cntr, u, u0, d, jm, p, fpc = fuzz.cluster.cmeans(
-        scaled_top70_np.transpose(), num_clusters, 2, error=0.005, maxiter=1000, init=None)
+        df_beijing_summer_1e6_top70.to_numpy().transpose(), num_clusters, 2, error=0.005, maxiter=1000, init=None)
 cluster_membership = np.argmax(u, axis=0)
 
-df_scaled_top70_clusters_mtx = pd.DataFrame((scaled_top70_np.sum(axis=1) * u).transpose())
-df_scaled_top70_clusters_mtx.columns = [("clust"+str(num)) for num in range(num_clusters)]
-df_scaled_top70_clusters_mtx.index = df_beijing_summer.index
+df_beijing_summer_scaled_top70_clusters_mtx = pd.DataFrame((df_beijing_summer_1e6_top70.to_numpy().sum(axis=1) * u).transpose())
+df_beijing_summer_scaled_top70_clusters_mtx.columns = [("clust"+str(num)) for num in range(num_clusters)]
+df_beijing_summer_scaled_top70_clusters_mtx.index = df_beijing_summer_1e6_top70.index
 
 
 #%%t-SNE of data and fuzzy clustering
 #Make an array with the data and cluster centers in
-tsne = TSNE(n_components=2, random_state=0)
-tsne_input = np.concatenate((cntr,scaled_top70_np),axis=0)
+tsne = TSNE(n_components=2)
+tsne_input = np.concatenate((cntr,df_beijing_summer_1e6_top70.to_numpy()),axis=0)
 tsne_output = tsne.fit_transform(tsne_input)
 tsne_centers, tsne_data = np.array_split(tsne_output,[num_clusters],axis=0)
 
@@ -188,7 +190,7 @@ plt.show()
 #%%
 
 pca2 = PCA(n_components = 2)
-pca2_data = pca2.fit_transform(scaled_top70_np)
+pca2_data = pca2.fit_transform(df_beijing_summer_1e6_top70.to_numpy())
 pca2_centers = pca2.transform(cntr)
 
 plt.scatter(pca2_data[:, 0], pca2_data[:, 1],
@@ -220,9 +222,12 @@ df_merge_beijing_summer["Photochem_age_h"] = 1/(3600*OH_conc*(k_toluene-k_benzen
 df_merge_beijing_summer["nox_over_noy"] = df_merge_beijing_summer["nox_ppbv"] / df_merge_beijing_summer["noy_ppbv"]
 df_merge_beijing_summer["-log10_nox/noy"] = - np.log10(df_merge_beijing_summer["nox_over_noy"])
 
+#%%Add in filters total and fuzzy clusters
 df_merge_beijing_summer = pd.concat([df_merge_beijing_summer, df_beijing_summer_1e6.sum(axis=1)], axis=1).reindex(df_beijing_summer_1e6.index)
 df_merge_beijing_summer['filters_total'] = df_merge_beijing_summer[0]
 df_merge_beijing_summer.drop(columns=0,inplace=True)
+
+a = pd.concat([df_merge_beijing_summer,df_beijing_summer_scaled_top70_clusters_mtx],axis=1)
 
 
 #%%

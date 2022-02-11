@@ -629,6 +629,16 @@ def above_below_10(x):
         return 5
     else:
         return np.nan
+    
+#Relabel cluster labels so the most frequent label is 0, second most is 1 etc
+#labels must be an ndarray
+def relabel_clusters_most_freq(labels):
+    most_frequent_order = np.flip(np.argsort(np.bincount(labels))[-(np.unique(labels).size):])
+    #return most_frequent_order
+    labels_out = labels
+    for lab in range(len(most_frequent_order)):
+        labels_out = np.where(labels == most_frequent_order[lab],lab,labels_out)
+    return labels_out
 
 #%%
 ###############################
