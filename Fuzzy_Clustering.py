@@ -174,11 +174,12 @@ plt.show()
 #%%Fuzzy clustering of top70% of dataset
 num_clusters = 5
 cntr, u, u0, d, jm, p, fpc = fuzz.cluster.cmeans(
-        scaled_top70_np.transpose(), num_clusters, 1.1, error=0.005, maxiter=1000, init=None)
+        scaled_top70_np.transpose(), num_clusters, 2, error=0.005, maxiter=1000, init=None)
 cluster_membership = np.argmax(u, axis=0)
 
 df_scaled_top70_clusters_mtx = pd.DataFrame((scaled_top70_np.sum(axis=1) * u).transpose())
 df_scaled_top70_clusters_mtx.columns = [("clust"+str(num)) for num in range(num_clusters)]
+df_scaled_top70_clusters_mtx.index = df_beijing_summer.index
 
 
 #%%t-SNE of data and fuzzy clustering
@@ -235,11 +236,27 @@ benzene_tolluene_ER = df_merge_beijing_summer["toluene_over_benzene_syft"].quant
 df_merge_beijing_summer["Photochem_age_h"] = 1/(3600*OH_conc*(k_toluene-k_benzene))  * (np.log(benzene_tolluene_ER) - np.log(df_merge_beijing_summer["toluene_over_benzene_syft"]))
 
 df_merge_beijing_summer["nox_over_noy"] = df_merge_beijing_summer["nox_ppbv"] / df_merge_beijing_summer["noy_ppbv"]
+df_merge_beijing_summer["-log10_nox/noy"] = - np.log10(df_merge_beijing_summer["nox_over_noy"])
 
 df_merge_beijing_summer = pd.concat([df_merge_beijing_summer, df_beijing_summer_1e6.sum(axis=1)], axis=1).reindex(df_beijing_summer_1e6.index)
-df_merge_beijing_summer.columns.values[-1] = "filters_total"
+df_merge_beijing_summer['filters_total'] = df_merge_beijing_summer[0]
+df_merge_beijing_summer.drop(columns=0,inplace=True)
+
 
 #%%
 correlations = df_merge_beijing_summer.corr()
 fig, ax = plt.subplots(figsize=(20,20)) 
 sns.heatmap(correlations,ax=ax)
+
+
+
+#%%
+fig, ax1 = plt.subplots()
+ax1.plot(df_beijing_summer_1e6.sum(axis=1))
+ax2 = ax1.twinx()
+ax2.plot(df_merge_beijing_summer['COA_ams'],c='k')
+plt.show()
+
+
+
+
