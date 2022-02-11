@@ -161,9 +161,9 @@ cntr, u, u0, d, jm, p, fpc = fuzz.cluster.cmeans(
         df_beijing_summer_1e6_top70.to_numpy().transpose(), num_clusters, 2, error=0.005, maxiter=1000, init=None)
 cluster_membership = np.argmax(u, axis=0)
 
-df_beijing_summer_scaled_top70_clusters_mtx = pd.DataFrame((df_beijing_summer_1e6_top70.to_numpy().sum(axis=1) * u).transpose())
-df_beijing_summer_scaled_top70_clusters_mtx.columns = [("clust"+str(num)) for num in range(num_clusters)]
-df_beijing_summer_scaled_top70_clusters_mtx.index = df_beijing_summer_1e6_top70.index
+df_beijing_summer_scaled_top70_fclusters_mtx = pd.DataFrame((df_beijing_summer_1e6_top70.to_numpy().sum(axis=1) * u).transpose())
+df_beijing_summer_scaled_top70_fclusters_mtx.columns = [("fclust"+str(num)) for num in range(num_clusters)]
+df_beijing_summer_scaled_top70_fclusters_mtx.index = df_beijing_summer_1e6_top70.index
 
 
 #%%t-SNE of data and fuzzy clustering
@@ -227,14 +227,13 @@ df_merge_beijing_summer = pd.concat([df_merge_beijing_summer, df_beijing_summer_
 df_merge_beijing_summer['filters_total'] = df_merge_beijing_summer[0]
 df_merge_beijing_summer.drop(columns=0,inplace=True)
 
-a = pd.concat([df_merge_beijing_summer,df_beijing_summer_scaled_top70_clusters_mtx],axis=1)
+df_merge_beijing_summer = pd.concat([df_merge_beijing_summer,df_beijing_summer_scaled_top70_fclusters_mtx],axis=1)
 
 
 #%%
-correlations = df_merge_beijing_summer.corr()
+beijing_summer_scaled_top70_fclust_corr = corr_2df(df_merge_beijing_summer,df_beijing_summer_scaled_top70_fclusters_mtx)
 fig, ax = plt.subplots(figsize=(20,20)) 
-sns.heatmap(correlations,ax=ax)
-
+sns.heatmap(beijing_summer_scaled_top70_fclust_corr,ax=ax)
 
 
 #%%
@@ -243,7 +242,3 @@ ax1.plot(df_beijing_summer_1e6.sum(axis=1))
 ax2 = ax1.twinx()
 ax2.plot(df_merge_beijing_summer['COA_ams'],c='k')
 plt.show()
-
-
-
-

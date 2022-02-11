@@ -640,6 +640,11 @@ def relabel_clusters_most_freq(labels):
         labels_out = np.where(labels == most_frequent_order[lab],lab,labels_out)
     return labels_out
 
+
+#Find correlation pearson's R for columns in 2 matrices
+def corr_2df(df1,df2):
+    return pd.concat([df1, df2], axis=1).corr().filter(df2.columns).filter(df1.columns, axis=0)
+
 #%%
 ###############################
 #####DATA PREPROCESSING########
