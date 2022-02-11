@@ -158,7 +158,7 @@ plt.show()
 #%%Fuzzy clustering of top70% of dataset
 num_clusters = 5
 cntr, u, u0, d, jm, p, fpc = fuzz.cluster.cmeans(
-        df_beijing_summer_1e6_top70.to_numpy().transpose(), num_clusters, 2, error=0.005, maxiter=1000, init=None)
+        df_beijing_summer_1e6_top70.to_numpy().transpose(), num_clusters, 3, error=0.005, maxiter=1000, init=None)
 cluster_membership = np.argmax(u, axis=0)
 
 df_beijing_summer_scaled_top70_fclusters_mtx = pd.DataFrame((df_beijing_summer_1e6_top70.to_numpy().sum(axis=1) * u).transpose())
@@ -230,15 +230,77 @@ df_merge_beijing_summer.drop(columns=0,inplace=True)
 df_merge_beijing_summer = pd.concat([df_merge_beijing_summer,df_beijing_summer_scaled_top70_fclusters_mtx],axis=1)
 
 
-#%%
+#%%Testing fclust correlations
 beijing_summer_scaled_top70_fclust_corr = corr_2df(df_merge_beijing_summer,df_beijing_summer_scaled_top70_fclusters_mtx)
 fig, ax = plt.subplots(figsize=(20,20)) 
 sns.heatmap(beijing_summer_scaled_top70_fclust_corr,ax=ax)
 
+plt.scatter(df_beijing_summer_scaled_top70_fclusters_mtx['fclust4'],df_merge_beijing_summer['o3_ppbv'])
+
+
+#%%Testing NMF on top70 dataframe
+from sklearn.decomposition import NMF
+from sklearn import metrics
+
+def get_score(model, data, scorer=metrics.explained_variance_score):
+    """ Estimate performance of the model on the data """
+    prediction = model.inverse_transform(model.transform(data))
+    return scorer(data, prediction)
+
+
+#Work out how many factors
+ks = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
+perfs_train = []
+for k in ks:
+    nmf = NMF(n_components=k).fit(df_beijing_summer_1e6_top70.clip(lower=0))
+    perfs_train.append(get_score(nmf, df_beijing_summer_1e6_top70.clip(lower=0)))
+print(perfs_train)
+
+##Go with 5 for now? But need 13 to explain 90% of variance
 
 #%%
-fig, ax1 = plt.subplots()
-ax1.plot(df_beijing_summer_1e6.sum(axis=1))
+n_components = 10
+model = NMF(n_components=n_components)
+a = model.fit(df_beijing_summer_1e6_top70.clip(lower=0))
+W = model.fit_transform(df_beijing_summer_1e6_top70.clip(lower=0))
+H = model.components_
+
+#1 What is the time series of the 2 factors? Need each factor as a t series
+# Factor0 = H[0]
+# Factor1 = H[1]
+# Factor2 = H[2]
+# Factor2 = H[3]
+# Factor2 = H[4]
+
+# Factor0_mtx = np.outer(W.T[0], H[0])
+# Factor1_mtx = np.outer(W.T[1], H[1])
+# Factor2_mtx = np.outer(W.T[2], H[2])
+# Factor2_mtx = np.outer(W.T[3], H[3])
+# Factor2_mtx = np.outer(W.T[4], H[4])
+
+Factors_totals = np.ndarray(W.shape)
+
+for x in np.arange(n_components):
+    Factors_totals[:,x] =  (np.outer(W.T[x], H[x]).sum(axis=1))
+    
+df_Factor_totals = pd.DataFrame(Factors_totals)
+df_Factor_totals.columns = [("factor"+str(num)) for num in range(n_components)]
+df_Factor_totals.index = df_merge_beijing_summer.index
+
+nmf_aq_corr = corr_2df(df_merge_beijing_summer,df_Factor_totals)
+
+plt.scatter(df_Factor_totals['factor3'],df_merge_beijing_summer['o3_ppbv'])
+
+fig,ax1 = plt.subplots()
+ax1.plot(df_merge_beijing_summer['o3_ppbv'])
 ax2 = ax1.twinx()
-ax2.plot(df_merge_beijing_summer['COA_ams'],c='k')
+ax2.plot(df_merge_beijing_summer['filters_total'],c='k')
 plt.show()
+
+
+Can you not just do nmf all the time on everyting? Make sure that the autoencoder is all positive
+Make sure that the PCA is all positive
+Normalise or whatever
+Run NMF
+Then normalise that output, and use that to scale the total? And then you can correlate. Can you pick out anything useful though? From the factor profile?
+No? Like if you want to work out the useful molecules, can you reasonably do that?
