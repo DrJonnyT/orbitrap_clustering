@@ -222,42 +222,29 @@ def filter_by_chemform(formula):
 #######################
 # %%
 #Function to extract the top n peaks from a cluster in terms of their chemical formula
-def cluster_extract_peaks(cluster, df_peaks,num_peaks,chemform_namelist,printdf=False):
+def cluster_extract_peaks(cluster, df_peaks,num_peaks,chemform_namelist,dp=1,printdf=False):
     #Check they are the same length
     if(cluster.shape[0] != df_peaks.shape[0]):
         print("cluster_extract_peaks returning null: cluster and peaks dataframe must have same number of peaks")
         return np.NaN
         quit()
     
-    #First get top n peaks from the cluster
-    #WAS WORKING
-    # nlargest = cluster.nlargest(num_peaks)
-    # nlargest_pct = nlargest / cluster.sum() * 100
-    # output_df = pd.DataFrame(df_peaks["Formula"][nlargest.index])
-    # output_df["peak_pct"] = nlargest_pct.round(1)
-    #IVE JUST FIXED IT SO THE INDEX OF DF_FILTERS IS A MULTIINDEX
-    #BUT NOW THIS IS KAKCING OUT, WANKWANKWANK
-    #ITS ALMOST THERE I THINK
-    
     nlargest = cluster.nlargest(num_peaks)
     nlargest_pct = nlargest / cluster.sum() * 100
     #pdb.set_trace()
-    output_df = pd.DataFrame()#df_peaks["Formula"][nlargest.index])
+    output_df = pd.DataFrame()
+    nlargest.index = pd.MultiIndex.from_tuples(nlargest.index, names=["first", "second"]) #Make the index multiindex again
     output_df["Formula"] = nlargest.index.get_level_values(0)
-    output_df["peak_pct"] = nlargest_pct.round(1).values
+    output_df.set_index(output_df['Formula'],inplace=True)
+    output_df["peak_pct"] = nlargest_pct.round(dp).values
     
-    # #Get the chemical formula namelist
-    # try:
-    #     chemform_namelist
-    # except NameError:
-    #     #global chemform_namelist = pd.DataFrame()
-    #     chemform_namelist = pd.read_excel(path + 'Beijing_Amb3.1_MZ_noblank.xlsx',engine='openpyxl')[["Formula","Name"]]
-    #     chemform_namelist.set_index(chemform_namelist["Formula"],inplace=True)
-    #pdb.set_trace()
-    #output_df["Name"] = chemform_namelist[output_df.index]
-    pdb.set_trace()
-    output_df["Name"] = chemform_namelist.loc[output_df["Formula"]].values
+    overlap_indices = output_df.index.intersection(chemform_namelist.index)
     
+    output_df["Name"] = chemform_namelist.loc[overlap_indices]
+    
+    output_df.loc[output_df['Name'].isnull(),'Name'] = output_df['Formula']
+    output_df.drop('Formula',axis=1,inplace=True)
+
     if(printdf == True):
         print(output_df)
         
