@@ -101,6 +101,9 @@ df_beijing_summer_1e6 = pd.DataFrame(pipe_1e6.transform(df_beijing_summer),colum
 minmax_Beijing = MinMaxScaler()
 beijing_filters_minmax = minmax_Beijing.fit_transform(df_beijing_filters.to_numpy())
 
+#df scaled so it is normalised by the total from each filter
+df_beijing_summer_norm = df_beijing_summer_1e6.div(df_beijing_summer_1e6.sum(axis=1), axis=0)
+
 #%%Make dataframe with top 70% of data signal
 df_scaled_top70 = extract_top_npercent(scaled_df_val,70,plot=True)
 scaled_top70_np = df_scaled_top70.to_numpy()
