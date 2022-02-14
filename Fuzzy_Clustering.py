@@ -222,6 +222,20 @@ df_merge_beijing_summer["Photochem_age_h"] = 1/(3600*OH_conc*(k_toluene-k_benzen
 df_merge_beijing_summer["nox_over_noy"] = df_merge_beijing_summer["nox_ppbv"] / df_merge_beijing_summer["noy_ppbv"]
 df_merge_beijing_summer["-log10_nox/noy"] = - np.log10(df_merge_beijing_summer["nox_over_noy"])
 
+#AMS fractions
+df_merge_beijing_summer["Total_ams"] = df_merge_beijing_summer["Org_ams"] + df_merge_beijing_summer["NO3_ams"] + df_merge_beijing_summer["SO4_ams"] + df_merge_beijing_summer["NH4_ams"] + df_merge_beijing_summer["Chl_ams"]
+df_merge_beijing_summer["Org_ams_frac"] = df_merge_beijing_summer["Org_ams"] / df_merge_beijing_summer["Total_ams"]
+df_merge_beijing_summer["NO3_ams_frac"] = df_merge_beijing_summer["NO3_ams"] / df_merge_beijing_summer["Total_ams"]
+df_merge_beijing_summer["SO4_ams_frac"] = df_merge_beijing_summer["SO4_ams"] / df_merge_beijing_summer["Total_ams"]
+df_merge_beijing_summer["NH4_ams_frac"] = df_merge_beijing_summer["NH4_ams"] / df_merge_beijing_summer["Total_ams"]
+df_merge_beijing_summer["Chl_ams_frac"] = df_merge_beijing_summer["Chl_ams"] / df_merge_beijing_summer["Total_ams"]
+
+df_merge_beijing_summer["OOA1_ams_frac"] = df_merge_beijing_summer["OOA1_ams"] / df_merge_beijing_summer["Org_ams"]
+df_merge_beijing_summer["OOA2_ams_frac"] = df_merge_beijing_summer["OOA2_ams"] / df_merge_beijing_summer["Org_ams"]
+df_merge_beijing_summer["OOA3_ams_frac"] = df_merge_beijing_summer["OOA3_ams"] / df_merge_beijing_summer["Org_ams"]
+df_merge_beijing_summer["HOA_ams_frac"] = df_merge_beijing_summer["HOA_ams"] / df_merge_beijing_summer["Org_ams"]
+df_merge_beijing_summer["COA_ams_frac"] = df_merge_beijing_summer["COA_ams"] / df_merge_beijing_summer["Org_ams"]
+
 #%%Add in filters total and fuzzy clusters
 df_merge_beijing_summer = pd.concat([df_merge_beijing_summer, df_beijing_summer_1e6.sum(axis=1)], axis=1).reindex(df_beijing_summer_1e6.index)
 df_merge_beijing_summer['filters_total'] = df_merge_beijing_summer[0]
