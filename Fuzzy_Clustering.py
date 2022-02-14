@@ -298,9 +298,20 @@ ax2.plot(df_merge_beijing_summer['filters_total'],c='k')
 plt.show()
 
 
+
+#%%Basic correlations of all mz/RT in the dataset with AQ data
+big_corr_top70 = corr_2df(df_merge_beijing_summer,df_beijing_summer_1e6_top70)
+fig, ax = plt.subplots(figsize=(20,20)) 
+sns.heatmap(big_corr_top70,ax=ax)
+
+
+
+
+
 Can you not just do nmf all the time on everyting? Make sure that the autoencoder is all positive
 Make sure that the PCA is all positive
 Normalise or whatever
 Run NMF
 Then normalise that output, and use that to scale the total? And then you can correlate. Can you pick out anything useful though? From the factor profile?
 No? Like if you want to work out the useful molecules, can you reasonably do that?
+You could use a bad autoencoder? Like just a linear one? And limit the dimensions
