@@ -29,6 +29,18 @@ df_merge_1min.set_index('DateTime',inplace=True)
 df_merge_filtime = pd.read_csv(path+'aphh_summer_filter_aggregate_merge.csv')
 df_merge_filtime["DateTime"] =pd.to_datetime(df_merge_filtime["date_mid"])
 df_merge_filtime.set_index('DateTime',inplace=True)
+df_merge_filtime['date_start'] = pd.to_datetime(df_merge_filtime['date_start'])
+df_merge_filtime['date_end'] = pd.to_datetime(df_merge_filtime['date_end'])
+df_merge_filtime['sample_time_h'] = (df_merge_filtime['date_end'] - df_merge_filtime['date_start']) / np.timedelta64(1, 'h')
+
+#%%Gantt chart of filters
+sample_num = pd.Series(range(1, df_merge_filtime.shape[0]+1))
+sample_num.index = df_merge_filtime.index
+df_merge_filtime['sample_num'] = sample_num
+fig, ax = plt.subplots(1, figsize=(16,6))
+ax.barh(sample_num, df_merge_filtime['sample_time_h'], left=df_merge_filtime['date_start'])
+plt.show()
+
 
 # %%
 df_merge_1min["NOx_age"] = -np.log(df_merge_1min['NOx / ppbv'] / df_merge_1min['Noy / ppbv'])
@@ -186,7 +198,20 @@ ax[2].set(xlabel="")
 
 
 
-# %%
-sns.lineplot(x="TheTime",y="NOx_age", data=df_merge_1min, ci=None)
+# %%Munge 1min data for diurnal analysis
+df_merge_1min_diurnal = df_merge_1min.groupby(df_merge_1min.index.time).describe()
+df_merge_1min_diurnal.index = pd.to_datetime(df_merge_1min_diurnal.index.astype(str))
+
+
+#%%
+fig,ax = plt.subplots(2,1)
+ax1=ax[0]
+ax2=ax[1]
+
+ax1.plot(df_merge_1min_diurnal.index, df_merge_1min_diurnal['NO3_ams']['mean'], linewidth=2.0,c='b',label='NO3')
+ax1.plot(df_merge_1min_diurnal.index, df_merge_1min_diurnal['Org_ams']['mean'], linewidth=2.0,c='g',label='Org')
+ax1.plot(df_merge_1min_diurnal.index, df_merge_1min_diurnal['SO4_ams']['mean'], linewidth=2.0,c='r',label='SO4')
+ax1.plot(df_merge_1min_diurnal.index, df_merge_1min_diurnal['NH4_ams']['mean'], linewidth=2.0,c='o',label='NH4')
+ax1.plot(df_merge_1min_diurnal.index, df_merge_1min_diurnal['Chl_ams']['mean'], linewidth=2.0,c='pink',label='Chl')
 
 
