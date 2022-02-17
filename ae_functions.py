@@ -250,6 +250,25 @@ def cluster_extract_peaks(cluster, df_peaks,num_peaks,chemform_namelist,dp=1,pri
         
     return output_df
 
+#Extract the top n peaks in terms of their R correlation
+def top_corr_peaks(df_corr,chemform_namelist,num_peaks,dp=2):
+    #pdb.set_trace()
+    nlargest = df_corr.nlargest(num_peaks)
+    
+    output_df = pd.DataFrame()
+    nlargest.index = pd.MultiIndex.from_tuples(nlargest.index, names=["first", "second"]) #Make the index multiindex again
+    
+    output_df["Formula"] = nlargest.index.get_level_values(0)
+
+    output_df.set_index(output_df['Formula'],inplace=True)
+    output_df["R"] = nlargest.round(dp).values
+    overlap_indices = output_df.index.intersection(chemform_namelist.index)
+    output_df["Name"] = chemform_namelist.loc[overlap_indices]
+
+    output_df.loc[output_df['Name'].isnull(),'Name'] = output_df['Formula'][0]
+    output_df.drop('Formula',axis=1,inplace=True)
+       
+    return output_df
 
 
 #Load the mz file and generate a list of peak chemical names based off m/z
