@@ -151,6 +151,33 @@ def delhi_load(peaks_filepath,metadata_filepath,peaks_sheetname="DEFAULT",metada
     return df_delhi_raw, df_delhi_filters, df_delhi_metadata
 
 
+
+#Map filter times onto night/morning/midday/afternoon as per Hamilton et al 2021
+def delhi_calc_4time(df_in):
+    dict_hour_to_4time =	{
+      0: "night",
+      1: "night",
+      2: "night",
+      3: "night",
+      4: "night",
+      5: "night",
+      6: "night",
+      7: "morning",
+      8: "morning",
+      9: "morning",
+      10: "morning",
+      11: "midday",
+      12: "midday",
+      13: "afternoon",
+      14: "afternoon",
+      15: "afternoon",
+      16: "afternoon",
+      17: "afternoon",  
+    }
+
+    return df_in.index.hour.to_series().map(dict_hour_to_4time).values
+
+
 #######################
 ####PEAK FILTERING#####
 #######################

@@ -14,6 +14,10 @@ import seaborn as sns
 from datetime import date
 import calendar
 
+import os
+os.chdir('C:/Work/Python/Github/Orbitrap_clustering')
+from ae_functions import *
+
 
 # %%
 #Colab
@@ -28,10 +32,16 @@ df_merge_1min["DateTime"] =pd.to_datetime(df_merge_1min["TheTime"])
 df_merge_1min.set_index('DateTime',inplace=True)
 df_merge_filtime = pd.read_csv(path+'aphh_summer_filter_aggregate_merge.csv')
 df_merge_filtime["DateTime"] =pd.to_datetime(df_merge_filtime["date_mid"])
-df_merge_filtime.set_index('DateTime',inplace=True)
+df_merge_filtime.set_index(pd.to_datetime(df_merge_filtime["date_mid"]),inplace=True)
 df_merge_filtime['date_start'] = pd.to_datetime(df_merge_filtime['date_start'])
 df_merge_filtime['date_end'] = pd.to_datetime(df_merge_filtime['date_end'])
-df_merge_filtime['sample_time_h'] = (df_merge_filtime['date_end'] - df_merge_filtime['date_start']) / np.timedelta64(1, 'h')
+
+
+
+
+df_merge_filtime['4time'] = delhi_calc_4time(df_merge_filtime)
+
+
 
 #%%Gantt chart of filters
 sample_num = pd.Series(range(1, df_merge_filtime.shape[0]+1))
