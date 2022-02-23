@@ -79,6 +79,21 @@ df_all_raw = df_beijing_raw.transpose().append(df_delhi_raw.transpose(),sort=Tru
 chemform_namelist_beijing = load_chemform_namelist(path + 'Beijing_Amb3.1_MZ.xlsx')
 chemform_namelist_delhi = load_chemform_namelist(path + 'Delhi_Amb3.1_MZ.xlsx')
 
+chemform_namelist_all = chemform_namelist_beijing.append(chemform_namelist_delhi)
+chemform_namelist_all = chemform_namelist_all.groupby(['Formula'])['Name'].apply(','.join)#.reset_index()
+#chemform_namelist_all.set_index()
+
+
+
+duplicates = chemform_namelist_all.duplicated()
+
+for molecule in chemform_namelist_all.duplicated().index:
+    if(chemform_namelist_beijing.iloc[molecule] == chemform_namelist_delhi.iloc[molecule]):
+        chemform_namelist_all
+        
+        
+
+
 
 
 #%%
@@ -278,7 +293,7 @@ print(perfs_train)
 #%%
 n_components = 10
 model = NMF(n_components=n_components)
-a = model.fit(df_beijing_summer_1e6_top70.clip(lower=0))
+#a = model.fit(df_beijing_summer_1e6_top70.clip(lower=0))
 W = model.fit_transform(df_beijing_summer_1e6_top70.clip(lower=0))
 H = model.components_
 
@@ -300,13 +315,16 @@ Factors_totals = np.ndarray(W.shape)
 for x in np.arange(n_components):
     Factors_totals[:,x] =  (np.outer(W.T[x], H[x]).sum(axis=1))
     
-df_Factor_totals = pd.DataFrame(Factors_totals)
-df_Factor_totals.columns = [("factor"+str(num)) for num in range(n_components)]
-df_Factor_totals.index = df_merge_beijing_summer.index
+df_factor_totals = pd.DataFrame(Factors_totals)
+df_factor_totals.columns = [("factor"+str(num)) for num in range(n_components)]
+df_factor_totals.index = df_merge_beijing_summer.index
 
-nmf_aq_corr = corr_2df(df_merge_beijing_summer,df_Factor_totals)
+df_factor_fractions = df_factor_totals.div(df_factor_totals.sum(axis=1),axis=0)
+df_factor_fractions.columns = [("factor"+str(num)+"_frac") for num in range(n_components)]
 
-plt.scatter(df_Factor_totals['factor3'],df_merge_beijing_summer['o3_ppbv'])
+nmf_aq_corr = corr_2df(df_merge_beijing_summer,df_factor_totals)
+
+#plt.scatter(df_factor_totals['factor3'],df_merge_beijing_summer['o3_ppbv'])
 
 fig,ax1 = plt.subplots()
 ax1.plot(df_merge_beijing_summer['o3_ppbv'])
@@ -314,17 +332,104 @@ ax2 = ax1.twinx()
 ax2.plot(df_merge_beijing_summer['filters_total'],c='k')
 plt.show()
 
+#%%Generate best correlations for some AMS PMF factors with varying numbers of orbitrap nmf factors
+
+n_components = [2,3,4,5,6,7,8,9,10]
+AMS_PMF_max_R = pd.DataFrame(index=n_components,columns=['HOA_ams','COA_ams','OOA1_ams','OOA2_ams','OOA3_ams'])
+AMS_PMF_min_R = pd.DataFrame(index=n_components,columns=['HOA_ams','COA_ams','OOA1_ams','OOA2_ams','OOA3_ams'])
+AMS_PMF_frac_max_R = pd.DataFrame(index=n_components,columns=['HOA_ams_frac','COA_ams_frac','OOA1_ams_frac','OOA2_ams_frac','OOA3_ams_frac'])
+AMS_PMF_frac_min_R = pd.DataFrame(index=n_components,columns=['HOA_ams_frac','COA_ams_frac','OOA1_ams_frac','OOA2_ams_frac','OOA3_ams_frac'])
+
+for nfact in n_components:
+    model = NMF(n_components=nfact)
+    W = model.fit_transform(df_beijing_summer_1e6_top70.clip(lower=0))
+    H = model.components_
+    Factors_totals = np.ndarray(W.shape)
+
+    for x in np.arange(nfact):
+        Factors_totals[:,x] =  (np.outer(W.T[x], H[x]).sum(axis=1))
+    
+    df_factor_totals = pd.DataFrame(Factors_totals)
+    df_factor_totals.columns = [("factor"+str(num)) for num in range(nfact)]
+    df_factor_totals.index = df_merge_beijing_summer.index
+
+    df_factor_fractions = df_factor_totals.div(df_factor_totals.sum(axis=1),axis=0)
+    df_factor_fractions.columns = [("factor"+str(num)+"_frac") for num in range(nfact)]
+
+    nmf_aq_corr = corr_2df(df_merge_beijing_summer,df_factor_totals)
+    
+    AMS_PMF_max_R.loc[nfact]['HOA_ams'] = corr_2df(pd.DataFrame(df_merge_beijing_summer['HOA_ams']),df_factor_totals).max().max()
+    AMS_PMF_max_R.loc[nfact]['COA_ams'] = corr_2df(pd.DataFrame(df_merge_beijing_summer['COA_ams']),df_factor_totals).max().max()
+    AMS_PMF_max_R.loc[nfact]['OOA1_ams'] = corr_2df(pd.DataFrame(df_merge_beijing_summer['OOA1_ams']),df_factor_totals).max().max()
+    AMS_PMF_max_R.loc[nfact]['OOA2_ams'] = corr_2df(pd.DataFrame(df_merge_beijing_summer['OOA2_ams']),df_factor_totals).max().max()
+    AMS_PMF_max_R.loc[nfact]['OOA3_ams'] = corr_2df(pd.DataFrame(df_merge_beijing_summer['OOA3_ams']),df_factor_totals).max().max()
+    
+    AMS_PMF_min_R.loc[nfact]['HOA_ams'] = corr_2df(pd.DataFrame(df_merge_beijing_summer['HOA_ams']),df_factor_totals).min().min()
+    AMS_PMF_min_R.loc[nfact]['COA_ams'] = corr_2df(pd.DataFrame(df_merge_beijing_summer['COA_ams']),df_factor_totals).min().min()
+    AMS_PMF_min_R.loc[nfact]['OOA1_ams'] = corr_2df(pd.DataFrame(df_merge_beijing_summer['OOA1_ams']),df_factor_totals).min().min()
+    AMS_PMF_min_R.loc[nfact]['OOA2_ams'] = corr_2df(pd.DataFrame(df_merge_beijing_summer['OOA2_ams']),df_factor_totals).min().min()
+    AMS_PMF_min_R.loc[nfact]['OOA3_ams'] = corr_2df(pd.DataFrame(df_merge_beijing_summer['OOA3_ams']),df_factor_totals).min().min()
+    
+    AMS_PMF_frac_max_R.loc[nfact]['HOA_ams_frac'] = corr_2df(pd.DataFrame(df_merge_beijing_summer['HOA_ams_frac']),df_factor_totals).max().max()
+    AMS_PMF_frac_max_R.loc[nfact]['COA_ams_frac'] = corr_2df(pd.DataFrame(df_merge_beijing_summer['COA_ams_frac']),df_factor_totals).max().max()
+    AMS_PMF_frac_max_R.loc[nfact]['OOA1_ams_frac'] = corr_2df(pd.DataFrame(df_merge_beijing_summer['OOA1_ams_frac']),df_factor_totals).max().max()
+    AMS_PMF_frac_max_R.loc[nfact]['OOA2_ams_frac'] = corr_2df(pd.DataFrame(df_merge_beijing_summer['OOA2_ams_frac']),df_factor_totals).max().max()
+    AMS_PMF_frac_max_R.loc[nfact]['OOA3_ams_frac'] = corr_2df(pd.DataFrame(df_merge_beijing_summer['OOA3_ams_frac']),df_factor_totals).max().max()
+
+    AMS_PMF_frac_min_R.loc[nfact]['HOA_ams_frac'] = corr_2df(pd.DataFrame(df_merge_beijing_summer['HOA_ams_frac']),df_factor_totals).min().min()
+    AMS_PMF_frac_min_R.loc[nfact]['COA_ams_frac'] = corr_2df(pd.DataFrame(df_merge_beijing_summer['COA_ams_frac']),df_factor_totals).min().min()
+    AMS_PMF_frac_min_R.loc[nfact]['OOA1_ams_frac'] = corr_2df(pd.DataFrame(df_merge_beijing_summer['OOA1_ams_frac']),df_factor_totals).min().min()
+    AMS_PMF_frac_min_R.loc[nfact]['OOA2_ams_frac'] = corr_2df(pd.DataFrame(df_merge_beijing_summer['OOA2_ams_frac']),df_factor_totals).min().min()
+    AMS_PMF_frac_min_R.loc[nfact]['OOA3_ams_frac'] = corr_2df(pd.DataFrame(df_merge_beijing_summer['OOA3_ams_frac']),df_factor_totals).min().min()
+
+#    AMS_PMF_max_R2 = AMS_PMF_max_R**2
+#    AMS_PMF_frac_max_R2 = AMS_PMF_frac_max_R**2
+    
+
+#%%Plot correlation between orbitrap and AMS PMF
+AMS_PMF_max_R.plot(figsize=(10,8),ylabel='Max R', xlabel='Num orbitrap components',title='Best correlation R between AMS and Orbitrap (top 70%) PMF components')
+AMS_PMF_frac_max_R.plot(figsize=(10,8),ylabel='Max R', xlabel='Num orbitrap components',title='Best correlation R between AMS and Orbitrap (top 70%) fractional PMF components')
+
+
+AMS_PMF_min_R.plot(figsize=(10,8),ylabel='Max R', xlabel='Num orbitrap components',title='Best correlation R between AMS and Orbitrap (top 70%) PMF components')
+AMS_PMF_frac_min_R.plot(figsize=(10,8),ylabel='Max R', xlabel='Num orbitrap components',title='Best correlation R between AMS and Orbitrap (top 70%) fractional PMF components')
+
 
 
 #%%Basic correlations of all mz/RT in the dataset with AQ data
 big_corr_top70 = corr_2df(df_merge_beijing_summer,df_beijing_summer_1e6_top70)
-fig, ax = plt.subplots(figsize=(20,20)) 
+fig, ax = plt.subplots(figsize=(50,50)) 
 sns.heatmap(big_corr_top70,ax=ax)
 
+big_corr_norm = corr_2df(df_merge_beijing_summer,df_beijing_summer_norm)
+fig, ax = plt.subplots(figsize=(50,50)) 
+sns.heatmap(big_corr_norm,ax=ax)
+
+frac_corr_norm = corr_2df(df_merge_beijing_summer.filter(like='frac'),df_beijing_summer_norm)
+fig, ax = plt.subplots(figsize=(150,8)) 
+sns.heatmap(frac_corr_norm,ax=ax)
+
+#Find the molecules that best correlate with the fractions of the PMF factors
+HOA_peaks_frac = frac_corr_norm.loc['HOA_ams_frac']
+HOA_peaks_frac = top_corr_peaks(HOA_peaks_frac,chemform_namelist_all,50,dp=2)
+
+COA_peaks_frac = frac_corr_norm.loc['COA_ams_frac']
+COA_peaks_frac = top_corr_peaks(COA_peaks_frac,chemform_namelist_all,50,dp=2)
+
+OOA1_peaks_frac = frac_corr_norm.loc['OOA1_ams_frac']
+OOA1_peaks_frac = top_corr_peaks(OOA1_peaks_frac,chemform_namelist_all,50,dp=2)
+OOA2_peaks_frac = frac_corr_norm.loc['OOA2_ams_frac']
+OOA2_peaks_frac = top_corr_peaks(OOA2_peaks_frac,chemform_namelist_all,50,dp=2)
+OOA3_peaks_frac = frac_corr_norm.loc['OOA3_ams_frac']
+OOA3_peaks_frac = top_corr_peaks(OOA3_peaks_frac,chemform_namelist_all,50,dp=2)
+
+
+pmf_corr = corr_2df(df_merge_beijing_summer.filter(regex="_ams$"),df_factor_totals)
+pmf_frac_corr = corr_2df(df_merge_beijing_summer.filter(like='frac'),df_factor_fractions)
 
 
 
-
+#%%
 Can you not just do nmf all the time on everyting? Make sure that the autoencoder is all positive
 Make sure that the PCA is all positive
 Normalise or whatever
