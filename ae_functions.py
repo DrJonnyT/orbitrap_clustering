@@ -153,8 +153,8 @@ def delhi_load(peaks_filepath,metadata_filepath,peaks_sheetname="DEFAULT",metada
 
 
 #Map filter times onto night/morning/midday/afternoon as per Hamilton et al 2021
-def delhi_calc_4time(df_in):
-    dict_hour_to_4time =	{
+def delhi_calc_time_cat(df_in):
+    dict_hour_to_time_cat =	{
       0: "Night",
       1: "Night",
       2: "Night",
@@ -174,8 +174,8 @@ def delhi_calc_4time(df_in):
       16: "Afternoon",
       17: "Afternoon",  
     }
-
-    return df_in.index.hour.to_series().map(dict_hour_to_4time).values
+    
+    return pd.Categorical(df_in.index.hour.to_series().map(dict_hour_to_time_cat).values)
 
 
 #######################
