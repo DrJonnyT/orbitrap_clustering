@@ -224,6 +224,9 @@ plt.show()
 df_merge_beijing_summer = pd.read_csv(path+'aphh_summer_filter_aggregate_merge.csv')
 df_merge_beijing_summer["DateTime"] =pd.to_datetime(df_merge_beijing_summer["date_mid"])
 df_merge_beijing_summer.set_index('DateTime',inplace=True)
+df_merge_beijing_summer['date_start'] = pd.to_datetime(df_merge_beijing_summer['date_start'])
+df_merge_beijing_summer['date_end'] = pd.to_datetime(df_merge_beijing_summer['date_end'])
+df_merge_beijing_summer['time_cat'] = pd.Categorical(delhi_calc_time_cat(df_merge_beijing_summer),['Morning','Midday' ,'Afternoon','Night'], ordered=True)
 
 
 #Photochemical age. Original calculation from Parrish (1992)
@@ -235,7 +238,7 @@ df_merge_beijing_summer["toluene_over_benzene_syft"].values[df_merge_beijing_sum
 #benzene/tolluene emission ratio
 benzene_tolluene_ER = df_merge_beijing_summer["toluene_over_benzene_syft"].quantile(0.99)
 
-df_merge_beijing_summer["Photochem_age_h"] = 1/(3600*OH_conc*(k_toluene-k_benzene))  * (np.log(benzene_tolluene_ER) - np.log(df_merge_beijing_summer["toluene_over_benzene_syft"]))
+df_merge_beijing_summer["photochem_age_h"] = 1/(3600*OH_conc*(k_toluene-k_benzene))  * (np.log(benzene_tolluene_ER) - np.log(df_merge_beijing_summer["toluene_over_benzene_syft"]))
 
 df_merge_beijing_summer["nox_over_noy"] = df_merge_beijing_summer["nox_ppbv"] / df_merge_beijing_summer["noy_ppbv"]
 df_merge_beijing_summer["-log10_nox/noy"] = - np.log10(df_merge_beijing_summer["nox_over_noy"])
@@ -259,16 +262,17 @@ df_merge_beijing_summer = pd.concat([df_merge_beijing_summer, df_beijing_summer_
 df_merge_beijing_summer['filters_total'] = df_merge_beijing_summer[0]
 df_merge_beijing_summer.drop(columns=0,inplace=True)
 
-df_merge_beijing_summer = pd.concat([df_merge_beijing_summer,df_beijing_summer_scaled_top70_fclusters_mtx],axis=1)
+#df_merge_beijing_summer = pd.concat([df_merge_beijing_summer,df_beijing_summer_scaled_top70_fclusters_mtx],axis=1)
 
 
 #%%Testing fclust correlations
 beijing_summer_scaled_top70_fclust_corr = corr_2df(df_merge_beijing_summer,df_beijing_summer_scaled_top70_fclusters_mtx)
-fig, ax = plt.subplots(figsize=(20,20)) 
+fig, ax = plt.subplots(figsize=(20,25)) 
 sns.heatmap(beijing_summer_scaled_top70_fclust_corr,ax=ax)
+plt.show()
 
-plt.scatter(df_beijing_summer_scaled_top70_fclusters_mtx['fclust4'],df_merge_beijing_summer['o3_ppbv'])
-
+plt.scatter(df_beijing_summer_scaled_top70_fclusters_mtx['fclust4'],df_merge_beijing_summer['photochem_age_h'])
+plt.show()
 
 #%%Testing NMF on top70 dataframe
 from sklearn.decomposition import NMF
@@ -290,8 +294,8 @@ print(perfs_train)
 
 ##Go with 5 for now? But need 13 to explain 90% of variance
 
-#%%
-n_components = 10
+#%%5-component Orbitrap PMF
+n_components = 5
 model = NMF(n_components=n_components)
 #a = model.fit(df_beijing_summer_1e6_top70.clip(lower=0))
 W = model.fit_transform(df_beijing_summer_1e6_top70.clip(lower=0))
@@ -324,13 +328,18 @@ df_factor_fractions.columns = [("factor"+str(num)+"_frac") for num in range(n_co
 
 nmf_aq_corr = corr_2df(df_merge_beijing_summer,df_factor_totals)
 
+fig, ax = plt.subplots(figsize=(20,25)) 
+sns.heatmap(nmf_aq_corr,ax=ax)
+plt.show()
+
+
 #plt.scatter(df_factor_totals['factor3'],df_merge_beijing_summer['o3_ppbv'])
 
-fig,ax1 = plt.subplots()
-ax1.plot(df_merge_beijing_summer['o3_ppbv'])
-ax2 = ax1.twinx()
-ax2.plot(df_merge_beijing_summer['filters_total'],c='k')
-plt.show()
+# fig,ax1 = plt.subplots()
+# ax1.plot(df_merge_beijing_summer['o3_ppbv'])
+# ax2 = ax1.twinx()
+# ax2.plot(df_merge_beijing_summer['filters_total'],c='k')
+# plt.show()
 
 #%%Generate best correlations for some AMS PMF factors with varying numbers of orbitrap nmf factors
 
@@ -387,12 +396,12 @@ for nfact in n_components:
     
 
 #%%Plot correlation between orbitrap and AMS PMF
-AMS_PMF_max_R.plot(figsize=(10,8),ylabel='Max R', xlabel='Num orbitrap components',title='Best correlation R between AMS and Orbitrap (top 70%) PMF components')
-AMS_PMF_frac_max_R.plot(figsize=(10,8),ylabel='Max R', xlabel='Num orbitrap components',title='Best correlation R between AMS and Orbitrap (top 70%) fractional PMF components')
+AMS_PMF_max_R.plot(figsize=(10,6),ylabel='Max R', xlabel='Num orbitrap components',title='Best correlation R between AMS and Orbitrap (top 70%) PMF components')
+AMS_PMF_frac_max_R.plot(figsize=(10,6),ylabel='Max R', xlabel='Num orbitrap components',title='Best correlation R between AMS and Orbitrap (top 70%) fractional PMF components')
 
 
-AMS_PMF_min_R.plot(figsize=(10,8),ylabel='Max R', xlabel='Num orbitrap components',title='Best correlation R between AMS and Orbitrap (top 70%) PMF components')
-AMS_PMF_frac_min_R.plot(figsize=(10,8),ylabel='Max R', xlabel='Num orbitrap components',title='Best correlation R between AMS and Orbitrap (top 70%) fractional PMF components')
+AMS_PMF_min_R.plot(figsize=(10,6),ylabel='Min R', xlabel='Num orbitrap components',title='Best anticorrelation R between AMS and Orbitrap (top 70%) PMF components')
+AMS_PMF_frac_min_R.plot(figsize=(10,6),ylabel='Min R', xlabel='Num orbitrap components',title='Best anticorrelation R between AMS and Orbitrap (top 70%) fractional PMF components')
 
 
 
@@ -428,6 +437,73 @@ pmf_corr = corr_2df(df_merge_beijing_summer.filter(regex="_ams$"),df_factor_tota
 pmf_frac_corr = corr_2df(df_merge_beijing_summer.filter(like='frac'),df_factor_fractions)
 
 
+
+
+
+#%%Calculate PMF and fclust fractions by time of day classification
+# %%Munge Orbitrap nmf data for time_cat analysis
+#df_beijing_summer_scaled_top70_fclusters_cat_stats = df_beijing_summer_scaled_top70_fclusters_mtx.groupby(df_merge_beijing_summer['time_cat']).describe()
+#df_beijing_summer_scaled_top70_nmf_cat_stats = df_factor_fractions.groupby(df_merge_beijing_summer['time_cat']).describe()
+
+df_fclust_cat_mean = df_beijing_summer_scaled_top70_fclusters_mtx[['fclust0','fclust1','fclust2','fclust3','fclust4']].groupby(df_merge_beijing_summer['time_cat']).mean()
+df_fclust_cat_std = df_beijing_summer_scaled_top70_fclusters_mtx[['fclust0','fclust1','fclust2','fclust3','fclust4']].groupby(df_merge_beijing_summer['time_cat']).std()
+df_fclust_cat_mean_norm = df_fclust_cat_mean.div(df_fclust_cat_mean.sum(axis=1),axis=0)
+
+df_nmf_cat_mean = df_factor_totals[['factor0','factor1','factor2','factor3','factor4']].groupby(df_merge_beijing_summer['time_cat']).mean()
+df_nmf_cat_std = df_factor_totals[['factor0','factor1','factor2','factor3','factor4']].groupby(df_merge_beijing_summer['time_cat']).std()
+df_nmf_cat_mean_norm = df_nmf_cat_mean.div(df_nmf_cat_mean.sum(axis=1),axis=0)
+
+
+
+
+
+#%%nmf Line plot
+fig,ax = plt.subplots(2,1,figsize=(7,10))
+ax1=ax[0]
+ax2=ax[1]
+ax1.set_title('Orbitrap PMF, 5 factors')
+
+ax1.plot(df_nmf_cat_mean.index, df_nmf_cat_mean['factor0'], linewidth=5,c='b',label='factor0')
+ax1.plot(df_nmf_cat_mean.index, df_nmf_cat_mean['factor1'], linewidth=5,c='lime',label='factor1')
+ax1.plot(df_nmf_cat_mean.index, df_nmf_cat_mean['factor2'], linewidth=5,c='r',label='factor2')
+ax1.plot(df_nmf_cat_mean.index, df_nmf_cat_mean['factor3'], linewidth=5,c='orange',label='factor3')
+ax1.plot(df_nmf_cat_mean.index, df_nmf_cat_mean['factor4'], linewidth=5,c='pink',label='factor4')
+ax1.set_ylabel('µg m$^{-3}$')
+ax1.set_ylim(0,)
+ax1.legend(bbox_to_anchor=(1.22, 0.7))
+
+ax2.stackplot(df_nmf_cat_mean.index,df_nmf_cat_mean_norm['factor0'], df_nmf_cat_mean_norm['factor1'],
+              df_nmf_cat_mean_norm['factor2'],df_nmf_cat_mean_norm['factor3'],
+              df_nmf_cat_mean_norm['factor4'], labels=['factor0','factor1','factor2','factor3','factor4'],
+              colors=['b','lime','r','orange','pink'])
+ax2.set_ylabel('Fraction')
+ax2.set_ylim(0,)
+ax2.legend(bbox_to_anchor=(1.22, 0.7))
+
+
+
+#%%fclust Line plot
+fig,ax = plt.subplots(2,1,figsize=(7,10))
+ax1=ax[0]
+ax2=ax[1]
+ax1.set_title('Orbitrap PMF, 5 fclusts')
+
+ax1.plot(df_fclust_cat_mean.index, df_fclust_cat_mean['fclust0'], linewidth=5,c='b',label='fclust0')
+ax1.plot(df_fclust_cat_mean.index, df_fclust_cat_mean['fclust1'], linewidth=5,c='lime',label='fclust1')
+ax1.plot(df_fclust_cat_mean.index, df_fclust_cat_mean['fclust2'], linewidth=5,c='r',label='fclust2')
+ax1.plot(df_fclust_cat_mean.index, df_fclust_cat_mean['fclust3'], linewidth=5,c='orange',label='fclust3')
+ax1.plot(df_fclust_cat_mean.index, df_fclust_cat_mean['fclust4'], linewidth=5,c='pink',label='fclust4')
+ax1.set_ylabel('µg m$^{-3}$')
+ax1.set_ylim(0,)
+ax1.legend(bbox_to_anchor=(1.22, 0.7))
+
+ax2.stackplot(df_fclust_cat_mean.index,df_fclust_cat_mean_norm['fclust0'], df_fclust_cat_mean_norm['fclust1'],
+              df_fclust_cat_mean_norm['fclust2'],df_fclust_cat_mean_norm['fclust3'],
+              df_fclust_cat_mean_norm['fclust4'], labels=['fclust0','fclust1','fclust2','fclust3','fclust4'],
+              colors=['b','lime','r','orange','pink'])
+ax2.set_ylabel('Fraction')
+ax2.set_ylim(0,)
+ax2.legend(bbox_to_anchor=(1.22, 0.7))
 
 #%%
 Can you not just do nmf all the time on everyting? Make sure that the autoencoder is all positive
