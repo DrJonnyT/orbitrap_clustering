@@ -676,7 +676,16 @@ def relabel_clusters_most_freq(labels):
 
 #Find correlation pearson's R for columns in 2 matrices
 def corr_2df(df1,df2):
-    return pd.concat([df1, df2], axis=1).corr().filter(df2.columns).filter(df1.columns, axis=0)
+    #pdb.set_trace()
+    #Check for columns with duplicate names
+    df_duplicates = df1[df1.columns.intersection(df2.columns)]
+    if(df_duplicates.shape[1] > 0):
+        print("corr_2df returning None. Duplicate column names found in df1 and df2. Duplicates are:")
+        print(df_duplicates.columns)
+        print("")
+        return None
+    else:
+        return pd.concat([df1, df2], axis=1).corr().filter(df2.columns).filter(df1.columns, axis=0)
 
 #%%
 ###############################
