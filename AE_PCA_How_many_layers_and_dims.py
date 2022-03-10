@@ -126,6 +126,9 @@ beijing_summer_minmax = minmax.fit_transform(ae_input_val)
 
 df_beijing_summer_1e6 = pd.DataFrame(pipe_1e6.transform(df_beijing_summer),columns=df_beijing_summer.columns)
 
+#df scaled so it is normalised by the total from each filter
+df_beijing_summer_norm = df_beijing_summer_1e6.div(df_beijing_summer_1e6.sum(axis=1), axis=0)
+
 
 #%%Now compare loss for different latent dimensions
 #This is NOT using kerastuner, and is using log-spaced intermediate layers
@@ -368,14 +371,16 @@ df_merge_beijing_summer = pd.concat([df_merge_beijing_summer, df_beijing_summer_
 df_merge_beijing_summer['filters_total'] = df_merge_beijing_summer[0]
 df_merge_beijing_summer.drop(columns=0,inplace=True)
 
+df_beijing_summer_time_cat = pd.DataFrame(pd.Categorical(delhi_calc_time_cat(df_beijing_summer),['Morning','Midday' ,'Afternoon','Night'], ordered=True),columns=['time_cat'],index=df_beijing_summer.index)
+
 #%%Diurnal plots of AE latent space cluster labels
 #Try 5 clusters initially
 agglom = AgglomerativeClustering(n_clusters = 5, linkage = 'ward')
 clustering = agglom.fit(latent_space)
-c = clustering.labels_
+c = relabel_clusters_most_freq(clustering.labels_)
 
-a = pd.DataFrame(c,columns=['clust'],index=df_merge_beijing_summer.index)
-b = pd.DataFrame(df_merge_beijing_summer['time_cat'])
+a = pd.DataFrame(c,columns=['clust'],index=df_beijing_summer_time_cat.index)
+b = pd.DataFrame(df_beijing_summer_time_cat['time_cat'])
 
 df_clust_cat_counts = a.groupby(b['time_cat'])['clust'].value_counts(normalize=True).unstack()
 df_cat_clust_counts = b.groupby(a['clust'])['time_cat'].value_counts(normalize=True).unstack()
@@ -385,7 +390,7 @@ fig,ax = plt.subplots(2,1,figsize=(7,10))
 ax1=ax[0]
 ax2=ax[1]
 df_clust_cat_counts.plot.area(ax=ax1)
-df_cat_clust_counts.plot.bar(ax=ax2,stacked=True)
+df_cat_clust_counts.plot.bar(ax=ax2,stacked=True,colormap='RdBu',width=0.8)
 ax1.set_title('AE latent space, 5 clusters')
 ax1.set_ylabel('Fraction')
 ax2.set_ylabel('Fraction')
@@ -393,6 +398,11 @@ ax1.set_xlabel('')
 ax2.set_xlabel('Cluster number')
 ax1.legend(title='Cluster number',bbox_to_anchor=(1.25, 0.7))
 ax2.legend(bbox_to_anchor=(1.25, 0.7))
+handles, labels = ax1.get_legend_handles_labels()
+ax1.legend(reversed(handles), reversed(labels),title='Cluster number', bbox_to_anchor=(1.25, 0.7))
+handles, labels = ax2.get_legend_handles_labels()
+ax2.legend(reversed(handles), reversed(labels), bbox_to_anchor=(1.25, 0.65))
+
 plt.show()
 
 
@@ -510,7 +520,37 @@ for num_clusters in range(2,10):
     
     
 
+#%%Diurnal plots of PCA7 latent space cluster labels
+#Try 5 clusters initially
+agglom = AgglomerativeClustering(n_clusters = 5, linkage = 'ward')
+clustering = agglom.fit(PCA_space)
+c = relabel_clusters_most_freq(clustering.labels_)
 
+a = pd.DataFrame(c,columns=['clust'],index=df_merge_beijing_summer.index)
+b = pd.DataFrame(df_merge_beijing_summer['time_cat'])
+
+df_clust_cat_counts = a.groupby(b['time_cat'])['clust'].value_counts(normalize=True).unstack()
+df_cat_clust_counts = b.groupby(a['clust'])['time_cat'].value_counts(normalize=True).unstack()
+
+
+fig,ax = plt.subplots(2,1,figsize=(7,10))
+ax1=ax[0]
+ax2=ax[1]
+df_clust_cat_counts.plot.area(ax=ax1)
+df_cat_clust_counts.plot.bar(ax=ax2,stacked=True,colormap='RdBu',width=0.8)
+ax1.set_title('PCA space (7 components), 5 clusters')
+ax1.set_ylabel('Fraction')
+ax2.set_ylabel('Fraction')
+ax1.set_xlabel('')
+ax2.set_xlabel('Cluster number')
+ax1.legend(title='Cluster number',bbox_to_anchor=(1.25, 0.7))
+ax2.legend(bbox_to_anchor=(1.25, 0.7))
+handles, labels = ax1.get_legend_handles_labels()
+ax1.legend(reversed(handles), reversed(labels),title='Cluster number', bbox_to_anchor=(1.25, 0.7))
+handles, labels = ax2.get_legend_handles_labels()
+ax2.legend(reversed(handles), reversed(labels), bbox_to_anchor=(1.25, 0.65))
+
+plt.show()
 
 
 
@@ -585,7 +625,37 @@ for num_clusters in range(2,10):
     plt.show()
     
     
-    
+#%%Diurnal plots of real space cluster labels
+#Try 5 clusters initially
+agglom = AgglomerativeClustering(n_clusters = 5, linkage = 'ward')
+clustering = agglom.fit(ae_input_val)
+c = relabel_clusters_most_freq(clustering.labels_)
+
+a = pd.DataFrame(c,columns=['clust'],index=df_beijing_summer_time_cat.index)
+b = pd.DataFrame(df_beijing_summer_time_cat['time_cat'])
+
+df_clust_cat_counts = a.groupby(b['time_cat'])['clust'].value_counts(normalize=True).unstack()
+df_cat_clust_counts = b.groupby(a['clust'])['time_cat'].value_counts(normalize=True).unstack()
+
+
+fig,ax = plt.subplots(2,1,figsize=(7,10))
+ax1=ax[0]
+ax2=ax[1]
+df_clust_cat_counts.plot.area(ax=ax1)
+df_cat_clust_counts.plot.bar(ax=ax2,stacked=True,colormap='RdBu',width=0.8)
+ax1.set_title('Real space data, 5 clusters')
+ax1.set_ylabel('Fraction')
+ax2.set_ylabel('Fraction')
+ax1.set_xlabel('')
+ax2.set_xlabel('Cluster number')
+ax1.legend(title='Cluster number',bbox_to_anchor=(1.25, 0.7))
+ax2.legend(bbox_to_anchor=(1.25, 0.7))
+handles, labels = ax1.get_legend_handles_labels()
+ax1.legend(reversed(handles), reversed(labels),title='Cluster number', bbox_to_anchor=(1.25, 0.7))
+handles, labels = ax2.get_legend_handles_labels()
+ax2.legend(reversed(handles), reversed(labels), bbox_to_anchor=(1.25, 0.65))
+
+plt.show()
     
     
 #%%Now do some clustering on the top 70% of real-space data
@@ -593,7 +663,7 @@ for num_clusters in range(2,10):
 #CLUSTERING AND FACTOR ANALYSIS OF top 70% of real-space data DATA
 ############################################################################################
 #Extract the peaks from the real-space data
-peaks_sum = df_beijing_filters.sum()
+peaks_sum = df_beijing_summer.sum()
 #set negative to zero
 peaks_sum = peaks_sum.clip(lower=0)
 peaks_sum_norm = peaks_sum/ peaks_sum.sum()
@@ -680,7 +750,37 @@ for num_clusters in range(2,10):
 
 
 
+#%%Diurnal plots of top 70% of real space cluster labels
+#Try 5 clusters initially
+agglom = AgglomerativeClustering(n_clusters = 5, linkage = 'ward')
+clustering = agglom.fit(scaled_top70_np)
+c = relabel_clusters_most_freq(clustering.labels_)
 
+a = pd.DataFrame(c,columns=['clust'],index=df_beijing_summer_time_cat.index)
+b = pd.DataFrame(df_beijing_summer_time_cat['time_cat'])
+
+df_clust_cat_counts = a.groupby(b['time_cat'])['clust'].value_counts(normalize=True).unstack()
+df_cat_clust_counts = b.groupby(a['clust'])['time_cat'].value_counts(normalize=True).unstack()
+
+
+fig,ax = plt.subplots(2,1,figsize=(7,10))
+ax1=ax[0]
+ax2=ax[1]
+df_clust_cat_counts.plot.area(ax=ax1)
+df_cat_clust_counts.plot.bar(ax=ax2,stacked=True,colormap='RdBu',width=0.8)
+ax1.set_title('Top 70% of real space data, 5 clusters')
+ax1.set_ylabel('Fraction')
+ax2.set_ylabel('Fraction')
+ax1.set_xlabel('')
+ax2.set_xlabel('Cluster number')
+ax1.legend(title='Cluster number',bbox_to_anchor=(1.25, 0.7))
+ax2.legend(bbox_to_anchor=(1.25, 0.7))
+handles, labels = ax1.get_legend_handles_labels()
+ax1.legend(reversed(handles), reversed(labels),title='Cluster number', bbox_to_anchor=(1.25, 0.7))
+handles, labels = ax2.get_legend_handles_labels()
+ax2.legend(reversed(handles), reversed(labels), bbox_to_anchor=(1.25, 0.65))
+
+plt.show()
 
 
 #%%Now do some clustering on the minmax data
@@ -688,11 +788,11 @@ for num_clusters in range(2,10):
 ############################################################################################
 #CLUSTERING AND FACTOR ANALYSIS OF MINMAX SCALED DATA
 ############################################################################################
-#First need to make negative values zero??
-minmax = MinMaxScaler()
-minmax.fit(df_beijing_filters.to_numpy())
-minmax_scaled_df = pd.DataFrame(minmax.transform(df_beijing_filters.to_numpy()),columns=df_beijing_filters.columns)
-minmax_scaled_np = minmax_scaled_df.to_numpy()
+# #First need to make negative values zero??
+# minmax = MinMaxScaler()
+# minmax.fit(df_beijing_summer.to_numpy())
+# minmax_scaled_df = pd.DataFrame(minmax.transform(df_beijing_summer.to_numpy()),columns=df_beijing_summer.columns)
+# minmax_scaled_np = minmax_scaled_df.to_numpy()
 #%%Real space dendrogram
 #Lets try a dendrogram to work out the optimal number of clusters
 fig,axes = plt.subplots(1,1,figsize=(20,10))
@@ -757,6 +857,77 @@ for num_clusters in range(2,10):
     plt.colorbar(boundaries=bounds,ticks=ticks,label='Cluster')
     plt.title('tSNE MinMax scaled data, ' + str(num_clusters) + ' clusters')
     plt.show()
+    
+    
+    
+    
+#%%Diurnal plots of minmax cluster labels
+#Try 5 clusters initially
+agglom = AgglomerativeClustering(n_clusters = 5, linkage = 'ward')
+clustering = agglom.fit(beijing_summer_minmax)
+c = relabel_clusters_most_freq(clustering.labels_)
+
+a = pd.DataFrame(c,columns=['clust'],index=df_beijing_summer_time_cat.index)
+b = pd.DataFrame(df_beijing_summer_time_cat['time_cat'])
+
+df_clust_cat_counts = a.groupby(b['time_cat'])['clust'].value_counts(normalize=True).unstack()
+df_cat_clust_counts = b.groupby(a['clust'])['time_cat'].value_counts(normalize=True).unstack()
+
+
+fig,ax = plt.subplots(2,1,figsize=(7,10))
+ax1=ax[0]
+ax2=ax[1]
+df_clust_cat_counts.plot.area(ax=ax1)
+df_cat_clust_counts.plot.bar(ax=ax2,stacked=True,colormap='RdBu',width=0.8)
+ax1.set_title('Minmax scaled data, 5 clusters')
+ax1.set_ylabel('Fraction')
+ax2.set_ylabel('Fraction')
+ax1.set_xlabel('')
+ax2.set_xlabel('Cluster number')
+ax1.legend(title='Cluster number',bbox_to_anchor=(1.25, 0.7))
+ax2.legend(bbox_to_anchor=(1.25, 0.7))
+handles, labels = ax1.get_legend_handles_labels()
+ax1.legend(reversed(handles), reversed(labels),title='Cluster number', bbox_to_anchor=(1.25, 0.7))
+handles, labels = ax2.get_legend_handles_labels()
+ax2.legend(reversed(handles), reversed(labels), bbox_to_anchor=(1.25, 0.65))
+
+plt.show()
+
+
+################################################################################
+#%%Diurnal plots of normalised data cluster labels
+#Try 5 clusters initially
+agglom = AgglomerativeClustering(n_clusters = 5, linkage = 'ward')
+clustering = agglom.fit(df_beijing_summer_norm.to_numpy())
+c = relabel_clusters_most_freq(clustering.labels_)
+
+a = pd.DataFrame(c,columns=['clust'],index=df_beijing_summer_time_cat.index)
+b = pd.DataFrame(df_beijing_summer_time_cat['time_cat'])
+
+df_clust_cat_counts = a.groupby(b['time_cat'])['clust'].value_counts(normalize=True).unstack()
+df_cat_clust_counts = b.groupby(a['clust'])['time_cat'].value_counts(normalize=True).unstack()
+
+
+fig,ax = plt.subplots(2,1,figsize=(7,10))
+ax1=ax[0]
+ax2=ax[1]
+df_clust_cat_counts.plot.area(ax=ax1)
+df_cat_clust_counts.plot.bar(ax=ax2,stacked=True,colormap='RdBu',width=0.8)
+ax1.set_title('Normalised data (so each filter sums to 1), 5 clusters')
+ax1.set_ylabel('Fraction')
+ax2.set_ylabel('Fraction')
+ax1.set_xlabel('')
+ax2.set_xlabel('Cluster number')
+ax1.legend(title='Cluster number',bbox_to_anchor=(1.25, 0.7))
+ax2.legend(bbox_to_anchor=(1.25, 0.7))
+handles, labels = ax1.get_legend_handles_labels()
+ax1.legend(reversed(handles), reversed(labels),title='Cluster number', bbox_to_anchor=(1.25, 0.7))
+handles, labels = ax2.get_legend_handles_labels()
+ax2.legend(reversed(handles), reversed(labels), bbox_to_anchor=(1.25, 0.65))
+
+plt.show()
+    
+
     
 
 # %%Comparing clustering labels
@@ -983,16 +1154,6 @@ plt.plot(fuzzy_labels)
 
 fig, ax = plt.subplots(figsize=(12,6))
 ax.stackplot(np.arange(316),df_cluster_prob.iloc[0],df_cluster_prob.iloc[1],df_cluster_prob.iloc[2],df_cluster_prob.iloc[3],df_cluster_prob.iloc[4])
-
-
-
-#%%
-#One way of comparing the clusters would be to change the numbering- the biggest cluser is cluster 1
-#Then rank them by their correlation with that one? Or something. I'm not clear how the numbering works
-
-Another thing to do is to do the thing where you normalise every filter to 1
-So you don't get dominated by the periods with high sigan which might be caused by meteorology'
-
 
 
 
