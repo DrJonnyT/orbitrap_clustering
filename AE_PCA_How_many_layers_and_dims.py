@@ -109,20 +109,22 @@ chemform_namelist_delhi = load_chemform_namelist(path + 'Delhi_Amb3.1_MZ.xlsx')
 #%%
 
 #Augment the data
-df_aug = augment_data_noise(df_beijing_filters,50,1,0)
+df_aug = augment_data_noise(df_beijing_summer,50,1,0)
 
 
 #%%Scale data for input into AE
 scalefactor = 1e6
 pipe_1e6 = FunctionTransformer(lambda x: np.divide(x,scalefactor),inverse_func = lambda x: np.multiply(x,scalefactor))
 pipe_1e6.fit(df_aug)
-scaled_df = pd.DataFrame(pipe_1e6.transform(df_aug),columns=df_beijing_filters.columns)
+scaled_df = pd.DataFrame(pipe_1e6.transform(df_aug),columns=df_beijing_summer.columns)
 ae_input=scaled_df.to_numpy()
-scaled_df_val = pd.DataFrame(pipe_1e6.transform(df_beijing_filters), columns=df_beijing_filters.columns,index=df_beijing_filters.index)
+scaled_df_val = pd.DataFrame(pipe_1e6.transform(df_beijing_summer), columns=df_beijing_summer.columns,index=df_beijing_summer.index)
 ae_input_val = scaled_df_val.to_numpy()
 
 minmax = MinMaxScaler()
-beijing_winter_minmax = minmax.fit_transform(ae_input_val)
+beijing_summer_minmax = minmax.fit_transform(ae_input_val)
+
+df_beijing_summer_1e6 = pd.DataFrame(pipe_1e6.transform(df_beijing_summer),columns=df_beijing_summer.columns)
 
 
 #%%Now compare loss for different latent dimensions
@@ -202,8 +204,9 @@ plt.show()
 ae_obj = AE_n_layer(input_dim=input_dim,latent_dim=4,int_layers=3)
 history = ae_obj.fit_model(ae_input, x_test=ae_input_val,epochs=300)
 val_acc_per_epoch = history.history['val_loss']
+#Now retrain model based on best epoch
 best_epoch = val_acc_per_epoch.index(min(val_acc_per_epoch)) + 1
-ae_obj = AE_n_layer(input_dim=input_dim,latent_dim=7,int_layers=2)
+ae_obj = AE_n_layer(input_dim=input_dim,latent_dim=4,int_layers=3)
 ae_obj.fit_model(ae_input, x_test=ae_input_val,epochs=best_epoch)
 print('Best epoch: %d' % (best_epoch,))
 
@@ -321,6 +324,76 @@ for num_clusters in range(2,10):
 # cluster0_lat = df_latent_space[clustering.labels_==0].mean()
 # cluster1_lat = df_latent_space[clustering.labels_==1].mean()
 # cluster2_lat = df_latent_space[clustering.labels_==2].mean()
+
+
+#%%Load AQ data
+df_merge_beijing_summer = pd.read_csv(path+'aphh_summer_filter_aggregate_merge.csv')
+df_merge_beijing_summer["DateTime"] =pd.to_datetime(df_merge_beijing_summer["date_mid"])
+df_merge_beijing_summer.set_index('DateTime',inplace=True)
+df_merge_beijing_summer['date_start'] = pd.to_datetime(df_merge_beijing_summer['date_start'])
+df_merge_beijing_summer['date_end'] = pd.to_datetime(df_merge_beijing_summer['date_end'])
+df_merge_beijing_summer['time_cat'] = pd.Categorical(delhi_calc_time_cat(df_merge_beijing_summer),['Morning','Midday' ,'Afternoon','Night'], ordered=True)
+
+
+#Photochemical age. Original calculation from Parrish (1992)
+k_toluene = 5.63e-12
+k_benzene = 1.22e-12
+OH_conc = 1.5e6
+df_merge_beijing_summer["toluene_over_benzene_syft"]=  df_merge_beijing_summer["toluene_ppb_syft"] / df_merge_beijing_summer["benzene._ppb_syft"]
+df_merge_beijing_summer["toluene_over_benzene_syft"].values[df_merge_beijing_summer["toluene_over_benzene_syft"] > 5] = np.nan#Remove one big spike
+#benzene/tolluene emission ratio
+benzene_tolluene_ER = df_merge_beijing_summer["toluene_over_benzene_syft"].quantile(0.99)
+
+df_merge_beijing_summer["photochem_age_h"] = 1/(3600*OH_conc*(k_toluene-k_benzene))  * (np.log(benzene_tolluene_ER) - np.log(df_merge_beijing_summer["toluene_over_benzene_syft"]))
+
+df_merge_beijing_summer["nox_over_noy"] = df_merge_beijing_summer["nox_ppbv"] / df_merge_beijing_summer["noy_ppbv"]
+df_merge_beijing_summer["-log10_nox/noy"] = - np.log10(df_merge_beijing_summer["nox_over_noy"])
+
+#AMS fractions
+df_merge_beijing_summer["Total_ams"] = df_merge_beijing_summer["Org_ams"] + df_merge_beijing_summer["NO3_ams"] + df_merge_beijing_summer["SO4_ams"] + df_merge_beijing_summer["NH4_ams"] + df_merge_beijing_summer["Chl_ams"]
+df_merge_beijing_summer["Org_ams_frac"] = df_merge_beijing_summer["Org_ams"] / df_merge_beijing_summer["Total_ams"]
+df_merge_beijing_summer["NO3_ams_frac"] = df_merge_beijing_summer["NO3_ams"] / df_merge_beijing_summer["Total_ams"]
+df_merge_beijing_summer["SO4_ams_frac"] = df_merge_beijing_summer["SO4_ams"] / df_merge_beijing_summer["Total_ams"]
+df_merge_beijing_summer["NH4_ams_frac"] = df_merge_beijing_summer["NH4_ams"] / df_merge_beijing_summer["Total_ams"]
+df_merge_beijing_summer["Chl_ams_frac"] = df_merge_beijing_summer["Chl_ams"] / df_merge_beijing_summer["Total_ams"]
+
+df_merge_beijing_summer["OOA1_ams_frac"] = df_merge_beijing_summer["OOA1_ams"] / df_merge_beijing_summer["Org_ams"]
+df_merge_beijing_summer["OOA2_ams_frac"] = df_merge_beijing_summer["OOA2_ams"] / df_merge_beijing_summer["Org_ams"]
+df_merge_beijing_summer["OOA3_ams_frac"] = df_merge_beijing_summer["OOA3_ams"] / df_merge_beijing_summer["Org_ams"]
+df_merge_beijing_summer["HOA_ams_frac"] = df_merge_beijing_summer["HOA_ams"] / df_merge_beijing_summer["Org_ams"]
+df_merge_beijing_summer["COA_ams_frac"] = df_merge_beijing_summer["COA_ams"] / df_merge_beijing_summer["Org_ams"]
+
+#%%Add in filters total and fuzzy clusters
+df_merge_beijing_summer = pd.concat([df_merge_beijing_summer, df_beijing_summer_1e6.sum(axis=1)], axis=1).reindex(df_beijing_summer_1e6.index)
+df_merge_beijing_summer['filters_total'] = df_merge_beijing_summer[0]
+df_merge_beijing_summer.drop(columns=0,inplace=True)
+
+#%%Diurnal plots of AE latent space cluster labels
+#Try 5 clusters initially
+agglom = AgglomerativeClustering(n_clusters = 5, linkage = 'ward')
+clustering = agglom.fit(latent_space)
+c = clustering.labels_
+
+a = pd.DataFrame(c,columns=['clust'],index=df_merge_beijing_summer.index)
+b = pd.DataFrame(df_merge_beijing_summer['time_cat'])
+
+df_clust_cat_counts = a.groupby(b['time_cat'])['clust'].value_counts(normalize=True).unstack()
+df_cat_clust_counts = b.groupby(a['clust'])['time_cat'].value_counts(normalize=True).unstack()
+
+
+fig,ax = plt.subplots(2,1,figsize=(7,10))
+ax1=ax[0]
+ax2=ax[1]
+df_clust_cat_counts.plot.area(ax=ax1)
+df_cat_clust_counts.plot.bar(ax=ax2,stacked=True)
+ax1.set_title('AE latent space, 5 clusters')
+ax1.set_ylabel('Fraction')
+ax2.set_ylabel('Fraction')
+ax1.set_xlabel('')
+ax2.set_xlabel('Cluster number')
+ax1.legend(title='Cluster number',bbox_to_anchor=(1.25, 0.7))
+ax2.legend(bbox_to_anchor=(1.25, 0.7))
+plt.show()
 
 
 #####################################################################################################
