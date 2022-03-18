@@ -34,7 +34,8 @@ from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score,silhou
 from sklearn.decomposition import PCA
 from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.manifold import TSNE
-from sklearn.decomposition import PCA
+from sklearn.decomposition import PCA, NMF
+from sklearn import metrics
 
 from matplotlib.colors import BoundaryNorm, ListedColormap
 from matplotlib.cm import ScalarMappable
@@ -61,8 +62,7 @@ df_beijing_raw, df_beijing_filters, df_beijing_metadata = beijing_load(
     path + 'BJ_UnAmbNeg9.1.1_20210505-Times_Fixed.xlsx',path + 'BJ_UnAmbNeg9.1.1_20210505-Times_Fixed.xlsx',
     peaks_sheetname="Compounds",metadata_sheetname="massloading_Beijing")
 
-df_delhi_raw, df_delhi_filters, df_delhi_metadata = delhi_load(
-    path + 'Delhi_Amb3.1_MZ.xlsx',path + 'Delhi/Delhi_massloading_autumn_summer.xlsx')
+df_delhi_raw, df_delhi_filters, df_delhi_metadata = delhi_load2(path + '/Delhi/Orbitrap/')
 
 df_beijing_winter = df_beijing_filters.iloc[0:124].copy()
 df_beijing_summer = df_beijing_filters.iloc[124:].copy()
@@ -275,8 +275,7 @@ plt.scatter(df_beijing_summer_scaled_top70_fclusters_mtx['fclust4'],df_merge_bei
 plt.show()
 
 #%%Testing NMF on top70 dataframe
-from sklearn.decomposition import NMF
-from sklearn import metrics
+
 
 def get_score(model, data, scorer=metrics.explained_variance_score):
     """ Estimate performance of the model on the data """
@@ -504,6 +503,74 @@ ax2.stackplot(df_fclust_cat_mean.index,df_fclust_cat_mean_norm['fclust0'], df_fc
 ax2.set_ylabel('Fraction')
 ax2.set_ylim(0,)
 ax2.legend(bbox_to_anchor=(1.22, 0.7))
+
+
+
+#%%Trying to recreate Sari's graph from her IAC2022 abstract
+#7-component Orbitrap PMF
+n_components = 7
+model = NMF(n_components=n_components)
+#a = model.fit(df_beijing_summer_1e6_top70.clip(lower=0))
+W = model.fit_transform(df_beijing_summer_1e6.clip(lower=0))
+H = model.components_
+
+#1 What is the time series of the 2 factors? Need each factor as a t series
+# Factor0 = H[0]
+# Factor1 = H[1]
+# Factor2 = H[2]
+# Factor2 = H[3]
+# Factor2 = H[4]
+
+# Factor0_mtx = np.outer(W.T[0], H[0])
+# Factor1_mtx = np.outer(W.T[1], H[1])
+# Factor2_mtx = np.outer(W.T[2], H[2])
+# Factor2_mtx = np.outer(W.T[3], H[3])
+# Factor2_mtx = np.outer(W.T[4], H[4])
+df_nmf_factors = pd.DataFrame(H,columns=df_beijing_summer_1e6.columns)
+Factors_totals = np.ndarray(W.shape)
+
+for x in np.arange(n_components):
+    Factors_totals[:,x] =  (np.outer(W.T[x], H[x]).sum(axis=1))
+    
+df_factor_totals = pd.DataFrame(Factors_totals)
+df_factor_totals.columns = [("factor"+str(num)) for num in range(n_components)]
+df_factor_totals.index = df_beijing_summer.index
+
+df_factor_fractions = df_factor_totals.div(df_factor_totals.sum(axis=1),axis=0)
+df_factor_fractions.columns = [("factor"+str(num)+"_frac") for num in range(n_components)]
+
+
+#%%Plot Sari style PMF
+fig,ax = plt.subplots(7,1,figsize=(10,10))
+df_factor_totals['factor0'].plot(ax=ax[0])
+df_factor_totals['factor1'].plot(ax=ax[1])
+df_factor_totals['factor2'].plot(ax=ax[2])
+df_factor_totals['factor3'].plot(ax=ax[3])
+df_factor_totals['factor4'].plot(ax=ax[4])
+df_factor_totals['factor5'].plot(ax=ax[5])
+df_factor_totals['factor6'].plot(ax=ax[6])
+plt.show()
+
+
+#%%
+mz_columns = pd.DataFrame(df_beijing_raw['Molecular Weight'].loc[df_nmf_factors.columns])
+fig,ax = plt.subplots(7,1,figsize=(10,10))
+ax[0].stem(mz_columns.to_numpy(),df_nmf_factors.loc[0],markerfmt=' ')
+ax[1].stem(mz_columns.to_numpy(),df_nmf_factors.loc[1],markerfmt=' ')
+ax[2].stem(mz_columns.to_numpy(),df_nmf_factors.loc[2],markerfmt=' ')
+ax[3].stem(mz_columns.to_numpy(),df_nmf_factors.loc[3],markerfmt=' ')
+ax[4].stem(mz_columns.to_numpy(),df_nmf_factors.loc[4],markerfmt=' ')
+ax[5].stem(mz_columns.to_numpy(),df_nmf_factors.loc[5],markerfmt=' ')
+ax[6].stem(mz_columns.to_numpy(),df_nmf_factors.loc[6],markerfmt=' ')
+ax[0].set_xlim(right=500)
+ax[1].set_xlim(right=500)
+ax[2].set_xlim(right=500)
+ax[3].set_xlim(right=500)
+ax[4].set_xlim(right=500)
+ax[5].set_xlim(right=500)
+ax[6].set_xlim(right=500)
+plt.show()
+
 
 #%%
 Can you not just do nmf all the time on everyting? Make sure that the autoencoder is all positive

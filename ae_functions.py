@@ -151,6 +151,118 @@ def delhi_load(peaks_filepath,metadata_filepath,peaks_sheetname="DEFAULT",metada
     return df_delhi_raw, df_delhi_filters, df_delhi_metadata
 
 
+#Load the Delhi data, from files 
+#Raw peaks: DH_UnAmbNeg9.0_20210409.xlsx
+#Metadata- Delhi_massloading_autumn_summer.xlsx
+def delhi_load2(path,subtract_blank=True,output="DEFAULT"):
+    peaks_filepath = path + 'DH_UnAmbNeg9.0_20210409.xlsx'
+    metadata_filepath = path + 'Delhi_massloading_autumn_summer.xlsx'
+    df_metadata_autumn = pd.read_excel(metadata_filepath,engine='openpyxl',
+                                           sheet_name='autumn',usecols='a:L',skiprows=0,nrows=108, converters={'mid_datetime': str})
+    df_metadata_summer = pd.read_excel(metadata_filepath,engine='openpyxl',
+                                           sheet_name='summer_premonsoon',usecols='a:N',skiprows=0,nrows=108, converters={'mid_datetime': str})
+      
+    df_metadata_summer['sample_ID'] = df_metadata_summer['sample_ID'].astype(str)
+    
+    df_delhi_raw = pd.read_excel(peaks_filepath,engine='openpyxl')
+    df_delhi_filters = 1
+    
+    
+    df_delhi_raw.drop(df_delhi_raw.iloc[:,np.r_[0:7, 10:14]],axis=1,inplace=True)
+    #This column is not in the spreadsheet, so create one using the average difference from other data
+    
+    df_delhi_raw.insert(loc=2, column='m/z', value=(df_delhi_raw['Molecular Weight'] - 1.0073))
+    
+    
+    #Filter out "bad" columns
+    df_delhi_raw = orbitrap_filter(df_delhi_raw)
+    
+    df_delhi_raw_chem = df_delhi_raw.iloc[:,np.r_[0:4]]
+    df_delhi_raw_autumn = df_delhi_raw.iloc[:,np.r_[37:138]]
+    df_delhi_raw_summer = df_delhi_raw.iloc[:,np.r_[4:37]]
+    df_delhi_raw_blanks = df_delhi_raw.iloc[:,np.r_[138:142]]
+    
+   
+    df_metadata_autumn.set_index("sample_ID",inplace=True)
+    #Get rid of bad filters, based on the notes
+    df_metadata_autumn.drop(labels=["-","S25","S42","S51","S55","S68","S72"],axis=0,inplace=True)
+    
+    df_metadata_summer.set_index("sample_ID",inplace=True)
+    
+    
+    
+    
+    
+    #Fix column labels so they are consistent
+    #df_delhi_raw.columns = df_delhi_raw.columns.str.replace('DelhiS','Delhi_S')
+    
+    
+        
+    
+    #return df_delhi_raw, df_delhi_filters, df_delhi_metadata     
+    
+    
+    #Cut some fluff columns out and make new df
+    df_delhi_filters_autumn = df_delhi_raw_autumn.copy()
+    df_delhi_filters_summer = df_delhi_raw_summer.copy()
+    index_backup_autumn = df_delhi_filters_autumn.index
+    index_backup_summer = df_delhi_filters_summer.index
+    
+    if(subtract_blank == True):
+        #Subtract mean blank
+        df_delhi_filters_autumn = df_delhi_filters_autumn.subtract(df_delhi_raw_blanks.transpose().mean().values,axis=0)
+        df_delhi_filters_summer = df_delhi_filters_summer.subtract(df_delhi_raw_blanks.transpose().mean().values,axis=0)
+        
+    
+    
+    sample_id_autumn = df_delhi_filters_autumn.columns.str.split('_|.raw').str[2]
+    sample_id_summer = df_delhi_filters_summer.columns.str.split('_|.raw').str[2]
+    df_delhi_filters_autumn.columns = sample_id_autumn
+    df_delhi_filters_summer.columns = sample_id_summer
+
+    df_delhi_filters_autumn = df_delhi_filters_autumn.transpose()    
+    df_delhi_filters_summer = df_delhi_filters_summer.transpose()    
+    
+    
+    #Add on the metadata    
+    df_delhi_filters_autumn = pd.concat([df_delhi_filters_autumn, df_metadata_autumn[['volume_m3', 'dilution']]], axis=1, join="inner")
+    df_delhi_filters_summer = pd.concat([df_delhi_filters_summer, df_metadata_summer[['volume_m3', 'dilution']]], axis=1, join="inner")
+
+    #Divide the data columns by the sample volume and multiply by the dilution liquid volume (pinonic acid)
+    df_delhi_filters_autumn = df_delhi_filters_autumn.div(df_delhi_filters_autumn['volume_m3'], axis=0).mul(df_delhi_filters_autumn['dilution'], axis=0)
+    df_delhi_filters_summer = df_delhi_filters_summer.div(df_delhi_filters_summer['volume_m3'], axis=0).mul(df_delhi_filters_summer['dilution'], axis=0)
+    df_delhi_filters_autumn.drop(columns=['volume_m3','dilution'],inplace=True)
+    df_delhi_filters_summer.drop(columns=['volume_m3','dilution'],inplace=True)
+    
+    #Some final QA
+    df_delhi_filters_autumn['mid_datetime'] = pd.to_datetime(df_metadata_autumn['mid_datetime'],yearfirst=True)
+    df_delhi_filters_summer['mid_datetime'] = pd.to_datetime(df_metadata_summer['mid_datetime'],yearfirst=True)
+    df_delhi_filters_autumn.set_index('mid_datetime',inplace=True)
+    df_delhi_filters_summer.set_index('mid_datetime',inplace=True)
+    
+    
+    df_delhi_filters_autumn = df_delhi_filters_autumn.astype(float)
+    df_delhi_filters_summer = df_delhi_filters_summer.astype(float)
+    df_delhi_filters_autumn.columns = index_backup_autumn
+    df_delhi_filters_summer.columns = index_backup_summer
+    
+    #pdb.set_trace()
+    #Make the final output data
+    if(output=="DEFAULT" or output=="all"):
+        df_delhi_metadata = pd.concat([df_metadata_summer,df_metadata_autumn])
+        df_delhi_filters = pd.concat([df_delhi_filters_summer,df_delhi_filters_autumn])
+        return df_delhi_raw, df_delhi_filters, df_delhi_metadata
+    elif(output=="summer"):
+        df_delhi_raw_summer = pd.concat([df_delhi_raw_chem,df_delhi_raw_summer])
+        return df_delhi_raw_summer, df_delhi_filters_summer, df_metadata_summer
+    elif(output=="autumn"):
+        df_delhi_raw_autumn = pd.concat([df_delhi_raw_chem,df_delhi_raw_autumn])
+        return df_delhi_raw_autumn, df_delhi_filters_autumn, df_metadata_autumn
+    
+
+    return None
+
+
 
 #Map filter times onto night/morning/midday/afternoon as per Hamilton et al 2021
 def delhi_calc_time_cat(df_in):
@@ -197,9 +309,10 @@ def orbitrap_filter(df_in):
         
     df_orbitrap_peaks.drop(df_orbitrap_peaks[df_orbitrap_peaks["RT [min]"] > 20].index, inplace=True)    
     #df.drop(df[df.score < 50].index, inplace=True)
+    
     #Join the peaks with the same rounded m/z and RT    
-    RT_round =  df_orbitrap_peaks["RT [min]"].apply(lambda x: round_odd(x))
-    mz_round = df_orbitrap_peaks["m/z"].apply(lambda x: round(x, 2))
+    #RT_round =  df_orbitrap_peaks["RT [min]"].apply(lambda x: round_odd(x))
+    #mz_round = df_orbitrap_peaks["m/z"].apply(lambda x: round(x, 2))
     
     
     #ORIGINAL
@@ -208,7 +321,6 @@ def orbitrap_filter(df_in):
     #MERGE SAME MOLECULE AND RT <10 OR >10
     RT_round10 =  df_orbitrap_peaks["RT [min]"].apply(lambda x: above_below_10(x))
     df_orbitrap_peaks = df_orbitrap_peaks.iloc[:,np.r_[0:4]].groupby([df_orbitrap_peaks["Formula"],RT_round10]).aggregate("first").join(df_orbitrap_peaks.iloc[:,np.r_[4:len(df_orbitrap_peaks.columns)]].groupby([df_orbitrap_peaks["Formula"],RT_round10]).aggregate("sum") )
-    
     
     return df_orbitrap_peaks
 
