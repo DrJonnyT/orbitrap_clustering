@@ -16,6 +16,7 @@ tf.random.set_seed(1338)
 
 import pandas as pd
 import math
+import datetime as dt
 import numpy as np
 import pdb
 import matplotlib.pyplot as plt
@@ -288,6 +289,29 @@ def delhi_calc_time_cat(df_in):
     }
     
     return pd.Categorical(df_in.index.hour.to_series().map(dict_hour_to_time_cat).values)
+
+#Map filter times onto a categorical for what dataset it is
+def delhi_beijing_datetime_cat(df_in):
+    #Make a numerical flag for each dataset based on the datetime
+    datetimecat_num = pd.Series(index=df_in.index)
+    for index in df_in.index:
+        if((index >= dt.datetime(2016,11,10)) and (index < dt.datetime(2016,12,10))):
+            datetimecat_num.loc[index] = 0
+        elif((index >= dt.datetime(2017,5,18)) and (index < dt.datetime(2017,6,26))):
+            datetimecat_num.loc[index] = 1    
+        elif((index >= dt.datetime(2018,5,28)) and (index < dt.datetime(2018,6,6))):
+            datetimecat_num.loc[index] = 2
+        elif((index >= dt.datetime(2018,10,9)) and (index < dt.datetime(2018,11,7))):
+            datetimecat_num.loc[index] = 3
+    
+    #A dictionary to map the numerical onto a categoricla
+    dict_datetime_to_cat =	{
+          0: "Beijing_winter",
+          1: "Beijing_summer",
+          2: "Delhi_summer",
+          3: "Delhi_autumn",
+        }
+    return pd.Categorical(datetimecat_num.map(dict_datetime_to_cat).values)
 
 
 #######################
