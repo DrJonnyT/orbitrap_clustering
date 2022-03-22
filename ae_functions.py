@@ -542,14 +542,12 @@ class AE_n_layer():
     
     def fit_model(self, x_train,x_test='DEFAULT',batch_size=100,epochs=30,verbose='auto'):
         if(str(x_test)=='DEFAULT'):
-            print("using the default")
             _history = self.ae.fit(x_train,x_train,
                          shuffle=True,
                          epochs=epochs,
                          batch_size=batch_size,
                          validation_data=(x_train,x_train),verbose=verbose)
         else:
-            print("not using the default")
             _history = self.ae.fit(x_train,x_train,
                         shuffle=True,
                         epochs=epochs,
