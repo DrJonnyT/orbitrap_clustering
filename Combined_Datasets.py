@@ -69,6 +69,10 @@ ds_dataset_cat = pd.Series(pd.Categorical(delhi_beijing_datetime_cat(df_all_filt
 #df_all_filters = df_beijing_filters.append(df_delhi_filters,sort=True).fillna(0)
 df_all_raw = df_beijing_raw.transpose().append(df_delhi_raw.transpose(),sort=True).transpose()
 
+#%%Load chemform namelists
+chemform_namelist_beijing = load_chemform_namelist(path + 'Beijing_Amb3.1_MZ.xlsx')
+chemform_namelist_delhi = load_chemform_namelist(path + 'Delhi_Amb3.1_MZ.xlsx')
+chemform_namelist_all = combine_chemform_namelists(chemform_namelist_beijing,chemform_namelist_delhi)
 
 
 #%%Prescale datasets
@@ -86,9 +90,17 @@ pipe_norm_mtx = FunctionTransformer(lambda x: np.divide(x,orig_mean),inverse_fun
 pipe_norm_mtx.fit(df_all_filters)
 df_all_filters_norm1 = pd.DataFrame(pipe_norm_mtx.transform(df_all_filters),columns=df_all_filters.columns)
 
-minmax_all = MinMaxScaler()
-df_all_filters_minmax = minmax_all.fit_transform(df_all_filters_minmax.to_numpy())
+#Minmax scaling
+minmaxscaler_all = MinMaxScaler()
+df_all_filters_minmax = minmaxscaler_all.fit_transform(df_all_filters.to_numpy())
 
+#Standard scaling
+standardscaler_all = StandardScaler()
+df_all_filters_standard = standardscaler_all.fit_transform(df_all_filters.to_numpy())
+
+#Standard scaling
+robustscaler_all = RobustScaler()
+df_all_filters_robust = robustscaler_all.fit_transform(df_all_filters.to_numpy())
 
 #df scaled so it is normalised by the total from each filter
 df_all_filters_norm = df_all_filters.div(df_all_filters.sum(axis=1), axis=0)
@@ -265,6 +277,7 @@ plt.show()
 df_aug = augment_data_noise(df_all_filters_norm1,50,1,0)
 ae_input = df_aug.values
 ae_input_val = df_all_filters_norm1.values
+input_dim = ae_input.shape[1]
 #%%Now compare loss for different latent dimensions
 #This is NOT using kerastuner, and is using log-spaced intermediate layers
 #WARNING THIS TAKES ABOUT HALF AN HOUR
@@ -277,7 +290,7 @@ AE3_MSE_best50epoch =[]
 AE4_MSE_best50epoch =[]
 best_hps_array = []
 
-input_dim = ae_input.shape[1]
+
 verbose = 0
 
 start_time = time.time()
@@ -383,33 +396,30 @@ plt.ylabel('AE output')
 plt.show()
 
 
-#%%Evaluate loss per sample
-# loss = tf.keras.losses.MeanSquaredError(reduction=tf.compat.v1.losses.Reduction.NONE) # The loss function is just an example, the reduction is the important one
-# model2 = ae_obj.ae
-# model2.compile(optimizer=model2.optimizer, loss=loss) # keep your original optimizer
+#%%Evaluate loss per sample for AE
+# loss_per_sample = []
+# for i in range(ae_input_val.shape[0]):
+#     loss_i = ae_obj.ae.evaluate(x=ae_input_val[i:i+1],
+#                              y=ae_input_val[i:i+1],
+#                              batch_size=None,
+#                              verbose=0,
+#                              steps=1
+#                              )
+#     loss_per_sample.append(loss_i)
 
-# # And then you'll get each loss for each instance within a batch
-# a = model2.evaluate(ae_input_val,ae_input_val,batch_size=None,steps=1) 
 
-loss_per_sample = []
 
-for i in range(ae_input_val.shape[0]):
-    loss_i = ae_obj.ae.evaluate(x=ae_input_val[i:i+1],
-                             y=ae_input_val[i:i+1],
-                             batch_size=None,
-                             verbose=0,
-                             steps=1
-                             )
-    loss_per_sample.append(loss_i)
 
+#%%
+ds_AE_loss_per_sample = pd.Series(AE_calc_loss_per_sample(ae_obj.ae,ae_input_val,ae_input_val), index=df_all_filters.index)
+#%%
+index_top_loss= ds_AE_loss_per_sample.nlargest(2).index
+print(ds_AE_loss_per_sample[index_top_loss])
 
 
 
 
 #%%Top feature explorer
-
-
-
 def top_features_hist(input_data,num_features,figsize='DEFAULT',num_bins=25,logx=False):
     if str(figsize) == 'DEFAULT':
         figsize=(12,10)

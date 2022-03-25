@@ -457,7 +457,29 @@ def load_chemform_namelist(peaks_filepath,peaks_sheetname="DEFAULT"):
     #chemform_namelist['Name'] = chemform_namelist['Name'].str.replace('-','',regex=False)
     return chemform_namelist
 
-
+#Combine 2 chemform namelists
+def combine_chemform_namelists(namelist1,namelist2):
+    chemform_namelist_all = namelist1.append(namelist2)
+    
+    #Deal with duplicates- if they are identical then only one copy, if they are not them combine then
+    duplicates = chemform_namelist_all.duplicated()
+    #pdb.set_trace()
+    duplicates = duplicates[duplicates] #only true values    
+    #Group the duplictaes into one string so there's only one copy to deal with
+    chemform_namelist_all = chemform_namelist_all.groupby(['Formula'])['Name'].apply(';'.join)
+    
+    for molecule in duplicates.index:
+        if(namelist1.loc[molecule].values == namelist2.loc[molecule].values):
+            chemform_namelist_all.loc[molecule] = namelist1.loc[molecule].str.cat(sep=';')
+        else:
+            chemform_namelist_all.loc[molecule] = namelist1.loc[molecule].str.cat(sep=';') + ';' + namelist2.loc[molecule].str.cat(sep=';')
+    
+    #Make them all just one string
+    for molecule in chemform_namelist_all.index:
+        if(type(chemform_namelist_all.loc[molecule]) == pd.core.series.Series):
+            chemform_namelist_all.loc[molecule] = chemform_namelist_all.loc[molecule].str.cat(sep=';')
+    
+    return chemform_namelist_all
 #################################################
 #####AUTOENCODER GENERATORS###################
 ##############################################

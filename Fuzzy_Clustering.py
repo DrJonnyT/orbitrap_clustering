@@ -62,7 +62,8 @@ df_beijing_raw, df_beijing_filters, df_beijing_metadata = beijing_load(
     path + 'BJ_UnAmbNeg9.1.1_20210505-Times_Fixed.xlsx',path + 'BJ_UnAmbNeg9.1.1_20210505-Times_Fixed.xlsx',
     peaks_sheetname="Compounds",metadata_sheetname="massloading_Beijing")
 
-df_delhi_raw, df_delhi_filters, df_delhi_metadata = delhi_load2(path + '/Delhi/Orbitrap/')
+df_delhi_raw, df_delhi_filters, df_delhi_metadata = delhi_load(
+    path + 'Delhi_Amb3.1_MZ.xlsx',path + 'Delhi/Delhi_massloading_autumn_summer.xlsx')
 
 df_beijing_winter = df_beijing_filters.iloc[0:124].copy()
 df_beijing_summer = df_beijing_filters.iloc[124:].copy()
@@ -71,27 +72,9 @@ df_all_filters = df_beijing_filters.append(df_delhi_filters,sort=True).fillna(0)
 df_all_raw = df_beijing_raw.transpose().append(df_delhi_raw.transpose(),sort=True).transpose()
 
 # %%Check largest peaks
-
-#IM STILLL WORKING OUT HOW TO JOIN THEM ALL TOGETHER BEARING IN MIND THAT NOT ALL MOLECULES ARE THE SAME IN THE NAMELISTS
-#YOU END UP WITH SOME AS A LIST, SOME AS [], SOME AS THE RIGHT MOLECULE, ITS QUITE ANNOYING AND I WANT TO JUST USE A FOR LOOP
-#LIKE A NORMAL PERSON
-
 chemform_namelist_beijing = load_chemform_namelist(path + 'Beijing_Amb3.1_MZ.xlsx')
 chemform_namelist_delhi = load_chemform_namelist(path + 'Delhi_Amb3.1_MZ.xlsx')
-
-chemform_namelist_all = chemform_namelist_beijing.append(chemform_namelist_delhi)
-chemform_namelist_all = chemform_namelist_all.groupby(['Formula'])['Name'].apply(','.join)#.reset_index()
-#chemform_namelist_all.set_index()
-
-
-
-duplicates = chemform_namelist_all.duplicated()
-
-for molecule in chemform_namelist_all.duplicated().index:
-    if(chemform_namelist_beijing.iloc[molecule] == chemform_namelist_delhi.iloc[molecule]):
-        chemform_namelist_all
-        
-        
+chemform_namelist_all = combine_chemform_namelists(chemform_namelist_beijing,chemform_namelist_delhi)
 
 
 
