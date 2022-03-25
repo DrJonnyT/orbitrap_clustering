@@ -385,9 +385,9 @@ def filter_by_chemform(formula):
 #######################
 # %%
 #Function to extract the top n peaks from a cluster in terms of their chemical formula
-def cluster_extract_peaks(cluster, df_peaks,num_peaks,chemform_namelist,dp=1,printdf=False):
+def cluster_extract_peaks(cluster, df_raw,num_peaks,chemform_namelist,dp=1,printdf=False):
     #Check they are the same length
-    if(cluster.shape[0] != df_peaks.shape[0]):
+    if(cluster.shape[0] != df_raw.shape[0]):
         print("cluster_extract_peaks returning null: cluster and peaks dataframe must have same number of peaks")
         return np.NaN
         quit()
