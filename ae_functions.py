@@ -657,7 +657,7 @@ class VAE_n_layer():
         
         self.vae = Model(inputs=encoder_input_layer, outputs=outputs, name="vae")
         optimizer = optimizers.Adam(learning_rate=self.learning_rate)
-    
+        print('I think the function VAE_n_layer is in test config and does not return a VAE??')
     
         # def vae_loss(encoder_input_layer, outputs):
         #     mse_loss = self.input_dim * metrics.mse(encoder_input_layer, outputs)
@@ -822,6 +822,20 @@ def corr_2df(df1,df2):
         return None
     else:
         return pd.concat([df1, df2], axis=1).corr().filter(df2.columns).filter(df1.columns, axis=0)
+
+#Calculate the loss per sample for an autoencoder
+#x and y must be numpy arrays
+def AE_calc_loss_per_sample(ae_model,x,y):
+    loss_per_sample = []
+    for i in range(x.shape[0]):
+        loss_i = ae_model.evaluate(x=x[i:i+1],
+                                 y=y[i:i+1],
+                                 batch_size=None,
+                                 verbose=0,
+                                 steps=1
+                                 )
+        loss_per_sample.append(loss_i)
+    return loss_per_sample
 
 #%%
 ###############################
