@@ -60,14 +60,13 @@ df_beijing_raw, df_beijing_filters, df_beijing_metadata = beijing_load(
 df_delhi_raw, df_delhi_filters, df_delhi_metadata = delhi_load2(path + '/Delhi/Orbitrap/')
 
 df_all_filters = pd.concat([df_beijing_filters, df_delhi_filters], axis=0, join="inner")
+df_all_raw = pd.concat([df_beijing_raw, df_delhi_raw], axis=1, join="inner")
+
 dataset_cat = delhi_beijing_datetime_cat(df_all_filters)
 df_dataset_cat = pd.DataFrame(pd.Categorical(delhi_beijing_datetime_cat(df_all_filters),['Beijing_winter','Beijing_summer' ,'Delhi_summer','Delhi_autumn'], ordered=True),columns=['dataset_cat'],index=df_all_filters.index)
 ds_dataset_cat = pd.Series(pd.Categorical(delhi_beijing_datetime_cat(df_all_filters),['Beijing_winter','Beijing_summer' ,'Delhi_summer','Delhi_autumn'], ordered=True),index=df_all_filters.index)
-#df_beijing_winter = df_beijing_filters.iloc[0:124].copy()
-#df_beijing_summer = df_beijing_filters.iloc[124:].copy()
 
-#df_all_filters = df_beijing_filters.append(df_delhi_filters,sort=True).fillna(0)
-df_all_raw = df_beijing_raw.transpose().append(df_delhi_raw.transpose(),sort=True).transpose()
+
 
 #%%Load chemform namelists
 chemform_namelist_beijing = load_chemform_namelist(path + 'Beijing_Amb3.1_MZ.xlsx')
@@ -410,11 +409,16 @@ plt.show()
 
 
 
-#%%
+#%%See that one filter has higher loss in the AE, but not sure why
 ds_AE_loss_per_sample = pd.Series(AE_calc_loss_per_sample(ae_obj.ae,ae_input_val,ae_input_val), index=df_all_filters.index)
 #%%
-index_top_loss= ds_AE_loss_per_sample.nlargest(2).index
+index_top_loss= ds_AE_loss_per_sample.nlargest(1).index
 print(ds_AE_loss_per_sample[index_top_loss])
+
+
+cluster_extract_peaks(df_all_filters.loc[index_top_loss].mean(), df_all_raw,10,chemform_namelist_all,dp=1,printdf=False)
+
+cluster_extract_peaks(df_all_filters.mean(), df_all_raw,10,chemform_namelist_all,dp=1,printdf=False)
 
 
 

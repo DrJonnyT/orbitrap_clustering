@@ -389,8 +389,10 @@ def cluster_extract_peaks(cluster, df_raw,num_peaks,chemform_namelist,dp=1,print
     #Check they are the same length
     if(cluster.shape[0] != df_raw.shape[0]):
         print("cluster_extract_peaks returning null: cluster and peaks dataframe must have same number of peaks")
+        print("Maybe your data needs transposing, or '.mean()' -ing?")
         return np.NaN
         quit()
+        #print("WARNING: cluster_extract_peaks(): cluster and peaks dataframe do not have the same number of peaks")
     
     nlargest = cluster.nlargest(num_peaks)
     nlargest_pct = nlargest / cluster.sum() * 100
