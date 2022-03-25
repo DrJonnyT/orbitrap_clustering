@@ -18,7 +18,7 @@ import tensorflow.keras.backend as K
 import tensorflow.keras as keras
 import kerastuner as kt
 
-from sklearn.preprocessing import RobustScaler, StandardScaler,FunctionTransformer,MinMaxScaler
+from sklearn.preprocessing import RobustScaler, StandardScaler,FunctionTransformer,MinMaxScaler,Normalizer
 from sklearn.pipeline import Pipeline
 
 
@@ -86,7 +86,12 @@ pipe_norm_mtx = FunctionTransformer(lambda x: np.divide(x,orig_mean),inverse_fun
 pipe_norm_mtx.fit(df_all_filters)
 df_all_filters_norm1 = pd.DataFrame(pipe_norm_mtx.transform(df_all_filters),columns=df_all_filters.columns)
 
+minmax_all = MinMaxScaler()
+df_all_filters_minmax = minmax_all.fit_transform(df_all_filters_minmax.to_numpy())
 
+
+#df scaled so it is normalised by the total from each filter
+df_all_filters_norm = df_all_filters.div(df_all_filters.sum(axis=1), axis=0)
 
 
 #%%Try nmf on whole dataset of 4 experiments
@@ -405,10 +410,18 @@ for i in range(ae_input_val.shape[0]):
 
 
 
-def top_features_hist(input_data,num_features,figsize='DEFAULT'):
+def top_features_hist(input_data,num_features,figsize='DEFAULT',num_bins=25,logx=False):
     if str(figsize) == 'DEFAULT':
         figsize=(12,10)
-    df_input = pd.DataFrame(input_data)
+    
+    if(logx==True):
+        df_input = pd.DataFrame(input_data).clip(lower=0.01)
+    else:
+        df_input = pd.DataFrame(input_data)
+    
+    #Catch if more features requested than there are features in the data
+    if(num_features > input_data.shape[1]):
+         num_features = input_data.shape[1]
     
     peaks_sum = df_input.sum()
     index_top_features = peaks_sum.nlargest(num_features).index
@@ -418,12 +431,33 @@ def top_features_hist(input_data,num_features,figsize='DEFAULT'):
     rows = cols
     while rows * cols < num_features:
         rows += 1
-    f, ax_arr = plt.subplots(rows, cols,figsize=figsize)
+    fig, ax_arr = plt.subplots(rows, cols,figsize=figsize)
+    
+    if(logx==True):
+        fig.suptitle('Logscale histograms of top ' + str(num_features) + ' features',size=14)
+    else:
+        fig.suptitle('Histograms of top ' + str(num_features) + ' features',size=14)
     ax_arr = ax_arr.reshape(-1)
-    #pdb.set_trace()
+    
     for i in range(len(ax_arr)):
         if i >= num_features:
             ax_arr[i].axis('off')
         else:
-            ax_arr[i].hist(df_input.iloc[:,index_top_features[i]])
+            data = df_input.iloc[:,index_top_features[i]]
+            if(logx==True):
+                logbins = np.logspace(np.log10(data.min()),np.log10(data.max()),num_bins)
+                ax_arr[i].hist(data,bins=logbins)
+                ax_arr[i].set_xscale('log')
+            else:
+                ax_arr[i].hist(data,bins=num_bins)
+            
+            
+    plt.tight_layout()
     plt.show()
+    
+#%%Make some plots of histograms of top features
+top_features_hist(ae_input_val,25,logscale=True)
+top_features_hist(ae_input_val,25)
+
+top_features_hist(latent_space,25,logscale=True)
+top_features_hist(latent_space,25)
