@@ -355,7 +355,7 @@ def delhi_beijing_datetime_cat(df_in):
           2: "Delhi_summer",
           3: "Delhi_autumn",
         }
-    return pd.Categorical(datetimecat_num.map(dict_datetime_to_cat).values)
+    return pd.Categorical(datetimecat_num.map(dict_datetime_to_cat).values,['Beijing_winter','Beijing_summer' ,'Delhi_summer','Delhi_autumn'], ordered=True)
 
 
 #######################
@@ -531,11 +531,12 @@ def combine_chemform_namelists(namelist1,namelist2):
 ##############################################
 # %%Basic n-layer autoencoder class
 class AE_n_layer():
-    def __init__(self,hp='DEFAULT',input_dim=964,latent_dim=15,int_layers=2,int_layer_dims='DEFAULT'):
+    def __init__(self,hp='DEFAULT',input_dim=964,latent_dim=15,int_layers=2,int_layer_dims='DEFAULT',latent_activation='linear'):
         if(hp=='DEFAULT'):#Use parameters from the list
             self.input_dim = input_dim
             self.latent_dim = latent_dim
             self.int_layers = int_layers
+            self.latent_activation=latent_activation
             
             #Make logspace int layer dims if required
             if(int_layer_dims=='DEFAULT'):
@@ -561,6 +562,7 @@ class AE_n_layer():
             self.int_layer_dims = [val.value for key, val in hp._space.items() if 'intermediate_dim' in key]
             self.learning_rate = hp.get('learning_rate')
             self.decoder_output_activation = hp.get('decoder_output_activation')
+            self.latent_activation = hp.get('latent_activation')
         
         self.ae = None
         self.encoder = None
@@ -583,7 +585,7 @@ class AE_n_layer():
                     thislayer_dim = self.int_layer_dims[int_layer-1]
                     encoder_layer = layers.Dense(thislayer_dim, activation="relu",name='intermediate_layer_'+str(int_layer))(encoder_layer)
 
-        latent_layer = layers.Dense(self.latent_dim, activation="linear",name='latent_layer')(encoder_layer)
+        latent_layer = layers.Dense(self.latent_dim, activation=self.latent_activation,name='latent_layer')(encoder_layer)
         self.encoder = Model(inputs=encoder_input_layer, outputs=latent_layer, name="encoder_ae")
     
         # Define decoder model.
