@@ -75,7 +75,10 @@ df_all_raw = df_all_raw.loc[:,~df_all_raw.columns.duplicated()] #Remove duplicat
 dataset_cat = delhi_beijing_datetime_cat(df_all_filters)
 df_dataset_cat = pd.DataFrame(delhi_beijing_datetime_cat(df_all_filters),columns=['dataset_cat'],index=df_all_filters.index)
 ds_dataset_cat = df_dataset_cat['dataset_cat']
-#pd.Series(delhi_beijing_datetime_cat(df_all_filters),['Beijing_winter','Beijing_summer' ,'Delhi_summer','Delhi_autumn'], ordered=True),index=df_all_filters.index)
+
+time_cat = delhi_calc_time_cat(df_all_filters)
+df_time_cat = pd.DataFrame(delhi_calc_time_cat(df_all_filters),columns=['time_cat'],index=df_all_filters.index)
+ds_time_cat = df_time_cat['time_cat']
 
 
 
@@ -96,9 +99,9 @@ ds_all_filters_total_1e6 = df_all_filters_1e6.sum(axis=1)
 
 #Normalise so the mean of the whole matrix is 1
 orig_mean = df_all_filters.mean().mean()
-pipe_norm_mtx = FunctionTransformer(lambda x: np.divide(x,orig_mean),inverse_func = lambda x: np.multiply(x,orig_mean))
-pipe_norm_mtx.fit(df_all_filters)
-df_all_filters_norm1 = pd.DataFrame(pipe_norm_mtx.transform(df_all_filters),columns=df_all_filters.columns)
+pipe_norm1_mtx = FunctionTransformer(lambda x: np.divide(x,orig_mean),inverse_func = lambda x: np.multiply(x,orig_mean))
+pipe_norm1_mtx.fit(df_all_filters)
+df_all_filters_norm1 = pd.DataFrame(pipe_norm1_mtx.transform(df_all_filters),columns=df_all_filters.columns)
 
 #Minmax scaling
 minmaxscaler_all = MinMaxScaler()
@@ -144,7 +147,7 @@ verbose = 0
 
 start_time = time.time()
 
-for latent_dim in range(1,10):
+for latent_dim in range(1,30):
     print(latent_dim)
     K.clear_session()
     latent_dims.append(latent_dim)
@@ -177,7 +180,7 @@ print("--- %s seconds ---" % (time.time() - start_time))
     
 #%%Plot the data for the different number of layers above
 fig,ax=plt.subplots(2,1,figsize=(12,8))
-ax[0].set_title('Finding optimum latent dims- simple relu AE')
+ax[0].set_title('Finding optimum latent dims- simple relu AE with relu latent space')
 ax[0].plot(latent_dims,AE1_MSE_best50epoch,c='black')
 ax[0].plot(latent_dims,AE2_MSE_best50epoch,c='red')
 ax[0].plot(latent_dims,AE3_MSE_best50epoch,c='gray')
@@ -205,7 +208,7 @@ plt.show()
 
 #%%Work out how many epochs to train for
 #Based on the above, use an AE with 2 intermediate layers and latent dim of 20
-ae_obj = AE_n_layer(input_dim=input_dim,latent_dim=21,int_layers=2,latent_activation='relu')
+ae_obj = AE_n_layer(input_dim=input_dim,latent_dim=19,int_layers=2,latent_activation='relu')
 history = ae_obj.fit_model(ae_input, x_test=ae_input_val,epochs=300)
 val_acc_per_epoch = history.history['val_loss']
 fig,ax = plt.subplots(1,figsize=(8,6))
@@ -213,19 +216,19 @@ ax.plot(val_acc_per_epoch)
 plt.show()
 #Now retrain model based on best epoch
 best_epoch = val_acc_per_epoch.index(min(val_acc_per_epoch)) + 1
-ae_obj = AE_n_layer(input_dim=input_dim,latent_dim=21,int_layers=2,latent_activation='relu')
+ae_obj = AE_n_layer(input_dim=input_dim,latent_dim=19,int_layers=2,latent_activation='relu')
 ae_obj.fit_model(ae_input, x_test=ae_input_val,epochs=best_epoch)
 print('Best epoch: %d' % (best_epoch,))
 
 
 fig,ax=plt.subplots(2,1,figsize=(12,8))
-ax[0].set_title('Finding optimum epochs- simple relu AE')
+ax[0].set_title('Finding optimum epochs- simple relu AE, relu latent space')
 ax[0].plot(history.epoch,val_acc_per_epoch)
 ax[0].set_xlabel('Number of epochs')
 ax[0].set_ylabel('MSE')
 ax[1].plot(history.epoch,val_acc_per_epoch)
 ax[1].set_xlabel('Number of latent dims')
-ax[1].set_ylabel('Best MSE in first 50 epochs')
+ax[1].set_ylabel('MSE')
 ax[1].set_yscale('log')
 loc = plticker.MultipleLocator(base=10.0) # this locator puts ticks at regular intervals
 ax[0].xaxis.set_major_locator(plticker.MultipleLocator(base=10.0))
@@ -240,6 +243,105 @@ decoded_latent_space = ae_obj.decoder(latent_space)
 
 fig,ax = plt.subplots(1)
 plt.scatter(ae_input_val,ae_obj.ae(ae_input_val))
+plt.title("AE input vs output")
+plt.xlabel('AE input')
+plt.ylabel('AE output')
+plt.show()
+
+
+
+#%%Generate synthetic dataset
+# %%
+# #Let's make some factors that vary with time
+#First find the least correlated filters from the various datasets
+
+#Correlate each row with every other row
+#My version that is slow but actually works for matrices of different number of rows
+def corr_coeff_rowwise_loops(A,B):
+    corr_mtx = np.empty([A.shape[0],B.shape[0]])
+    for i in range(A.shape[0]):
+       #pdb.set_trace()
+        Arow = A[i,:]
+        for j in range(B.shape[0]):
+            Brow = B[j,:]
+            corr_mtx[i,j] = pearsonr(Arow,Brow)[0]
+    return corr_mtx
+            
+
+Beijing_rows_corr = corr_coeff_rowwise_loops(df_all_filters_norm1[ds_dataset_cat=='Beijing_winter'].values,df_all_filters_norm1[ds_dataset_cat=='Beijing_summer'].values)
+Beijing_rows_corr_min_index = np.unravel_index(Beijing_rows_corr.argmin(), Beijing_rows_corr.shape)
+Delhi_rows_corr = corr_coeff_rowwise_loops(df_all_filters_norm1[ds_dataset_cat=='Delhi_summer'].values,df_all_filters_norm1[ds_dataset_cat=='Delhi_autumn'].values)
+Delhi_rows_corr_min_index = np.unravel_index(Delhi_rows_corr.argmin(), Delhi_rows_corr.shape)
+
+
+#This then is 4 factors that are very poorly correlated with each other in terms of their mass spec
+factor_A = df_all_filters_norm1[ds_dataset_cat=='Beijing_winter'].iloc[Beijing_rows_corr_min_index[0]].values
+factor_B = df_all_filters_norm1[ds_dataset_cat=='Beijing_summer'].iloc[Beijing_rows_corr_min_index[1]].values
+factor_C = df_all_filters_norm1[ds_dataset_cat=='Delhi_summer'].iloc[Delhi_rows_corr_min_index[0]].values
+factor_D = df_all_filters_norm1[ds_dataset_cat=='Delhi_autumn'].iloc[Delhi_rows_corr_min_index[1]].values
+
+#Normalise all to 1
+factor_A = 1 * factor_A / factor_A.sum()
+factor_B = 1 * factor_B / factor_B.sum()
+factor_C = 1 * factor_C / factor_C.sum()
+factor_D = 1 * factor_D / factor_D.sum()
+
+#For just the winter data, when it's normalised
+amp_A = np.append(np.arange(0.1,0.6,0.5/83),np.arange(0.6,1.6,0.015)) * 2.5
+#amp_B = np.ones(150)*2.75
+amp_B = np.abs(-np.sin(np.arange(0,3*math.pi,math.pi/50))*1.3 + 1)
+amp_C = np.append(np.arange(1.5,0.5,-0.015),np.arange(0.5,0,-0.5/83)) * 2.5
+#amp_D = 
+
+num_cols = df_all_filters.shape[1]
+df_factorA = pd.DataFrame((np.random.normal(1, 0.3, [150,num_cols])) * factor_A).multiply(amp_A,axis=0)
+df_factorB = pd.DataFrame((np.random.normal(1, 0.3, [150,num_cols])) * factor_B).multiply(amp_B,axis=0)
+df_factorC = pd.DataFrame((np.random.normal(1, 0.3, [150,num_cols])) * factor_C).multiply(amp_C,axis=0)
+df_factorA.columns = df_all_filters_norm1.columns
+df_factorB.columns = df_all_filters_norm1.columns
+df_factorC.columns = df_all_filters_norm1.columns
+
+factorA_total = df_factorA.sum(axis=1)
+factorB_total = df_factorB.sum(axis=1)
+factorC_total = df_factorC.sum(axis=1)
+
+
+df_3factor_sum = pd.DataFrame([factorA_total,factorB_total,factorC_total]).T
+df_3factor_sum.idxmax(axis="columns").plot()
+plt.title("Input test factor labels")
+plt.show()
+
+df_3factor = df_factorA + df_factorB + df_factorC
+
+plt.plot(factorA_total)
+plt.plot(factorB_total)
+plt.plot(factorC_total)
+plt.show()
+
+
+#%%Train an entirely new AE for the test data
+#%%Work out how many epochs to train for
+df_3factor_aug = augment_data_noise(df_3factor,50,1,0)
+ae_input_testdata = df_3factor_aug.values
+ae_input_val_testdata = df_3factor.values
+input_dim_testdata = ae_input_testdata.shape[1]
+
+#Based on the above, use an AE with 2 intermediate layers and latent dim of 20
+ae_obj_testdata = AE_n_layer(input_dim=input_dim,latent_dim=19,int_layers=2,latent_activation='relu')
+history = ae_obj_testdata.fit_model(ae_input_testdata, x_test=ae_input_val_testdata,epochs=300)
+val_acc_per_epoch = history.history['val_loss']
+fig,ax = plt.subplots(1,figsize=(8,6))
+ax.plot(val_acc_per_epoch)
+plt.show()
+#Now retrain model based on best epoch
+best_epoch = val_acc_per_epoch.index(min(val_acc_per_epoch)) + 1
+ae_obj_testdata = AE_n_layer(input_dim=input_dim,latent_dim=19,int_layers=2,latent_activation='relu')
+ae_obj_testdata.fit_model(ae_input_testdata, x_test=ae_input_val_testdata,epochs=best_epoch)
+print('Best epoch: %d' % (best_epoch,))
+
+#%%Test data in AE
+fig,ax = plt.subplots(1)
+plt.scatter(ae_input_val_testdata,ae_obj_testdata.ae(ae_input_val_testdata))
 plt.title("AE input vs output")
 plt.xlabel('AE input')
 plt.ylabel('AE output')
