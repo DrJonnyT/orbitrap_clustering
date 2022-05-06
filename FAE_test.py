@@ -17,7 +17,7 @@ from tensorflow.python.framework.ops import disable_eager_execution
 disable_eager_execution()
 
 
-from sklearn.preprocessing import RobustScaler, StandardScaler,FunctionTransformer,MinMaxScaler,Normalizer,normalize
+from sklearn.preprocessing import RobustScaler, StandardScaler,FunctionTransformer,MinMaxScaler,Normalizer,QuantileTransformer
 from sklearn.pipeline import Pipeline
 
 
@@ -319,12 +319,6 @@ amp_B = np.abs(-np.sin(np.arange(0,3*math.pi,math.pi/50))*2 + 1)
 amp_C = np.append(np.arange(1.5,0.5,-0.015),np.arange(0.5,0,-0.5/83)) * 2.5
 amp_D = np.abs(np.sin(np.arange(0,2*math.pi,math.pi/75))*1.5) + np.abs(-np.sin(np.arange(0,2*math.pi,math.pi/75))*1.5)
 
-#Amlitudes to make it very easy for the model to pick out each factor
-amp_A = np.concatenate((np.sin(np.arange(0,math.pi,math.pi/50))*1.5,np.zeros(150))) * 2.5
-amp_B = np.append(np.zeros(50),np.sin(np.arange(0,math.pi,math.pi/50))*1.5,np.zeros(100)) * 2.5
-amp_C = np.append(np.zeros(100),np.sin(np.arange(0,math.pi,math.pi/50))*1.5,np.zeros(50)) * 2.5
-amp_D = np.append(np.zeros(150),np.sin(np.arange(0,math.pi,math.pi/50))*1.5) * 2.5
-
 
 
 num_cols = df_all_filters.shape[1]
@@ -371,6 +365,8 @@ ds_2factor_total = factorA_total + factorC_total
 
 df_4factor = df_factorA + df_factorB + df_factorC + df_factorD
 ds_4factor_total = factorA_total + factorB_total + factorC_total + factorD_total
+
+df_4factor_factors = pd.DataFrame([factor_A,factor_B,factor_C,factor_D],columns=df_all_filters.columns)
 
 
 #%% VERY EASY AMPLITUDES
@@ -714,10 +710,53 @@ plt.plot(factor2_sum,c='b')
 
 
 
+#%%Try normal PMf with 4factor real space testdata
 
+model = NMF(n_components=4)
+#W = model.fit_transform(df_4factor.to_numpy().clip(min=0))
+W = model.fit_transform(df_4factor_MM.to_numpy().clip(min=0))
+H = model.components_
 
+Factor0_mtx = np.outer(W.T[0], H[0])
+Factor1_mtx = np.outer(W.T[1], H[1])
+Factor2_mtx = np.outer(W.T[2], H[2])
+Factor3_mtx = np.outer(W.T[3], H[3])
 
+#y_pred_factorsum = Factor0_mtx_decod + Factor1_mtx_decod + Factor2_mtx_decod + Factor3_mtx_decod
 
+factor0_sum = Factor0_mtx.sum(axis=1)
+factor1_sum = Factor1_mtx.sum(axis=1)
+factor2_sum = Factor2_mtx.sum(axis=1)
+factor3_sum = Factor3_mtx.sum(axis=1)
+
+plt.plot(factor0_sum,c='k')
+plt.plot(factor1_sum,c='r')
+plt.plot(factor2_sum,c='b')
+plt.plot(factor3_sum,c='y')
+
+#%%Plot 4-factor PMF fit to real space testdata
+mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_filters.columns])
+fig,ax = plt.subplots(4,1,figsize=(6.66,10))
+ax[0].stem(mz_columns.to_numpy(),Factor0_mtx.sum(axis=0),markerfmt=' ')
+ax[1].stem(mz_columns.to_numpy(),Factor1_mtx.sum(axis=0),markerfmt=' ')
+ax[2].stem(mz_columns.to_numpy(),Factor2_mtx.sum(axis=0),markerfmt=' ')
+ax[3].stem(mz_columns.to_numpy(),Factor3_mtx.sum(axis=0),markerfmt=' ')
+plt.setp(ax, xlim=(100,400))
+ax[0].set_title('PMF factors')
+ax[3].set_xlabel('m/z')
+plt.show()
+
+#%%Plot 4-factor PMF fit to real space testdata, un MinMax
+mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_filters.columns])
+fig,ax = plt.subplots(4,1,figsize=(6.66,10))
+ax[0].stem(mz_columns.to_numpy(),MM_4factor.inverse_transform(Factor0_mtx.mean(axis=0).reshape(-1,1).T).T,markerfmt=' ')
+ax[1].stem(mz_columns.to_numpy(),MM_4factor.inverse_transform(Factor1_mtx.mean(axis=0).reshape(-1,1).T).T,markerfmt=' ')
+ax[2].stem(mz_columns.to_numpy(),MM_4factor.inverse_transform(Factor2_mtx.mean(axis=0).reshape(-1,1).T).T,markerfmt=' ')
+ax[3].stem(mz_columns.to_numpy(),MM_4factor.inverse_transform(Factor3_mtx.mean(axis=0).reshape(-1,1).T).T,markerfmt=' ')
+plt.setp(ax, xlim=(100,400))
+ax[0].set_title('PMF factors')
+ax[3].set_xlabel('m/z')
+plt.show()
 
 
 
@@ -805,18 +844,25 @@ ax[0].stem(mz_columns.to_numpy(),factor_A,markerfmt=' ')
 ax[1].stem(mz_columns.to_numpy(),factor_C,markerfmt=' ')
 ax[2].stem(mz_columns.to_numpy(),latent_decoded_min1,markerfmt=' ')
 ax[3].stem(mz_columns.to_numpy(),latent_decoded_plus1,markerfmt=' ')
-ax[0].set_xlim(right=500)
-ax[1].set_xlim(right=500)
-ax[2].set_xlim(right=500)
-ax[3].set_xlim(right=500)
+ax[0].set_xlim(right=400)
+ax[1].set_xlim(right=400)
+ax[2].set_xlim(right=400)
+ax[3].set_xlim(right=400)
 plt.show()
+
+
+
+#%%Try prepare data with subtract the mean (of the whole thing, then divide by the stdev (of the whole thing))
+#Then scale to between 0 and 1?
+orig_mean_num = df_4factor.mean().mean()
+df_4factor_subm = df_4factor - df_4factor.mean().mean()
 
 
 
 #%%TRAIN 4-FACTOR VAE
 #Based on the above, use an AE with 1 intermediate layers and latent dim of 4
-ae_obj = FVAE_n_layer(input_dim=input_dim,latent_dim=2,int_layers=1,latent_activation='softsign',decoder_output_activation='relu')
-history = ae_obj.fit_model(df_4factor_aug.to_numpy(),x_test=df_4factor_01.to_numpy(),epochs=100,verbose=True)
+ae_obj = FVAE_n_layer(input_dim=input_dim,latent_dim=2,int_layers=3,latent_activation='softsign',decoder_output_activation='sigmoid')
+history = ae_obj.fit_model(df_4factor_aug_01.to_numpy(),x_test=df_4factor_01.to_numpy(),epochs=100,verbose=True)
 val_acc_per_epoch = history.history['val_loss']
 kl_loss = history.history['kl_loss']
 mse_loss = history.history['mse_loss']
@@ -869,6 +915,33 @@ plt.xlabel('AE input')
 plt.ylabel('AE output')
 plt.show()
 
+
+#%%Check Pearson's R correlation between input and output factors
+latent_grid = np.mgrid[-1:2:1, -1:2:1].reshape(2, -1).T
+df_latent_grid_decoded = pd.DataFrame(ae_obj.decoder.predict(latent_grid),columns=df_all_filters.columns)
+latent_grid_decoded_corr = corr_coeff_rowwise_loops(df_latent_grid_decoded.to_numpy(),df_4factor_factors.to_numpy())
+latent_grid_decoded_corr = np.around(latent_grid_decoded_corr,3)
+
+mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_filters.columns])
+fig,ax = plt.subplots(3,3,figsize=(20,10))
+axs = ax.ravel()
+    
+for i in range(9):   
+    axs[i].stem(mz_columns.to_numpy(),df_latent_grid_decoded.iloc[i],markerfmt=' ')
+    best_R = latent_grid_decoded_corr[i]
+    axs[i].text(0.95,0.5,latent_grid_decoded_corr[i].max(),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes)
+    axs[i].text(0.95,0.4,latent_grid_decoded_corr[i].argmax(),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes)
+    
+
+plt.setp(ax, xlim=(100,400))
+plt.tight_layout()
+plt.show()
+
+
+
+
+
+
 #%%Decode single column latent space
 latent0_decoded_min1 = ae_obj.decoder.predict(np.array([[-1,0]])).T
 latent0_decoded_plus1 = ae_obj.decoder.predict(np.array([[1,0]])).T
@@ -885,14 +958,14 @@ ax[4].stem(mz_columns.to_numpy(),latent0_decoded_min1,markerfmt=' ')
 ax[5].stem(mz_columns.to_numpy(),latent0_decoded_plus1,markerfmt=' ')
 ax[6].stem(mz_columns.to_numpy(),latent1_decoded_min1,markerfmt=' ')
 ax[7].stem(mz_columns.to_numpy(),latent1_decoded_plus1,markerfmt=' ')
-ax[0].set_xlim(right=500)
-ax[1].set_xlim(right=500)
-ax[2].set_xlim(right=500)
-ax[3].set_xlim(right=500)
-ax[4].set_xlim(right=500)
-ax[5].set_xlim(right=500)
-ax[6].set_xlim(right=500)
-ax[7].set_xlim(right=500)
+ax[0].set_xlim(right=400)
+ax[1].set_xlim(right=400)
+ax[2].set_xlim(right=400)
+ax[3].set_xlim(right=400)
+ax[4].set_xlim(right=400)
+ax[5].set_xlim(right=400)
+ax[6].set_xlim(right=400)
+ax[7].set_xlim(right=400)
 plt.show()
 
 
@@ -914,24 +987,60 @@ ax[5].stem(mz_columns.to_numpy(),latent_mp_decoded,markerfmt=' ')
 ax[6].stem(mz_columns.to_numpy(),latent_pm_decoded,markerfmt=' ')
 ax[7].stem(mz_columns.to_numpy(),latent_pp_decoded,markerfmt=' ')
 ax[8].stem(mz_columns.to_numpy(),latent_00_decoded,markerfmt=' ')
-ax[0].set_xlim(right=500)
-ax[1].set_xlim(right=500)
-ax[2].set_xlim(right=500)
-ax[3].set_xlim(right=500)
-ax[4].set_xlim(right=500)
-ax[5].set_xlim(right=500)
-ax[6].set_xlim(right=500)
-ax[7].set_xlim(right=500)
-ax[8].set_xlim(right=500)
+ax[0].set_xlim(right=400)
+ax[1].set_xlim(right=400)
+ax[2].set_xlim(right=400)
+ax[3].set_xlim(right=400)
+ax[4].set_xlim(right=400)
+ax[5].set_xlim(right=400)
+ax[6].set_xlim(right=400)
+ax[7].set_xlim(right=400)
+ax[8].set_xlim(right=400)
 plt.show()
 
 
 #%%Now try subtracting the mean from the input and see how that affects things
-df_4factor_minmen = df_4factor - df_4factor.mean()
-#%%TRAIN 4-FACTOR VAE
+alpha = df_4factor.mean().mean()
+
+df_4factor_minmen = df_4factor - df_4factor.mean().mean()
+df_4factor_minmen_aug = augment_data_noise(df_4factor_minmen,50,1,0)
+beta = df_4factor_minmen.min().min()
+df_4factor_minmen_01 = (df_4factor_minmen - df_4factor_minmen.min().min())
+gamma = df_4factor_minmen_01.max().max()
+df_4factor_minmen_01 = df_4factor_minmen_01 / df_4factor_minmen_01.max().max()
+df_4factor_minmen_01 = df_4factor_minmen_01*2 - 1
+
+df_4factor_minmen_aug_01 = (df_4factor_minmen_aug - df_4factor_minmen_aug.min().min())
+df_4factor_minmen_aug_01 = df_4factor_minmen_aug_01 / df_4factor_minmen_aug_01.max().max()
+df_4factor_minmen_aug_01 = df_4factor_minmen_aug_01*2 -1
+
+MM_4factor_aug = MinMaxScaler()
+MM_4factor = MinMaxScaler()
+df_4factor_MM_aug = pd.DataFrame(MM_4factor_aug.fit_transform(df_4factor_aug.to_numpy()),columns=df_all_filters.columns)
+df_4factor_MM = pd.DataFrame(MM_4factor.fit_transform(df_4factor.to_numpy()),columns=df_all_filters.columns)
+
+
+QT_4factor_aug = QuantileTransformer()
+QT_4factor = QuantileTransformer()
+df_4factor_QT_aug = pd.DataFrame(QT_4factor_aug.fit_transform(df_4factor_aug.to_numpy()),columns=df_all_filters.columns)
+df_4factor_QT = pd.DataFrame(QT_4factor.fit_transform(df_4factor.to_numpy()),columns=df_all_filters.columns)
+
+# df_4factor_QT_aug = df_4factor_QT_aug*2 - 1
+# df_4factor_QT = df_4factor_QT*2 - 1
+
+
+from sklearn.preprocessing import PowerTransformer
+PT_4factor = PowerTransformer()
+PT_4factor_aug = PowerTransformer()
+df_4factor_PT_aug = pd.DataFrame(PT_4factor_aug.fit_transform(df_4factor_aug.to_numpy()),columns=df_all_filters.columns)
+df_4factor_PT = pd.DataFrame(PT_4factor.fit_transform(df_4factor.to_numpy()),columns=df_all_filters.columns)
+
+
+#%%TRAIN 4-FACTOR VAE MINMAX
 #Based on the above, use an AE with 1 intermediate layers and latent dim of 4
-ae_obj = FVAE_n_layer(input_dim=input_dim,latent_dim=2,int_layers=1,latent_activation='softsign',decoder_output_activation='relu')
-history = ae_obj.fit_model(df_4factor_aug.to_numpy(),x_test=df_4factor_01.to_numpy(),epochs=100,verbose=True)
+ae_obj = FVAE_n_layer(input_dim=input_dim,latent_dim=2,int_layers=3,latent_activation='softsign',decoder_output_activation='sigmoid')
+#history = ae_obj.fit_model(df_4factor_minmen_aug_01.to_numpy(),x_test=df_4factor_minmen_01.to_numpy(),epochs=100,verbose=True)
+history = ae_obj.fit_model(df_4factor_aug_01.to_numpy(),x_test=df_4factor_01.to_numpy(),epochs=100,verbose=True)
 val_acc_per_epoch = history.history['val_loss']
 kl_loss = history.history['kl_loss']
 mse_loss = history.history['mse_loss']
@@ -973,22 +1082,43 @@ plt.show()
 # TO WORK OUT HOW IT WORKS
 # THEN TRY ASSESS THE PERFORMANCE AND IMPROVE
 
-#%%Plot input vs output
+#%%Plot input vs output df_4factor_MM
 latent_space = ae_obj.encoder.predict(df_4factor_01.to_numpy())
 decoded_latent_space = ae_obj.decoder.predict(latent_space)
 
 fig,ax = plt.subplots(1)
-plt.scatter(df_4factor_01.to_numpy(),ae_obj.vae.predict(df_4factor_01.to_numpy()))
-plt.title("AE input vs output")
+plt.scatter(df_4factor_01.to_numpy(),ae_obj.ae.predict(df_4factor_01.to_numpy()))
+plt.title("AE input vs output (MinMax scaled)")
+plt.xlabel('AE input')
+plt.ylabel('AE output')
+plt.show()
+
+#%%Evaluate AE loss per sample
+ds_AE_loss_per_sample = pd.Series(AE_calc_loss_per_sample(ae_obj.ae,df_4factor_01.to_numpy(),df_4factor_01.to_numpy()))
+
+#%%Plot input vs output df_4factor (unscaled)
+fig,ax = plt.subplots(1)
+#plt.scatter(df_4factor.to_numpy(),QT_4factor.inverse_transform((ae_obj.vae.predict(df_4factor_QT.to_numpy())+1)/2))
+plt.scatter(df_4factor.to_numpy(),PT_4factor.inverse_transform(ae_obj.ae.predict(df_4factor_PT.to_numpy())))
+plt.title("AE input vs output (unscaled)")
 plt.xlabel('AE input')
 plt.ylabel('AE output')
 plt.show()
 
 #%%Decode single column latent space
-latent0_decoded_min1 = ae_obj.decoder.predict(np.array([[-1,0]])).T
-latent0_decoded_plus1 = ae_obj.decoder.predict(np.array([[1,0]])).T
-latent1_decoded_min1 = ae_obj.decoder.predict(np.array([[0,-1]])).T
-latent1_decoded_plus1 = ae_obj.decoder.predict(np.array([[0,1]])).T
+latent0_decoded_min1 = ae_obj.decoder.predict(np.array([[-1,0]]))
+latent0_decoded_plus1 = ae_obj.decoder.predict(np.array([[1,0]]))
+latent1_decoded_min1 = ae_obj.decoder.predict(np.array([[0,-1]]))
+latent1_decoded_plus1 = ae_obj.decoder.predict(np.array([[0,1]]))
+
+# latent0_decoded_min1 = (latent0_decoded_min1+1)/2
+# latent0_decoded_plus1 = (latent0_decoded_plus1+1)/2
+# latent1_decoded_min1 = (latent1_decoded_min1+1)/2
+# latent1_decoded_plus1 = (latent1_decoded_plus1+1)/2
+latent0_decoded_min1 = MM_4factor.inverse_transform(latent0_decoded_min1).T
+latent0_decoded_plus1 = MM_4factor.inverse_transform(latent0_decoded_plus1).T
+latent1_decoded_min1 = MM_4factor.inverse_transform(latent1_decoded_min1).T
+latent1_decoded_plus1 = MM_4factor.inverse_transform(latent1_decoded_plus1).T
 
 mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_filters.columns])
 fig,ax = plt.subplots(8,1,figsize=(10,10))
@@ -1000,23 +1130,28 @@ ax[4].stem(mz_columns.to_numpy(),latent0_decoded_min1,markerfmt=' ')
 ax[5].stem(mz_columns.to_numpy(),latent0_decoded_plus1,markerfmt=' ')
 ax[6].stem(mz_columns.to_numpy(),latent1_decoded_min1,markerfmt=' ')
 ax[7].stem(mz_columns.to_numpy(),latent1_decoded_plus1,markerfmt=' ')
-ax[0].set_xlim(right=500)
-ax[1].set_xlim(right=500)
-ax[2].set_xlim(right=500)
-ax[3].set_xlim(right=500)
-ax[4].set_xlim(right=500)
-ax[5].set_xlim(right=500)
-ax[6].set_xlim(right=500)
-ax[7].set_xlim(right=500)
+plt.setp(ax, xlim=(100,400), ylim=(0,0.75))
 plt.show()
 
 
 #%%Decode corners from latent space
-latent_mm_decoded = ae_obj.decoder.predict(np.array([[-1,-1]])).T
-latent_mp_decoded = ae_obj.decoder.predict(np.array([[-1,1]])).T
-latent_pm_decoded = ae_obj.decoder.predict(np.array([[1,-1]])).T
-latent_pp_decoded = ae_obj.decoder.predict(np.array([[1,1]])).T
-latent_00_decoded = ae_obj.decoder.predict(np.array([[0,0]])).T
+latent_mm_decoded = ae_obj.decoder.predict(np.array([[-1,-1]]))
+latent_mp_decoded = ae_obj.decoder.predict(np.array([[-1,1]]))
+latent_pm_decoded = ae_obj.decoder.predict(np.array([[1,-1]]))
+latent_pp_decoded = ae_obj.decoder.predict(np.array([[1,1]]))
+latent_00_decoded = ae_obj.decoder.predict(np.array([[0,0]]))
+
+# latent_mm_decoded = (latent_mm_decoded+1)/2
+# latent_mp_decoded = (latent_mp_decoded+1)/2
+# latent_pm_decoded = (latent_pm_decoded+1)/2
+# latent_pp_decoded = (latent_pp_decoded+1)/2
+# latent_00_decoded = (latent_00_decoded+1)/2
+
+latent_mm_decoded = MM_4factor.inverse_transform(latent_mm_decoded).T
+latent_mp_decoded = MM_4factor.inverse_transform(latent_mp_decoded).T
+latent_pm_decoded = MM_4factor.inverse_transform(latent_pm_decoded).T
+latent_pp_decoded = MM_4factor.inverse_transform(latent_pp_decoded).T
+latent_00_decoded = MM_4factor.inverse_transform(latent_00_decoded).T
 
 mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_filters.columns])
 fig,ax = plt.subplots(9,1,figsize=(10,10))
@@ -1029,20 +1164,69 @@ ax[5].stem(mz_columns.to_numpy(),latent_mp_decoded,markerfmt=' ')
 ax[6].stem(mz_columns.to_numpy(),latent_pm_decoded,markerfmt=' ')
 ax[7].stem(mz_columns.to_numpy(),latent_pp_decoded,markerfmt=' ')
 ax[8].stem(mz_columns.to_numpy(),latent_00_decoded,markerfmt=' ')
-ax[0].set_xlim(right=500)
-ax[1].set_xlim(right=500)
-ax[2].set_xlim(right=500)
-ax[3].set_xlim(right=500)
-ax[4].set_xlim(right=500)
-ax[5].set_xlim(right=500)
-ax[6].set_xlim(right=500)
-ax[7].set_xlim(right=500)
-ax[8].set_xlim(right=500)
+plt.setp(ax, xlim=(100,400), ylim=(0,0.75))
+plt.show()
+
+
+#%%Plot a 2x2 input and a 3x3 output
+#%%Plot input factors
+mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_filters.columns])
+fig,ax = plt.subplots(4,1,figsize=(6.66,10))
+ax[0].stem(mz_columns.to_numpy(),factor_A,markerfmt=' ')
+ax[1].stem(mz_columns.to_numpy(),factor_B,markerfmt=' ')
+ax[2].stem(mz_columns.to_numpy(),factor_C,markerfmt=' ')
+ax[3].stem(mz_columns.to_numpy(),factor_D,markerfmt=' ')
+plt.setp(ax, xlim=(100,400))
+ax[0].set_title('Input factors')
+ax[3].set_xlabel('m/z')
+plt.show()
+
+#%%Plot output factors
+
+mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_filters.columns])
+fig,ax = plt.subplots(3,3,figsize=(20,10))
+ax[0][0].stem(mz_columns.to_numpy(),latent_mm_decoded,markerfmt=' ')
+ax[0][1].stem(mz_columns.to_numpy(),latent0_decoded_min1,markerfmt=' ')
+ax[0][2].stem(mz_columns.to_numpy(),latent_mp_decoded,markerfmt=' ')
+ax[1][0].stem(mz_columns.to_numpy(),latent1_decoded_min1,markerfmt=' ')
+ax[1][1].stem(mz_columns.to_numpy(),latent_00_decoded,markerfmt=' ')
+ax[1][2].stem(mz_columns.to_numpy(),latent1_decoded_plus1,markerfmt=' ')
+ax[2][0].stem(mz_columns.to_numpy(),latent_pm_decoded,markerfmt=' ')
+ax[2][1].stem(mz_columns.to_numpy(),latent0_decoded_plus1,markerfmt=' ')
+ax[2][2].stem(mz_columns.to_numpy(),latent_pp_decoded,markerfmt=' ')
+plt.setp(ax, xlim=(100,400))
+plt.tight_layout()
+plt.show()
+
+
+#%%Check Pearson's R correlation between input and output factors
+latent_grid = np.mgrid[-1:2:1, -1:2:1].reshape(2, -1).T
+#df_latent_grid_decoded = pd.DataFrame(QT_4factor.inverse_transform((ae_obj.decoder.predict(latent_grid)+1)/2),columns=df_all_filters.columns)
+df_latent_grid_decoded = pd.DataFrame(PT_4factor_aug.inverse_transform(ae_obj.decoder.predict(latent_grid)),columns=df_all_filters.columns)
+df_latent_grid_decoded = pd.DataFrame(ae_obj.decoder.predict(latent_grid),columns=df_all_filters.columns)
+#df_latent_grid_decoded = df_latent_grid_decoded.fillna(0)
+latent_grid_decoded_corr = corr_coeff_rowwise_loops(df_latent_grid_decoded.to_numpy(),df_4factor_factors.to_numpy())
+latent_grid_decoded_corr = np.around(latent_grid_decoded_corr,3)
+
+mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_filters.columns])
+fig,ax = plt.subplots(3,3,figsize=(20,10))
+axs = ax.ravel()
+    
+for i in range(9):   
+    axs[i].stem(mz_columns.to_numpy(),df_latent_grid_decoded.iloc[i],markerfmt=' ')
+    best_R = latent_grid_decoded_corr[i]
+    axs[i].text(0.95,0.5,latent_grid_decoded_corr[i].max(),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes)
+    axs[i].text(0.95,0.4,latent_grid_decoded_corr[i].argmax(),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes)
+    
+
+plt.setp(ax, xlim=(100,400))
+plt.tight_layout()
 plt.show()
 
 
 
 
+#%%
 
 So, I think I possibly have this VAE in a state where it MIGHT be useful. Might
 Need to check some things like what the factor profile look like, if you check one factor as -1 versus 1, etc etc

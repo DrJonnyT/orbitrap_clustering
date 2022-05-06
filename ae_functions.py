@@ -635,12 +635,16 @@ class AE_n_layer():
 
 
 # %%Basic n-layer variational autoencoder class
-class VAE_n_layer():
-    def __init__(self,hp='DEFAULT',input_dim=964,latent_dim=15,int_layers=2,int_layer_dims='DEFAULT',learning_rate=1e-3,latent_activation='linear'):
+class FVAE_n_layer():
+    def __init__(self,hp='DEFAULT',input_dim=964,latent_dim=15,int_layers=2,int_layer_dims='DEFAULT',learning_rate=1e-3,latent_activation='linear',decoder_output_activation='linear'):
         if(hp=='DEFAULT'):#Use parameters from the list
             self.input_dim = input_dim
             self.latent_dim = latent_dim
             self.int_layers = int_layers
+            self.decoder_output_activation = decoder_output_activation
+            self.latent_activation = latent_activation
+            self.learning_rate = learning_rate 
+            
             
             #Make logspace int layer dims if required
             if(int_layer_dims=='DEFAULT'):
@@ -655,10 +659,10 @@ class VAE_n_layer():
                             
             else:
                 self.int_layer_dims = int_layer_dims
-                
-            self.decoder_output_activation = 'linear'
-            self.latent_activation = latent_activation
-            self.learning_rate = learning_rate
+   
+            
+            
+            
         
         else:   #Use kerastuner hyperparameters
             self.input_dim = hp.get('input_dim')
@@ -669,7 +673,7 @@ class VAE_n_layer():
             self.decoder_output_activation = hp.get('decoder_output_activation')
             self.latent_activation = hp.get('decoder_output_activation')
         
-        self.vae = None
+        self.ae = None
         self.encoder = None
         self.decoder = None
         self.build_model()
@@ -693,18 +697,29 @@ class VAE_n_layer():
         #z is the latent layer
         z_mean = layers.Dense(self.latent_dim,activation=self.latent_activation,name='latent_mean')(encoder_layer)
         z_log_var = layers.Dense(self.latent_dim,name='latent_log_var')(encoder_layer)
+        self.z_mean = z_mean
+        self.z_log_var = z_log_var
         self.encoder = Model(inputs=encoder_input_layer, outputs=z_mean, name="encoder_vae")
         
-        # #Resample
+        # # #Resample
+        # def sampling(args):
+        #     z_mean, z_log_var = args
+        #     batch = tf.shape(z_mean)[0]
+        #     dim = tf.shape(z_mean)[1]
+        #     #epsilon = K.random_normal(shape=(batch_size, latent_dim), mean=0.,
+        #                               #stddev=epsilon_std)
+        #     epsilon = K.random_normal(shape=(batch, dim), mean=0.,
+        #                               stddev=1)
+        #     return z_mean + K.exp(z_log_var / 2) * epsilon
+        
+        #This is the reparameterization trick
         def sampling(args):
             z_mean, z_log_var = args
-            batch = tf.shape(z_mean)[0]
-            dim = tf.shape(z_mean)[1]
-            #epsilon = K.random_normal(shape=(batch_size, latent_dim), mean=0.,
-                                      #stddev=epsilon_std)
-            epsilon = K.random_normal(shape=(batch, dim), mean=0.,
-                                      stddev=1)
-            return z_mean + K.exp(z_log_var / 2) * epsilon
+            batch = K.shape(z_mean)[0]
+            dim = K.int_shape(z_mean)[1]
+            epsilon = K.random_normal(shape=(batch, dim))
+            return z_mean + K.exp(0.5 * z_log_var) * epsilon
+
         
         latent_resampled = layers.Lambda(sampling, output_shape=(self.latent_dim,),name='resampled_latent_mean')([z_mean, z_log_var])
         
@@ -725,9 +740,10 @@ class VAE_n_layer():
         outputs = self.decoder(latent_resampled)
         
         
-        self.vae = Model(inputs=encoder_input_layer, outputs=outputs, name="vae")
-        optimizer = optimizers.Adam(learning_rate=self.learning_rate)
-        print('I think the function VAE_n_layer is in test config and does not return a VAE??')
+        self.ae = Model(inputs=encoder_input_layer, outputs=outputs, name="vae")
+        #optimizer = optimizers.Adam(learning_rate=self.learning_rate)
+        optimizer = optimizers.RMSprop(learning_rate=self.learning_rate)
+
     
         # def vae_loss(encoder_input_layer, outputs):
         #     mse_loss = self.input_dim * metrics.mse(encoder_input_layer, outputs)
@@ -743,19 +759,582 @@ class VAE_n_layer():
         #     return kl_loss
         
         
+        
+        
+        # def mse_loss2(y_true, y_pred):
+        #     r_loss = K.mean(K.square(y_true - y_pred), axis = [1,2,3])
+        #     return 1000 * r_loss
+        
+        def mse_loss(y_true,y_pred):
+            mse_total = tf.reduce_mean(tf.metrics.mean_squared_error(y_true, y_pred))
+            return mse_total
+
+        # rate = K.variable(0.0,name='KL_Annealing')
+        # annealing_rate = 0.0001
+        self.beta = 0.0001
+        def kl_loss(y_true, y_pred):
+            mean=self.z_mean
+            log_var = self.z_log_var
+            kl_loss = self.beta * -0.5 * K.sum(1 + log_var - K.square(mean) - K.exp(log_var), axis = 1)
+            self.beta = self.beta*1.3
+            return kl_loss
+
+
+        def FAE_loss(y_true, y_pred):
+            the_latent_space = self.encoder(y_true)
+            latent_columns_decoded = tf.zeros(tf.shape(y_true))            
+            
+            for i in np.arange(self.latent_dim):
+            #TRY each column in latent space is a factor
+                split1, split2, split3 = tf.split(the_latent_space,[i,1,(-1+self.latent_dim-i)],1)    
+                zeros1 = tf.zeros(tf.shape(split1))
+                zeros3 = tf.zeros(tf.shape(split3))
+                onecol_withzeros = tf.concat([zeros1,split2,zeros3],axis=1)
+            
+                thiscol_decoded = self.decoder(onecol_withzeros)
+                latent_columns_decoded = latent_columns_decoded + thiscol_decoded
+
+            
+            mse_cols = tf.reduce_mean(tf.metrics.mean_squared_error(y_true, latent_columns_decoded))
+            return mse_cols
+        
+        # def mse2(y_true, y_pred):
+        #     the_latent_space = self.encoder(y_true)
+        #     y_decoded = self.decoder(the_latent_space)
+        #     #mse_cols = tf.reduce_mean(tf.metrics.mean_squared_error(y_true, y_decoded))
+        #     #mse_cols=  tf.metrics.mean_squared_error(y_true, y_decoded)
+        #     return K.mean(K.square(y_true-y_decoded))
+        #     #return mse_cols
+
+
+        def FVAE_loss(y_true, y_pred):
+            a = mse_loss(y_true,y_pred)
+            b = kl_loss(y_true, y_pred)
+            #c = FAE_loss(y_true,y_pred)
+            #d = mse2(y_true,y_pred)
+            return a + b#+ c# + d
+        
+
+        
         #self.vae.compile(optimizer=optimizer, loss=vae_loss,metrics=[mse_loss,kl_loss])
         #COMPILING
-        self.vae.compile(optimizer, loss='mse')
+        self.ae.compile(optimizer, loss=FVAE_loss,experimental_run_tf_function=False,metrics=[mse_loss,kl_loss])
+        #self.ae.compile(optimizer, loss='mse',experimental_run_tf_function=False,metrics=[mse_loss,kl_loss])
     
     def fit_model(self, x_train,x_test='DEFAULT',batch_size=100,epochs=30,verbose='auto'):
         if(x_test=='DEFAULT'):
-            _history = self.vae.fit(x_train,x_train,
+            _history = self.ae.fit(x_train,x_train,
                          shuffle=True,
                          epochs=epochs,
                          batch_size=batch_size,
                          validation_data=(x_train,x_train),verbose=verbose)
         else:
-            _history = self.vae.fit(x_train,x_train,
+            _history = self.ae.fit(x_train,x_train,
+                        shuffle=True,
+                        epochs=epochs,
+                        batch_size=batch_size,
+                        validation_data=(x_test,x_test),verbose=verbose)
+            
+        return _history
+
+
+    def encode(self, data,batch_size=100):
+        return self.encoder.predict(data, batch_size=batch_size)
+    
+    def decode(self, data,batch_size=100):
+        return self.decoder.predict(data, batch_size=batch_size)
+    
+    
+    
+    
+    
+# %%n-layer factorization autoencoder class
+class FAE_n_layer():
+    def __init__(self,hp='DEFAULT',input_dim=964,latent_dim=15,int_layers=2,int_layer_dims='DEFAULT',latent_activation='linear',decoder_output_activation='linear'):
+        if(hp=='DEFAULT'):#Use parameters from the list
+            self.input_dim = input_dim
+            self.latent_dim = latent_dim
+            self.int_layers = int_layers
+            self.latent_activation=latent_activation
+            self.decoder_output_activation = decoder_output_activation
+            self.learning_rate = 1e-2
+            
+            #Make logspace int layer dims if required
+            if(int_layer_dims=='DEFAULT'):
+                self.int_layer_dims = []
+                if(self.int_layers>0):
+                    layer1_dim_mid = (self.input_dim**self.int_layers *self.latent_dim)**(1/(self.int_layers+1))
+                    self.int_layer_dims.append(round(layer1_dim_mid))
+                    if(self.int_layers>1):
+                        for int_layer in range(2,self.int_layers+1):
+                            thislayer_dim_mid = round(layer1_dim_mid**(int_layer) / (self.input_dim**(int_layer-1)))
+                            self.int_layer_dims.append(thislayer_dim_mid)
+                            
+            else:
+                self.int_layer_dims = int_layer_dims
+                
+            
+        
+        else:   #Use kerastuner hyperparameters
+            self.input_dim = hp.get('input_dim')
+            self.latent_dim = hp.get('latent_dim')
+            self.int_layers = hp.get('intermediate_layers')
+            self.int_layer_dims = [val.value for key, val in hp._space.items() if 'intermediate_dim' in key]
+            self.learning_rate = hp.get('learning_rate')
+            self.decoder_output_activation = hp.get('decoder_output_activation')
+            self.latent_activation = hp.get('latent_activation')
+        
+        self.ae = None
+        self.encoder = None
+        self.decoder = None
+        self.build_model()
+        
+    def build_model(self):
+
+        #Define encoder model
+        encoder_input_layer = keras.Input(shape=(self.input_dim,), name="encoder_input_layer")
+        
+        #Create the encoder layers
+        #The dimensions of the intermediate layers are stored in self.int_layer_dims
+        #The number of intermediate layers is stored in self.int_layers
+        if(self.int_layers>0):
+            layer1_dim_mid = self.int_layer_dims[0]
+            encoder_layer = layers.Dense(layer1_dim_mid, activation="relu",name='intermediate_layer_1')(encoder_input_layer)
+            if(self.int_layers>1):
+                for int_layer in range(2,self.int_layers+1):
+                    thislayer_dim = self.int_layer_dims[int_layer-1]
+                    encoder_layer = layers.Dense(thislayer_dim, activation="relu",name='intermediate_layer_'+str(int_layer))(encoder_layer)
+
+        latent_layer = layers.Dense(self.latent_dim, activation=self.latent_activation,name='latent_layer')(encoder_layer)
+        self.encoder = Model(inputs=encoder_input_layer, outputs=latent_layer, name="encoder_ae")
+    
+        # Define decoder model.
+        decoder_input_layer = keras.Input(shape=(self.latent_dim,), name="decoder_input_layer")
+        if(self.int_layers>0):
+            layer1_dim_mid = self.int_layer_dims[-1]
+            decoder_layer = layers.Dense(layer1_dim_mid, activation="relu",name='decoder_layer_1')(decoder_input_layer)
+            if(self.int_layers>1):
+                for this_int_layer in range(2,self.int_layers+1):
+                    thislayer_dim_mid = self.int_layer_dims[-this_int_layer]
+                    decoder_layer = layers.Dense(round(thislayer_dim_mid), activation="relu",name='decoder_layer_'+str(this_int_layer))(decoder_layer)
+           
+        decoder_output_layer = layers.Dense(self.input_dim, activation=self.decoder_output_activation,name='decoder_output_layer')(decoder_layer)
+        self.decoder = Model(inputs=decoder_input_layer, outputs=decoder_output_layer, name="decoder_ae")
+        
+        outputs = self.decoder(latent_layer)#Original outputs line        
+        
+        
+        def FAE_loss(y_true, y_pred):
+            the_latent_space = self.encoder(y_true)
+            #np_latent_space = the_latent_space.numpy()
+            
+            column_max_min_tf = tf.reduce_min(tf.reduce_max(the_latent_space,axis=0))
+            
+            #zeropen = 1 - np_latent_space.max(axis=0).min()
+            
+            #zeropentf = 1 - tf.math.tanh(    )
+            
+            zeropentf = 1# + tf.experimental.numpy.heaviside(column_max_min_tf,10) + tf.experimental.numpy.heaviside(-column_max_min_tf,10)
+            
+            #print(zeropen)
+            #print(zeropentf)
+
+            
+            latent_columns_decoded = tf.zeros(tf.shape(y_true))            
+            # latent_factors_decoded = tf.zeros([self.latent_dim,y_true.shape.as_list()[1]]).numpy()
+            
+            for i in np.arange(self.latent_dim):
+                
+            #TRY each column in latent space is a factor
+                split1, split2, split3 = tf.split(the_latent_space,[i,1,(-1+self.latent_dim-i)],1)    
+                zeros1 = tf.zeros(tf.shape(split1))
+                zeros3 = tf.zeros(tf.shape(split3))
+                onecol_withzeros = tf.concat([zeros1,split2,zeros3],axis=1)
+            
+                thiscol_decoded = self.decoder(onecol_withzeros)
+                latent_columns_decoded = latent_columns_decoded + thiscol_decoded
+                # thiscol_decoded_mean = tf.reduce_mean(thiscol_decoded,axis=0)
+                # latent_factors_decoded[i,:] = thiscol_decoded_mean.numpy()
+
+            
+            mse_cols = tf.reduce_mean(tf.metrics.mean_squared_error(y_true, latent_columns_decoded))
+            mse_total = tf.reduce_mean(tf.metrics.mean_squared_error(y_true, y_pred))
+            
+            #Need to penalise it for having any columns that are all zero in the latent space
+            #zeropen = 1 - np_latent_space.max(axis=0).min()
+            #print(zeropen)
+            
+            #cross_correlation between columns when decoded, 1 minus the r2
+            #pdb.set_trace()
+            
+            return zeropentf*(mse_total + mse_cols)
+        #    return mse_cols 
+        
+        
+        
+        self.ae = Model(inputs=encoder_input_layer, outputs=outputs, name="ae")
+        optimizer = optimizers.Adam(learning_rate=self.learning_rate)
+    
+        #COMPILING
+        #self.ae.compile(optimizer, loss='mse')
+        self.ae.compile(optimizer, loss=FAE_loss,run_eagerly=True)
+        #self.ae.add_loss(tf.keras.losses.MeanSquaredError)
+    
+    #Default batch size is the whole dataset
+    def fit_model(self, x_train,x_test='DEFAULT',batch_size=int(1e10),epochs=30,verbose='auto'):
+        if(str(x_test)=='DEFAULT'):
+            _history = self.ae.fit(x_train,x_train,
+                         shuffle=True,
+                         epochs=epochs,
+                         batch_size=batch_size,
+                         validation_data=(x_train,x_train),verbose=verbose)
+        else:
+            _history = self.ae.fit(x_train,x_train,
+                        shuffle=True,
+                        epochs=epochs,
+                        batch_size=batch_size,
+                        validation_data=(x_test,x_test),verbose=verbose)
+            
+        return _history
+
+
+    def encode(self, data,batch_size=100):
+        return self.encoder.predict(data, batch_size=batch_size)
+    
+    def decode(self, data,batch_size=100):
+        return self.decoder.predict(data, batch_size=batch_size)
+    
+    
+# # %%n-layer factorization variational autoencoder class
+# class FVAE_n_layer():
+#     def __init__(self,hp='DEFAULT',input_dim=964,latent_dim=15,int_layers=2,int_layer_dims='DEFAULT',latent_activation='linear',decoder_output_activation='linear'):
+#         if(hp=='DEFAULT'):#Use parameters from the list
+#             self.input_dim = input_dim
+#             self.latent_dim = latent_dim
+#             self.int_layers = int_layers
+#             self.latent_activation=latent_activation
+#             self.decoder_output_activation = decoder_output_activation
+            
+#             #Make logspace int layer dims if required
+#             if(int_layer_dims=='DEFAULT'):
+#                 self.int_layer_dims = []
+#                 if(self.int_layers>0):
+#                     layer1_dim_mid = (self.input_dim**self.int_layers *self.latent_dim)**(1/(self.int_layers+1))
+#                     self.int_layer_dims.append(round(layer1_dim_mid))
+#                     if(self.int_layers>1):
+#                         for int_layer in range(2,self.int_layers+1):
+#                             thislayer_dim_mid = round(layer1_dim_mid**(int_layer) / (self.input_dim**(int_layer-1)))
+#                             self.int_layer_dims.append(thislayer_dim_mid)
+                            
+#             else:
+#                 self.int_layer_dims = int_layer_dims
+                
+#             self.decoder_output_activation = 'linear'
+#             self.learning_rate = 1e-2
+        
+#         else:   #Use kerastuner hyperparameters
+#             self.input_dim = hp.get('input_dim')
+#             self.latent_dim = hp.get('latent_dim')
+#             self.int_layers = hp.get('intermediate_layers')
+#             self.int_layer_dims = [val.value for key, val in hp._space.items() if 'intermediate_dim' in key]
+#             self.learning_rate = hp.get('learning_rate')
+#             self.decoder_output_activation = hp.get('decoder_output_activation')
+#             self.latent_activation = hp.get('latent_activation')
+        
+#         self.ae = None
+#         self.encoder = None
+#         self.decoder = None
+#         self.build_model()
+        
+#     def build_model(self):
+
+#         #Define encoder model
+#         encoder_input_layer = keras.Input(shape=(self.input_dim,), name="encoder_input_layer")
+        
+#         #Create the encoder layers
+#         #The dimensions of the intermediate layers are stored in self.int_layer_dims
+#         #The number of intermediate layers is stored in self.int_layers
+#         if(self.int_layers>0):
+#             layer1_dim_mid = self.int_layer_dims[0]
+#             encoder_layer = layers.Dense(layer1_dim_mid, activation="relu",name='intermediate_layer_1')(encoder_input_layer)
+#             if(self.int_layers>1):
+#                 for int_layer in range(2,self.int_layers+1):
+#                     thislayer_dim = self.int_layer_dims[int_layer-1]
+#                     encoder_layer = layers.Dense(thislayer_dim, activation="relu",name='intermediate_layer_'+str(int_layer))(encoder_layer)
+
+#         #z is the latent layer
+#         z_mean = layers.Dense(self.latent_dim,activation=self.latent_activation,name='latent_mean')(encoder_layer)
+#         z_log_var = layers.Dense(self.latent_dim,name='latent_log_var')(encoder_layer)
+#         self.encoder = Model(inputs=encoder_input_layer, outputs=z_mean, name="encoder_vae")
+
+#         # #Resample
+#         def sampling(args):
+#             z_mean, z_log_var = args
+#             batch = tf.shape(z_mean)[0]
+#             dim = tf.shape(z_mean)[1]
+#             #epsilon = K.random_normal(shape=(batch_size, latent_dim), mean=0.,
+#                                         #stddev=epsilon_std)
+#             epsilon = K.random_normal(shape=(batch, dim), mean=0.,
+#                                     stddev=1)
+#             return z_mean + K.exp(z_log_var / 2) * epsilon
+      
+#         latent_resampled = layers.Lambda(sampling, output_shape=(self.latent_dim,),name='resampled_latent_mean')([z_mean, z_log_var])
+      
+
+#         #latent_layer = layers.Dense(self.latent_dim, activation=self.latent_activation,name='latent_layer')(encoder_layer)
+#         #self.encoder = Model(inputs=encoder_input_layer, outputs=latent_layer, name="encoder_ae")
+    
+#         # Define decoder model.
+#         decoder_input_layer = keras.Input(shape=(self.latent_dim,), name="decoder_input_layer")
+#         if(self.int_layers>0):
+#             layer1_dim_mid = self.int_layer_dims[-1]
+#             decoder_layer = layers.Dense(layer1_dim_mid, activation="relu",name='decoder_layer_1')(decoder_input_layer)
+#             if(self.int_layers>1):
+#                 for this_int_layer in range(2,self.int_layers+1):
+#                     thislayer_dim_mid = self.int_layer_dims[-this_int_layer]
+#                     decoder_layer = layers.Dense(round(thislayer_dim_mid), activation="relu",name='decoder_layer_'+str(this_int_layer))(decoder_layer)
+         
+#         decoder_output_layer = layers.Dense(self.input_dim, activation=self.decoder_output_activation,name='decoder_output_layer')(decoder_layer)
+#         self.decoder = Model(inputs=decoder_input_layer, outputs=decoder_output_layer, name="decoder_vae")
+            
+#         outputs = self.decoder(latent_resampled)
+
+
+
+
+      
+
+  
+
+      
+      
+#       self.vae = Model(inputs=encoder_input_layer, outputs=outputs, name="vae")
+#       optimizer = optimizers.Adam(learning_rate=self.learning_rate)
+#       print('I think the function VAE_n_layer is in test config and does not return a VAE??')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+        
+        
+#         def FAE_loss(y_true, y_pred):
+#             the_latent_space = self.encoder(y_true)
+#             #np_latent_space = the_latent_space.numpy()
+            
+#             column_max_min_tf = tf.reduce_min(tf.reduce_max(the_latent_space,axis=0))
+            
+#             #zeropen = 1 - np_latent_space.max(axis=0).min()
+            
+#             #zeropentf = 1 - tf.math.tanh(    )
+            
+#             zeropentf = 1# + tf.experimental.numpy.heaviside(column_max_min_tf,10) + tf.experimental.numpy.heaviside(-column_max_min_tf,10)
+            
+#             #print(zeropen)
+#             #print(zeropentf)
+
+            
+#             latent_columns_decoded = tf.zeros(tf.shape(y_true))            
+#             # latent_factors_decoded = tf.zeros([self.latent_dim,y_true.shape.as_list()[1]]).numpy()
+            
+#             for i in np.arange(self.latent_dim):
+                
+#             #TRY each column in latent space is a factor
+#                 split1, split2, split3 = tf.split(the_latent_space,[i,1,(-1+self.latent_dim-i)],1)    
+#                 zeros1 = tf.zeros(tf.shape(split1))
+#                 zeros3 = tf.zeros(tf.shape(split3))
+#                 onecol_withzeros = tf.concat([zeros1,split2,zeros3],axis=1)
+            
+#                 thiscol_decoded = self.decoder(onecol_withzeros)
+#                 latent_columns_decoded = latent_columns_decoded + thiscol_decoded
+#                 # thiscol_decoded_mean = tf.reduce_mean(thiscol_decoded,axis=0)
+#                 # latent_factors_decoded[i,:] = thiscol_decoded_mean.numpy()
+
+            
+#             mse_cols = tf.reduce_mean(tf.metrics.mean_squared_error(y_true, latent_columns_decoded))
+#             mse_total = tf.reduce_mean(tf.metrics.mean_squared_error(y_true, y_pred))
+            
+#             #Need to penalise it for having any columns that are all zero in the latent space
+#             #zeropen = 1 - np_latent_space.max(axis=0).min()
+#             #print(zeropen)
+            
+#             #cross_correlation between columns when decoded, 1 minus the r2
+#             #pdb.set_trace()
+            
+#             return zeropentf*(mse_total + mse_cols)
+#         #    return mse_cols 
+        
+        
+        
+#         self.ae = Model(inputs=encoder_input_layer, outputs=outputs, name="ae")
+#         optimizer = optimizers.Adam(learning_rate=self.learning_rate)
+    
+#         #COMPILING
+#         #self.ae.compile(optimizer, loss='mse')
+#         self.ae.compile(optimizer, loss=FAE_loss,run_eagerly=True)
+#         #self.ae.add_loss(tf.keras.losses.MeanSquaredError)
+    
+#     #Default batch size is the whole dataset
+#     def fit_model(self, x_train,x_test='DEFAULT',batch_size=int(1e10),epochs=30,verbose='auto'):
+#         if(str(x_test)=='DEFAULT'):
+#             _history = self.ae.fit(x_train,x_train,
+#                          shuffle=True,
+#                          epochs=epochs,
+#                          batch_size=batch_size,
+#                          validation_data=(x_train,x_train),verbose=verbose)
+#         else:
+#             _history = self.ae.fit(x_train,x_train,
+#                         shuffle=True,
+#                         epochs=epochs,
+#                         batch_size=batch_size,
+#                         validation_data=(x_test,x_test),verbose=verbose)
+            
+#         return _history
+
+
+#     def encode(self, data,batch_size=100):
+#         return self.encoder.predict(data, batch_size=batch_size)
+    
+#     def decode(self, data,batch_size=100):
+#         return self.decoder.predict(data, batch_size=batch_size)
+
+    
+# %%n-layer autoencoder class with nmf in the loss function (doesnt work well)
+from sklearn.decomposition import NMF
+class NMFAE_n_layer():
+    def __init__(self,hp='DEFAULT',input_dim=964,latent_dim=3,int_layers=1,int_layer_dims='DEFAULT',latent_activation='relu',decoder_output_activation='relu'):
+        if(hp=='DEFAULT'):#Use parameters from the list
+            self.input_dim = input_dim
+            self.latent_dim = latent_dim
+            self.int_layers = int_layers
+            self.latent_activation=latent_activation
+            self.decoder_output_activation = decoder_output_activation
+            self.nmf = NMF(self.latent_dim)
+            self.learning_rate = 1e-2
+            
+            #Make logspace int layer dims if required
+            if(int_layer_dims=='DEFAULT'):
+                self.int_layer_dims = []
+                if(self.int_layers>0):
+                    layer1_dim_mid = (self.input_dim**self.int_layers *self.latent_dim)**(1/(self.int_layers+1))
+                    self.int_layer_dims.append(round(layer1_dim_mid))
+                    if(self.int_layers>1):
+                        for int_layer in range(2,self.int_layers+1):
+                            thislayer_dim_mid = round(layer1_dim_mid**(int_layer) / (self.input_dim**(int_layer-1)))
+                            self.int_layer_dims.append(thislayer_dim_mid)
+                            
+            else:
+                self.int_layer_dims = int_layer_dims
+                
+        
+        else:   #Use kerastuner hyperparameters
+            self.input_dim = hp.get('input_dim')
+            self.latent_dim = hp.get('latent_dim')
+            self.int_layers = hp.get('intermediate_layers')
+            self.int_layer_dims = [val.value for key, val in hp._space.items() if 'intermediate_dim' in key]
+            self.learning_rate = hp.get('learning_rate')
+            self.decoder_output_activation = hp.get('decoder_output_activation')
+            self.latent_activation = hp.get('latent_activation')
+        
+        self.ae = None
+        self.encoder = None
+        self.decoder = None
+        self.build_model()
+        
+    def build_model(self):
+
+        #Define encoder model
+        encoder_input_layer = keras.Input(shape=(self.input_dim,), name="encoder_input_layer")
+        
+        #Create the encoder layers
+        #The dimensions of the intermediate layers are stored in self.int_layer_dims
+        #The number of intermediate layers is stored in self.int_layers
+        if(self.int_layers>0):
+            layer1_dim_mid = self.int_layer_dims[0]
+            encoder_layer = layers.Dense(layer1_dim_mid, activation="relu",name='intermediate_layer_1')(encoder_input_layer)
+            if(self.int_layers>1):
+                for int_layer in range(2,self.int_layers+1):
+                    thislayer_dim = self.int_layer_dims[int_layer-1]
+                    encoder_layer = layers.Dense(thislayer_dim, activation="relu",name='intermediate_layer_'+str(int_layer))(encoder_layer)
+
+        latent_layer = layers.Dense(self.latent_dim, activation=self.latent_activation,name='latent_layer')(encoder_layer)
+        self.encoder = Model(inputs=encoder_input_layer, outputs=latent_layer, name="encoder_ae")
+    
+        # Define decoder model.
+        decoder_input_layer = keras.Input(shape=(self.latent_dim,), name="decoder_input_layer")
+        if(self.int_layers>0):
+            layer1_dim_mid = self.int_layer_dims[-1]
+            decoder_layer = layers.Dense(layer1_dim_mid, activation="relu",name='decoder_layer_1')(decoder_input_layer)
+            if(self.int_layers>1):
+                for this_int_layer in range(2,self.int_layers+1):
+                    thislayer_dim_mid = self.int_layer_dims[-this_int_layer]
+                    decoder_layer = layers.Dense(round(thislayer_dim_mid), activation="relu",name='decoder_layer_'+str(this_int_layer))(decoder_layer)
+           
+        decoder_output_layer = layers.Dense(self.input_dim, activation=self.decoder_output_activation,name='decoder_output_layer')(decoder_layer)
+        self.decoder = Model(inputs=decoder_input_layer, outputs=decoder_output_layer, name="decoder_ae")
+        
+        outputs = self.decoder(latent_layer)#Original outputs line        
+        
+        
+        def FAE_loss(y_true, y_pred):
+            the_latent_space = self.encoder(y_true)
+            np_latent_space = the_latent_space.numpy()
+
+            model = self.nmf
+            W = model.fit_transform(np_latent_space)
+            H = model.components_
+
+            Factor0_lat_mtx = np.outer(W.T[0], H[0])
+            Factor1_lat_mtx = np.outer(W.T[1], H[1])
+            Factor2_lat_mtx = np.outer(W.T[2], H[2])
+            Factor0_mtx_decod = self.decoder(Factor0_lat_mtx)
+            Factor1_mtx_decod = self.decoder(Factor1_lat_mtx)
+            Factor2_mtx_decod = self.decoder(Factor2_lat_mtx)
+            
+            y_pred_factorsum = Factor0_mtx_decod + Factor1_mtx_decod + Factor2_mtx_decod
+            
+            mse_nmfsum = tf.reduce_mean(tf.metrics.mean_squared_error(y_true, y_pred_factorsum))
+            mse_total = tf.reduce_mean(tf.metrics.mean_squared_error(y_true, y_pred))
+            return mse_nmfsum + mse_total
+        
+        
+        
+        self.ae = Model(inputs=encoder_input_layer, outputs=outputs, name="ae")
+        optimizer = optimizers.Adam(learning_rate=self.learning_rate)
+    
+        #COMPILING
+        #self.ae.compile(optimizer, loss='mse')
+        self.ae.compile(optimizer, loss=FAE_loss,run_eagerly=True)
+        #self.ae.add_loss(tf.keras.losses.MeanSquaredError)
+    
+    #Default batch size is the whole dataset
+    def fit_model(self, x_train,x_test='DEFAULT',batch_size=int(1e10),epochs=30,verbose='auto'):
+        if(str(x_test)=='DEFAULT'):
+            _history = self.ae.fit(x_train,x_train,
+                         shuffle=True,
+                         epochs=epochs,
+                         batch_size=batch_size,
+                         validation_data=(x_train,x_train),verbose=verbose)
+        else:
+            _history = self.ae.fit(x_train,x_train,
                         shuffle=True,
                         epochs=epochs,
                         batch_size=batch_size,
