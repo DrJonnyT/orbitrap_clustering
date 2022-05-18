@@ -54,25 +54,45 @@ from ae_functions import *
 # %%Load data
 
 path='C:/Users/mbcx5jt5/Google Drive/Shared_York_Man2/'
-df_beijing_raw, df_beijing_filters, df_beijing_metadata = beijing_load(
+df_beijing_data, df_beijing_err, df_beijing_metadata, df_beijing_raw = beijing_load(
     path + 'BJ_UnAmbNeg9.1.1_20210505-Times_Fixed.xlsx',path + 'BJ_UnAmbNeg9.1.1_20210505-Times_Fixed.xlsx',
     peaks_sheetname="Compounds",metadata_sheetname="massloading_Beijing")
 
-df_delhi_raw, df_delhi_filters, df_delhi_metadata = delhi_load2(path + '/Delhi/Orbitrap/')
+df_delhi_data, df_delhi_err, df_delhi_metadata, df_delhi_raw = delhi_load2(path + '/Delhi/Orbitrap/')
 
-df_all_filters = pd.concat([df_beijing_filters, df_delhi_filters], axis=0, join="inner")
+df_all_data = pd.concat([df_beijing_data, df_delhi_data], axis=0, join="inner")
+df_all_err = pd.concat([df_beijing_err, df_delhi_err], axis=0, join="inner")
 df_all_raw = pd.concat([df_beijing_raw, df_delhi_raw], axis=1, join="inner")
 df_all_raw = df_all_raw.loc[:,~df_all_raw.columns.duplicated()] #Remove duplicate columns: m/z, RT, molecular weight, formula
 
-dataset_cat = delhi_beijing_datetime_cat(df_all_filters)
-df_dataset_cat = pd.DataFrame(delhi_beijing_datetime_cat(df_all_filters),columns=['dataset_cat'],index=df_all_filters.index)
+dataset_cat = delhi_beijing_datetime_cat(df_all_data)
+df_dataset_cat = pd.DataFrame(delhi_beijing_datetime_cat(df_all_data),columns=['dataset_cat'],index=df_all_data.index)
 ds_dataset_cat = df_dataset_cat['dataset_cat']
 
-time_cat = delhi_calc_time_cat(df_all_filters)
-df_time_cat = pd.DataFrame(delhi_calc_time_cat(df_all_filters),columns=['time_cat'],index=df_all_filters.index)
+time_cat = delhi_calc_time_cat(df_all_data)
+df_time_cat = pd.DataFrame(delhi_calc_time_cat(df_all_data),columns=['time_cat'],index=df_all_data.index)
 ds_time_cat = df_time_cat['time_cat']
 
+mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
 
+
+#Sort columns by m/z
+mz_columns_sorted = mz_columns.sort_values("Molecular Weight",axis=0)
+df_all_data.columns= mz_columns['Molecular Weight']
+df_all_data.sort_index(axis=1,inplace=True)
+df_all_data.columns = mz_columns_sorted.index
+mz_columns = mz_columns_sorted
+
+#%%Compare inner vs outer join
+df_all_data_outer = pd.concat([df_beijing_data, df_delhi_data], axis=0, join="outer")
+df_all_data_outer_sum = df_all_data_outer.sum(axis=1)
+df_all_data_inner_sum = df_all_data.sum(axis=1)
+m, b = np.polyfit(df_all_data_outer_sum, df_all_data_inner_sum, 1)
+
+sns.scatterplot(df_all_data_outer_sum,df_all_data_inner_sum,marker='o',hue=dataset_cat)
+plt.plot(df_all_data_outer_sum, m*df_all_data_outer_sum + b,c='k')
+plt.xlabel('Outer join total concentration (µg/m3)')
+plt.ylabel('Inner join total concentration (µg/m3)')
 
 #%%Load chemform namelists
 chemform_namelist_beijing = load_chemform_namelist(path + 'Beijing_Amb3.1_MZ.xlsx')
@@ -84,44 +104,44 @@ chemform_namelist_all = combine_chemform_namelists(chemform_namelist_beijing,che
 #Divide whole thing by 1e6
 scalefactor = 1e6
 pipe_1e6 = FunctionTransformer(lambda x: np.divide(x,scalefactor),inverse_func = lambda x: np.multiply(x,scalefactor))
-pipe_1e6.fit(df_all_filters)
+pipe_1e6.fit(df_all_data)
 
-df_all_filters_1e6 = pd.DataFrame(pipe_1e6.transform(df_all_filters),columns=df_all_filters.columns)
-ds_all_filters_total_1e6 = df_all_filters_1e6.sum(axis=1)
+df_all_data_1e6 = pd.DataFrame(pipe_1e6.transform(df_all_data),columns=df_all_data.columns)
+ds_all_filters_total_1e6 = df_all_data_1e6.sum(axis=1)
 
 #Normalise so the mean of the whole matrix is 1
-orig_mean = df_all_filters.mean().mean()
+orig_mean = df_all_data.mean().mean()
 pipe_norm1_mtx = FunctionTransformer(lambda x: np.divide(x,orig_mean),inverse_func = lambda x: np.multiply(x,orig_mean))
-pipe_norm1_mtx.fit(df_all_filters)
-df_all_filters_norm1 = pd.DataFrame(pipe_norm1_mtx.transform(df_all_filters),columns=df_all_filters.columns)
+pipe_norm1_mtx.fit(df_all_data)
+df_all_data_norm1 = pd.DataFrame(pipe_norm1_mtx.transform(df_all_data),columns=df_all_data.columns)
 
 #Minmax scaling
 minmaxscaler_all = MinMaxScaler()
-df_all_filters_minmax = pd.DataFrame(minmaxscaler_all.fit_transform(df_all_filters.to_numpy()),columns=df_all_filters.columns)
+df_all_data_minmax = pd.DataFrame(minmaxscaler_all.fit_transform(df_all_data.to_numpy()),columns=df_all_data.columns)
 
 #Standard scaling
 standardscaler_all = StandardScaler()
-df_all_filters_standard = pd.DataFrame(standardscaler_all.fit_transform(df_all_filters.to_numpy()),columns=df_all_filters.columns)
+df_all_data_standard = pd.DataFrame(standardscaler_all.fit_transform(df_all_data.to_numpy()),columns=df_all_data.columns)
 
 #Robust scaling
 robustscaler_all = RobustScaler()
-df_all_filters_robust = pd.DataFrame(robustscaler_all.fit_transform(df_all_filters.to_numpy()),columns=df_all_filters.columns)
+df_all_data_robust = pd.DataFrame(robustscaler_all.fit_transform(df_all_data.to_numpy()),columns=df_all_data.columns)
 
 #df scaled so it is normalised by the total from each filter
-df_all_filters_norm = df_all_filters.div(df_all_filters.sum(axis=1), axis=0)
+df_all_data_norm = df_all_data.div(df_all_data.sum(axis=1), axis=0)
 
 #Log data and add one
-offset_min = df_all_filters.min().min() * (-1)
+offset_min = df_all_data.min().min() * (-1)
 pipe_log1p = FunctionTransformer(lambda x: np.log1p(x+offset_min),inverse_func = lambda x: (np.expm1(x) - offset_min) )
-df_all_filters_log1p = pd.DataFrame(pipe_log1p.fit_transform(df_all_filters.to_numpy()),columns=df_all_filters.columns)
+df_all_data_log1p = pd.DataFrame(pipe_log1p.fit_transform(df_all_data.to_numpy()),columns=df_all_data.columns)
 
 
 
 
 #%%Try autoencoder
-df_aug = augment_data_noise(df_all_filters_norm1,25,1,0)
+df_all_data_aug = augment_data_noise(df_all_data_norm1,25,1,0)
 ae_input = df_aug.values
-ae_input_val = df_all_filters_norm1.values
+ae_input_val = df_all_data_norm1.values
 input_dim = ae_input.shape[1]
 
 ae_input = ae_input.clip(min=0)
@@ -295,33 +315,39 @@ def corr_coeff_rowwise_loops(A,B):
     return corr_mtx
             
 
-Beijing_rows_corr = corr_coeff_rowwise_loops(df_all_filters_norm1[ds_dataset_cat=='Beijing_winter'].values,df_all_filters_norm1[ds_dataset_cat=='Beijing_summer'].values)
+Beijing_rows_corr = corr_coeff_rowwise_loops(df_all_data_norm1[ds_dataset_cat=='Beijing_winter'].values,df_all_data_norm1[ds_dataset_cat=='Beijing_summer'].values)
 Beijing_rows_corr_min_index = np.unravel_index(Beijing_rows_corr.argmin(), Beijing_rows_corr.shape)
-Delhi_rows_corr = corr_coeff_rowwise_loops(df_all_filters_norm1[ds_dataset_cat=='Delhi_summer'].values,df_all_filters_norm1[ds_dataset_cat=='Delhi_autumn'].values)
+Delhi_rows_corr = corr_coeff_rowwise_loops(df_all_data_norm1[ds_dataset_cat=='Delhi_summer'].values,df_all_data_norm1[ds_dataset_cat=='Delhi_autumn'].values)
 Delhi_rows_corr_min_index = np.unravel_index(Delhi_rows_corr.argmin(), Delhi_rows_corr.shape)
 
 
 #This then is 4 factors that are very poorly correlated with each other in terms of their mass spec
-factor_A = df_all_filters_norm1[ds_dataset_cat=='Beijing_winter'].iloc[Beijing_rows_corr_min_index[0]].values
-factor_B = df_all_filters_norm1[ds_dataset_cat=='Beijing_summer'].iloc[Beijing_rows_corr_min_index[1]].values
-factor_C = df_all_filters_norm1[ds_dataset_cat=='Delhi_summer'].iloc[Delhi_rows_corr_min_index[0]].values
-factor_D = df_all_filters_norm1[ds_dataset_cat=='Delhi_autumn'].iloc[Delhi_rows_corr_min_index[1]].values
+factor_A = df_all_data_norm1[ds_dataset_cat=='Beijing_winter'].iloc[Beijing_rows_corr_min_index[0]].values
+factor_B = df_all_data_norm1[ds_dataset_cat=='Beijing_summer'].iloc[Beijing_rows_corr_min_index[1]].values
+factor_C = df_all_data_norm1[ds_dataset_cat=='Delhi_summer'].iloc[Delhi_rows_corr_min_index[0]].values
+factor_D = df_all_data_norm1[ds_dataset_cat=='Delhi_autumn'].iloc[Delhi_rows_corr_min_index[1]].values
 
 #Normalise all to 1
 factor_A = 1 * factor_A / factor_A.sum()
 factor_B = 1 * factor_B / factor_B.sum()
 factor_C = 1 * factor_C / factor_C.sum()
 factor_D = 1 * factor_D / factor_D.sum()
+#Make factor E so all columns between mz 350 -- 400 are...dataful...
+factor_E  = np.ones(523)
+factor_E[np.ravel(np.logical_and(mz_columns.to_numpy() > 350, mz_columns.to_numpy() < 400))] = 50
+factor_E = factor_E * np.random.normal(1, 0.3, [523]).clip(min=0)
+factor_E = 1 * factor_E / factor_E.sum()
 
-#%%
-amp_A = np.append(np.arange(0.1,0.6,0.5/83),np.arange(0.6,1.6,0.015)) * 2.5
-amp_B = np.abs(-np.sin(np.arange(0,3*math.pi,math.pi/50))*2 + 1)
-amp_C = np.append(np.arange(1.5,0.5,-0.015),np.arange(0.5,0,-0.5/83)) * 2.5
-amp_D = np.abs(np.sin(np.arange(0,2*math.pi,math.pi/75))*1.5) + np.abs(-np.sin(np.arange(0,2*math.pi,math.pi/75))*1.5)
+#%%Hard mode factor amplitudes
+
+amp_A = np.append(np.arange(1.5,0.5,-0.015),np.arange(0.5,0,-0.5/83)) * 2.5
+amp_B = np.abs(np.sin(np.arange(0,2*math.pi,math.pi/75))*2.5) + np.abs(-np.sin(np.arange(0,2*math.pi,math.pi/75))*2.5)
+amp_C = np.abs(-np.sin(np.arange(0,3*math.pi,math.pi/50))*2 + 1)
+amp_D = np.append(np.arange(0.1,0.6,0.5/83),np.arange(0.6,1.6,0.015)) * 2.5
+amp_E = np.sin(np.arange(0,math.pi,math.pi/150))*1.5 * np.random.normal(1, 0.3, 150)
 
 
-
-num_cols = df_all_filters.shape[1]
+num_cols = df_all_data.shape[1]
 #With noise
 #df_factorA = pd.DataFrame((np.random.normal(1, 0.3, [150,num_cols])) * factor_A).multiply(amp_A,axis=0)
 #df_factorB = pd.DataFrame((np.random.normal(1, 0.3, [150,num_cols])) * factor_B).multiply(amp_B,axis=0)
@@ -331,16 +357,19 @@ df_factorA = pd.DataFrame((np.random.normal(1, 0, [150,num_cols])) * factor_A).m
 df_factorB = pd.DataFrame((np.random.normal(1, 0, [150,num_cols])) * factor_B).multiply(amp_B,axis=0)
 df_factorC = pd.DataFrame((np.random.normal(1, 0, [150,num_cols])) * factor_C).multiply(amp_C,axis=0)
 df_factorD = pd.DataFrame((np.random.normal(1, 0, [150,num_cols])) * factor_D).multiply(amp_D,axis=0)
+df_factorE = pd.DataFrame((np.random.normal(1, 0, [150,num_cols])) * factor_E).multiply(amp_E,axis=0)
 
-df_factorA.columns = df_all_filters_norm1.columns
-df_factorB.columns = df_all_filters_norm1.columns
-df_factorC.columns = df_all_filters_norm1.columns
-df_factorD.columns = df_all_filters_norm1.columns
+df_factorA.columns = df_all_data_norm1.columns
+df_factorB.columns = df_all_data_norm1.columns
+df_factorC.columns = df_all_data_norm1.columns
+df_factorD.columns = df_all_data_norm1.columns
+df_factorE.columns = df_all_data_norm1.columns
 
 factorA_total = df_factorA.sum(axis=1)
 factorB_total = df_factorB.sum(axis=1)
 factorC_total = df_factorC.sum(axis=1)
 factorD_total = df_factorD.sum(axis=1)
+factorE_total = df_factorE.sum(axis=1)
 
 
 df_3factor_sum = pd.DataFrame([factorA_total,factorB_total,factorC_total]).T
@@ -350,10 +379,13 @@ plt.show()
 
 df_3factor = df_factorA + df_factorB + df_factorC
 
-plt.plot(factorA_total)
-plt.plot(factorB_total)
-plt.plot(factorC_total)
-plt.plot(factorD_total,c='k')
+plt.plot(factorA_total,label='0')
+plt.plot(factorB_total,label='1')
+plt.plot(factorC_total,label='2')
+plt.plot(factorD_total,c='k',label='3')
+plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1),
+          ncol=4, fancybox=True,title="Factor number")
+plt.title("Test data factor time series (hard mode)")
 plt.show()
 
 ds_3factor_total = factorA_total + factorB_total + factorC_total
@@ -365,8 +397,16 @@ ds_2factor_total = factorA_total + factorC_total
 
 df_4factor = df_factorA + df_factorB + df_factorC + df_factorD
 ds_4factor_total = factorA_total + factorB_total + factorC_total + factorD_total
+df_4factor_factors = pd.DataFrame([factor_A,factor_B,factor_C,factor_D],columns=df_all_data.columns)
+df_4factor_sum = pd.DataFrame([factorA_total,factorB_total,factorC_total,factorD_total]).T
+df_4factor_sum.idxmax(axis="columns").plot()
+dataset_index_4factor = df_4factor_sum.idxmax(axis="columns")
 
-df_4factor_factors = pd.DataFrame([factor_A,factor_B,factor_C,factor_D],columns=df_all_filters.columns)
+
+
+df_5factor = df_factorA + df_factorB + df_factorC + df_factorD + df_factorE
+ds_5factor_total = factorA_total + factorB_total + factorC_total + factorD_total + factorE_total
+df_5factor_factors = pd.DataFrame([factor_A,factor_B,factor_C,factor_D,factor_E],columns=df_all_data.columns)
 
 
 #%% VERY EASY AMPLITUDES
@@ -376,17 +416,19 @@ amp_B = np.concatenate((np.zeros(50),np.sin(np.arange(0,math.pi,math.pi/50))*1.5
 amp_C = np.concatenate((np.zeros(100),np.sin(np.arange(0,math.pi,math.pi/50))*1.5,np.zeros(50))) * 2.5
 amp_D = np.concatenate((np.zeros(150),np.sin(np.arange(0,math.pi,math.pi/50))*1.5)) * 2.5
 
-num_cols = df_all_filters.shape[1]
+
+num_cols = df_all_data.shape[1]
 #No noise
 df_factorA = pd.DataFrame((np.random.normal(1, 0, [200,num_cols])) * factor_A).multiply(amp_A,axis=0)
 df_factorB = pd.DataFrame((np.random.normal(1, 0, [200,num_cols])) * factor_B).multiply(amp_B,axis=0)
 df_factorC = pd.DataFrame((np.random.normal(1, 0, [200,num_cols])) * factor_C).multiply(amp_C,axis=0)
 df_factorD = pd.DataFrame((np.random.normal(1, 0, [200,num_cols])) * factor_D).multiply(amp_D,axis=0)
 
-df_factorA.columns = df_all_filters_norm1.columns
-df_factorB.columns = df_all_filters_norm1.columns
-df_factorC.columns = df_all_filters_norm1.columns
-df_factorD.columns = df_all_filters_norm1.columns
+
+df_factorA.columns = df_all_data_norm1.columns
+df_factorB.columns = df_all_data_norm1.columns
+df_factorC.columns = df_all_data_norm1.columns
+df_factorD.columns = df_all_data_norm1.columns
 
 factorA_total = df_factorA.sum(axis=1)
 factorB_total = df_factorB.sum(axis=1)
@@ -401,10 +443,13 @@ plt.show()
 
 df_3factor = df_factorA + df_factorB + df_factorC
 
-plt.plot(factorA_total)
-plt.plot(factorB_total)
-plt.plot(factorC_total)
-plt.plot(factorD_total,c='k')
+plt.plot(factorA_total,label='0')
+plt.plot(factorB_total,label='1')
+plt.plot(factorC_total,label='2')
+plt.plot(factorD_total,c='k',label='3')
+plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1),
+          ncol=4, fancybox=True,title="Factor number")
+plt.title("Test data factor time series (easy mode)")
 plt.show()
 
 ds_3factor_total = factorA_total + factorB_total + factorC_total
@@ -417,6 +462,35 @@ ds_2factor_total = factorA_total + factorC_total
 
 df_4factor = df_factorA + df_factorB + df_factorC + df_factorD
 ds_4factor_total = factorA_total + factorB_total + factorC_total + factorD_total
+df_4factor_factors = pd.DataFrame([factor_A,factor_B,factor_C,factor_D],columns=df_all_data.columns)
+dataset_index_4factor = np.concatenate([np.zeros(50),np.ones(50),np.ones(50)*2,np.ones(50)*3])
+
+
+#%%Trying my FVAE, factorisation VAE
+df_2factor_aug = augment_data_noise(df_2factor,50,1,0)
+df_4factor_aug = augment_data_noise(df_4factor,50,1,0)
+df_5factor_aug = augment_data_noise(df_5factor,50,1,0)
+
+# ae_input_testdata = df_3factor_aug.values
+# ae_input_val_testdata = df_3factor.values
+# ae_input_testdata = ae_input_testdata.clip(min=0)
+# ae_input_val_testdata = ae_input_val_testdata.clip(min=0)
+# input_dim_testdata = ae_input_testdata.shape[1]
+
+
+
+
+
+df_3factor_01 = df_3factor.clip(lower=0) / df_3factor.max().max()
+df_2factor_01 = df_2factor.clip(lower=0) / df_2factor.max().max()
+df_4factor_01 = df_4factor.clip(lower=0) / df_4factor.max().max()
+df_5factor_01 = df_5factor.clip(lower=0) / df_5factor.max().max()
+df_all_data_01 = df_all_data.clip(lower=0) / df_all_data.max().max()
+df_2factor_aug_01 = df_2factor_aug.clip(lower=0) / df_2factor_aug.max().max()
+df_4factor_aug_01 = df_4factor_aug.clip(lower=0) / df_4factor_aug.max().max()
+df_5factor_aug_01 = df_5factor_aug.clip(lower=0) / df_5factor_aug.max().max()
+df_all_data_aug_01 = df_all_data_aug.clip(lower=0) / df_all_data_aug.max().max()
+
 
 #%%Train an entirely new AE for the test data
 #%%Work out how many epochs to train for
@@ -713,14 +787,15 @@ plt.plot(factor2_sum,c='b')
 #%%Try normal PMf with 4factor real space testdata
 
 model = NMF(n_components=4)
-#W = model.fit_transform(df_4factor.to_numpy().clip(min=0))
-W = model.fit_transform(df_4factor_MM.to_numpy().clip(min=0))
+W = model.fit_transform(df_4factor_01.to_numpy().clip(min=0))
+#W = model.fit_transform(df_5factor_01.to_numpy().clip(min=0))
 H = model.components_
 
 Factor0_mtx = np.outer(W.T[0], H[0])
 Factor1_mtx = np.outer(W.T[1], H[1])
 Factor2_mtx = np.outer(W.T[2], H[2])
 Factor3_mtx = np.outer(W.T[3], H[3])
+#Factor4_mtx = np.outer(W.T[4], H[4])
 
 #y_pred_factorsum = Factor0_mtx_decod + Factor1_mtx_decod + Factor2_mtx_decod + Factor3_mtx_decod
 
@@ -728,26 +803,29 @@ factor0_sum = Factor0_mtx.sum(axis=1)
 factor1_sum = Factor1_mtx.sum(axis=1)
 factor2_sum = Factor2_mtx.sum(axis=1)
 factor3_sum = Factor3_mtx.sum(axis=1)
+#factor4_sum = Factor4_mtx.sum(axis=1)
 
 plt.plot(factor0_sum,c='k')
 plt.plot(factor1_sum,c='r')
 plt.plot(factor2_sum,c='b')
 plt.plot(factor3_sum,c='y')
+#plt.plot(factor4_sum,c='m')
 
 #%%Plot 4-factor PMF fit to real space testdata
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_filters.columns])
-fig,ax = plt.subplots(4,1,figsize=(6.66,10))
-ax[0].stem(mz_columns.to_numpy(),Factor0_mtx.sum(axis=0),markerfmt=' ')
-ax[1].stem(mz_columns.to_numpy(),Factor1_mtx.sum(axis=0),markerfmt=' ')
-ax[2].stem(mz_columns.to_numpy(),Factor2_mtx.sum(axis=0),markerfmt=' ')
-ax[3].stem(mz_columns.to_numpy(),Factor3_mtx.sum(axis=0),markerfmt=' ')
-plt.setp(ax, xlim=(100,400))
+
+fig,ax = plt.subplots(5,1,figsize=(6.66,10))
+ax[0].stem(mz_columns.to_numpy(),Factor0_mtx.mean(axis=0),markerfmt=' ')
+ax[1].stem(mz_columns.to_numpy(),Factor1_mtx.mean(axis=0),markerfmt=' ')
+ax[2].stem(mz_columns.to_numpy(),Factor2_mtx.mean(axis=0),markerfmt=' ')
+ax[3].stem(mz_columns.to_numpy(),Factor3_mtx.mean(axis=0),markerfmt=' ')
+ax[4].stem(mz_columns.to_numpy(),Factor4_mtx.mean(axis=0),markerfmt=' ')
+plt.setp(ax, xlim=(100,500))
 ax[0].set_title('PMF factors')
-ax[3].set_xlabel('m/z')
+ax[4].set_xlabel('m/z')
 plt.show()
 
 #%%Plot 4-factor PMF fit to real space testdata, un MinMax
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_filters.columns])
+
 fig,ax = plt.subplots(4,1,figsize=(6.66,10))
 ax[0].stem(mz_columns.to_numpy(),MM_4factor.inverse_transform(Factor0_mtx.mean(axis=0).reshape(-1,1).T).T,markerfmt=' ')
 ax[1].stem(mz_columns.to_numpy(),MM_4factor.inverse_transform(Factor1_mtx.mean(axis=0).reshape(-1,1).T).T,markerfmt=' ')
@@ -762,25 +840,6 @@ plt.show()
 
 
 
-#%%Trying my FVAE, factorisation VAE
-df_2factor_aug = augment_data_noise(df_2factor,50,1,0)
-df_4factor_aug = augment_data_noise(df_4factor,50,1,0)
-
-# ae_input_testdata = df_3factor_aug.values
-# ae_input_val_testdata = df_3factor.values
-# ae_input_testdata = ae_input_testdata.clip(min=0)
-# ae_input_val_testdata = ae_input_val_testdata.clip(min=0)
-# input_dim_testdata = ae_input_testdata.shape[1]
-
-
-
-
-
-df_3factor_01 = df_3factor.clip(lower=0) / df_3factor.max().max()
-df_2factor_01 = df_2factor.clip(lower=0) / df_2factor.max().max()
-df_4factor_01 = df_4factor.clip(lower=0) / df_4factor.max().max()
-df_2factor_aug_01 = df_2factor_aug.clip(lower=0) / df_2factor_aug.max().max()
-df_4factor_aug_01 = df_4factor_aug.clip(lower=0) / df_4factor_aug.max().max()
 
 
 
@@ -838,7 +897,7 @@ plt.show()
 latent_decoded_min1 = ae_obj.decoder.predict([-1]).T
 latent_decoded_plus1 = ae_obj.decoder.predict([1]).T
 
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_filters.columns])
+mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
 fig,ax = plt.subplots(4,1,figsize=(10,10))
 ax[0].stem(mz_columns.to_numpy(),factor_A,markerfmt=' ')
 ax[1].stem(mz_columns.to_numpy(),factor_C,markerfmt=' ')
@@ -909,7 +968,7 @@ latent_space = ae_obj.encoder.predict(df_4factor_01.to_numpy())
 decoded_latent_space = ae_obj.decoder.predict(latent_space)
 
 fig,ax = plt.subplots(1)
-plt.scatter(df_4factor_01.to_numpy(),ae_obj.vae.predict(df_4factor_01.to_numpy()))
+plt.scatter(df_4factor_01.to_numpy(),ae_obj.ae.predict(df_4factor_01.to_numpy()))
 plt.title("AE input vs output")
 plt.xlabel('AE input')
 plt.ylabel('AE output')
@@ -918,11 +977,11 @@ plt.show()
 
 #%%Check Pearson's R correlation between input and output factors
 latent_grid = np.mgrid[-1:2:1, -1:2:1].reshape(2, -1).T
-df_latent_grid_decoded = pd.DataFrame(ae_obj.decoder.predict(latent_grid),columns=df_all_filters.columns)
+df_latent_grid_decoded = pd.DataFrame(ae_obj.decoder.predict(latent_grid),columns=df_all_data.columns)
 latent_grid_decoded_corr = corr_coeff_rowwise_loops(df_latent_grid_decoded.to_numpy(),df_4factor_factors.to_numpy())
 latent_grid_decoded_corr = np.around(latent_grid_decoded_corr,3)
 
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_filters.columns])
+mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
 fig,ax = plt.subplots(3,3,figsize=(20,10))
 axs = ax.ravel()
     
@@ -948,7 +1007,7 @@ latent0_decoded_plus1 = ae_obj.decoder.predict(np.array([[1,0]])).T
 latent1_decoded_min1 = ae_obj.decoder.predict(np.array([[0,-1]])).T
 latent1_decoded_plus1 = ae_obj.decoder.predict(np.array([[0,1]])).T
 
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_filters.columns])
+mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
 fig,ax = plt.subplots(8,1,figsize=(10,10))
 ax[0].stem(mz_columns.to_numpy(),factor_A,markerfmt=' ')
 ax[1].stem(mz_columns.to_numpy(),factor_B,markerfmt=' ')
@@ -976,7 +1035,7 @@ latent_pm_decoded = ae_obj.decoder.predict(np.array([[1,-1]])).T
 latent_pp_decoded = ae_obj.decoder.predict(np.array([[1,1]])).T
 latent_00_decoded = ae_obj.decoder.predict(np.array([[0,0]])).T
 
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_filters.columns])
+mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
 fig,ax = plt.subplots(9,1,figsize=(10,10))
 ax[0].stem(mz_columns.to_numpy(),factor_A,markerfmt=' ')
 ax[1].stem(mz_columns.to_numpy(),factor_B,markerfmt=' ')
@@ -1016,14 +1075,14 @@ df_4factor_minmen_aug_01 = df_4factor_minmen_aug_01*2 -1
 
 MM_4factor_aug = MinMaxScaler()
 MM_4factor = MinMaxScaler()
-df_4factor_MM_aug = pd.DataFrame(MM_4factor_aug.fit_transform(df_4factor_aug.to_numpy()),columns=df_all_filters.columns)
-df_4factor_MM = pd.DataFrame(MM_4factor.fit_transform(df_4factor.to_numpy()),columns=df_all_filters.columns)
+df_4factor_MM_aug = pd.DataFrame(MM_4factor_aug.fit_transform(df_4factor_aug.to_numpy()),columns=df_all_data.columns)
+df_4factor_MM = pd.DataFrame(MM_4factor.fit_transform(df_4factor.to_numpy()),columns=df_all_data.columns)
 
 
 QT_4factor_aug = QuantileTransformer()
 QT_4factor = QuantileTransformer()
-df_4factor_QT_aug = pd.DataFrame(QT_4factor_aug.fit_transform(df_4factor_aug.to_numpy()),columns=df_all_filters.columns)
-df_4factor_QT = pd.DataFrame(QT_4factor.fit_transform(df_4factor.to_numpy()),columns=df_all_filters.columns)
+df_4factor_QT_aug = pd.DataFrame(QT_4factor_aug.fit_transform(df_4factor_aug.to_numpy()),columns=df_all_data.columns)
+df_4factor_QT = pd.DataFrame(QT_4factor.fit_transform(df_4factor.to_numpy()),columns=df_all_data.columns)
 
 # df_4factor_QT_aug = df_4factor_QT_aug*2 - 1
 # df_4factor_QT = df_4factor_QT*2 - 1
@@ -1032,15 +1091,20 @@ df_4factor_QT = pd.DataFrame(QT_4factor.fit_transform(df_4factor.to_numpy()),col
 from sklearn.preprocessing import PowerTransformer
 PT_4factor = PowerTransformer()
 PT_4factor_aug = PowerTransformer()
-df_4factor_PT_aug = pd.DataFrame(PT_4factor_aug.fit_transform(df_4factor_aug.to_numpy()),columns=df_all_filters.columns)
-df_4factor_PT = pd.DataFrame(PT_4factor.fit_transform(df_4factor.to_numpy()),columns=df_all_filters.columns)
+df_4factor_PT_aug = pd.DataFrame(PT_4factor_aug.fit_transform(df_4factor_aug.to_numpy()),columns=df_all_data.columns)
+df_4factor_PT = pd.DataFrame(PT_4factor.fit_transform(df_4factor.to_numpy()),columns=df_all_data.columns)
 
 
 #%%TRAIN 4-FACTOR VAE MINMAX
 #Based on the above, use an AE with 1 intermediate layers and latent dim of 4
-ae_obj = FVAE_n_layer(input_dim=input_dim,latent_dim=2,int_layers=3,latent_activation='softsign',decoder_output_activation='sigmoid')
+ae_obj = FVAE_n_layer(input_dim=input_dim,latent_dim=2,int_layers=3,latent_activation='softsign',decoder_output_activation='linear')
+
+#ae_obj = testAE_n_layer(input_dim=input_dim,latent_dim=4,int_layers=1,latent_activation='sigmoid')
+
+
 #history = ae_obj.fit_model(df_4factor_minmen_aug_01.to_numpy(),x_test=df_4factor_minmen_01.to_numpy(),epochs=100,verbose=True)
-history = ae_obj.fit_model(df_4factor_aug_01.to_numpy(),x_test=df_4factor_01.to_numpy(),epochs=100,verbose=True)
+#history = ae_obj.fit_model(df_4factor_aug_01.to_numpy(),x_test=df_4factor_01.to_numpy(),epochs=2,verbose=True)
+history = ae_obj.fit_model(df_all_data_aug_01.to_numpy(),x_test=df_all_data_01.to_numpy(),epochs=50,verbose=True)
 val_acc_per_epoch = history.history['val_loss']
 kl_loss = history.history['kl_loss']
 mse_loss = history.history['mse_loss']
@@ -1075,20 +1139,19 @@ ax[1].set_yscale('log')
 ax[0].legend()
 plt.show()
 
-# SUBTRACT THE MEAN FROM THE INITIAL DATA AND SCALE IT 0 TO 1??
-# OR TRY THE THING WITH MINMAXSCALER AND USE A SOFTMAX OUTPUT ACTIVATION
-
-# FIRST TRY JUST A DIFFERNT TIME SERIES OF THE FACTORS, FIRST YOU ARE TRYING TO JUST PICK OUT THE FACTORS
-# TO WORK OUT HOW IT WORKS
-# THEN TRY ASSESS THE PERFORMANCE AND IMPROVE
+#HERE I AM TRYING TO MAKE A FACTOR TO REDUCE THE CORRELATION BETWEEN THE LATENT SPACE TIME SERIES
 
 #%%Plot input vs output df_4factor_MM
-latent_space = ae_obj.encoder.predict(df_4factor_01.to_numpy())
-decoded_latent_space = ae_obj.decoder.predict(latent_space)
+#latent_space = ae_obj.encoder.predict(df_4factor_01.to_numpy())
+latent_space = ae_obj.encoder.predict(df_all_data_01.to_numpy())
+latent_grid = np.mgrid[latent_space[:,0].min():latent_space[:,0].max():3j, latent_space[:,1].min():latent_space[:,1].max():3j].reshape(2, -1).T
+df_latent_grid = pd.DataFrame(latent_grid).sort_values([1, 0], ascending=[False, True])
+latent_grid = df_latent_grid.to_numpy()
 
 fig,ax = plt.subplots(1)
-plt.scatter(df_4factor_01.to_numpy(),ae_obj.ae.predict(df_4factor_01.to_numpy()))
-plt.title("AE input vs output (MinMax scaled)")
+#plt.scatter(df_4factor_01.to_numpy(),ae_obj.ae.predict(df_4factor_01.to_numpy()))
+plt.scatter(df_all_data_01.to_numpy(),ae_obj.ae.predict(df_all_data_01.to_numpy()))
+plt.title("AE input vs output")
 plt.xlabel('AE input')
 plt.ylabel('AE output')
 plt.show()
@@ -1096,135 +1159,158 @@ plt.show()
 #%%Evaluate AE loss per sample
 ds_AE_loss_per_sample = pd.Series(AE_calc_loss_per_sample(ae_obj.ae,df_4factor_01.to_numpy(),df_4factor_01.to_numpy()))
 
-#%%Plot input vs output df_4factor (unscaled)
-fig,ax = plt.subplots(1)
-#plt.scatter(df_4factor.to_numpy(),QT_4factor.inverse_transform((ae_obj.vae.predict(df_4factor_QT.to_numpy())+1)/2))
-plt.scatter(df_4factor.to_numpy(),PT_4factor.inverse_transform(ae_obj.ae.predict(df_4factor_PT.to_numpy())))
-plt.title("AE input vs output (unscaled)")
-plt.xlabel('AE input')
-plt.ylabel('AE output')
-plt.show()
 
-#%%Decode single column latent space
-latent0_decoded_min1 = ae_obj.decoder.predict(np.array([[-1,0]]))
-latent0_decoded_plus1 = ae_obj.decoder.predict(np.array([[1,0]]))
-latent1_decoded_min1 = ae_obj.decoder.predict(np.array([[0,-1]]))
-latent1_decoded_plus1 = ae_obj.decoder.predict(np.array([[0,1]]))
+#%%Plot latent space time series on the grid
+fig,ax = plt.subplots(1,figsize=(8,6))
+# plt.xlim([-1,1])
+# plt.ylim([-1,1])
+c = np.arange(latent_space.shape[0])
+c_timeofday = df_all_data.index.hour
+c_dataset = dataset_cat.codes
 
-# latent0_decoded_min1 = (latent0_decoded_min1+1)/2
-# latent0_decoded_plus1 = (latent0_decoded_plus1+1)/2
-# latent1_decoded_min1 = (latent1_decoded_min1+1)/2
-# latent1_decoded_plus1 = (latent1_decoded_plus1+1)/2
-latent0_decoded_min1 = MM_4factor.inverse_transform(latent0_decoded_min1).T
-latent0_decoded_plus1 = MM_4factor.inverse_transform(latent0_decoded_plus1).T
-latent1_decoded_min1 = MM_4factor.inverse_transform(latent1_decoded_min1).T
-latent1_decoded_plus1 = MM_4factor.inverse_transform(latent1_decoded_plus1).T
+#sns.scatterplot(ax=ax,x=latent_space[:,0], y=latent_space[:,1],c=c,style=dataset_index_4factor)
+ax.set_title('2-D latent space')
+plt.xlabel('Latent dimension 0')
+plt.ylabel('Latent dimension 1')
+#sns.scatterplot(x=latent_space[:,0], y=latent_space[:,1],c=c,style=dataset_cat)
+plot = plt.scatter(x=latent_space[:,0], y=latent_space[:,1],c=c_dataset,cmap=plt.cm.get_cmap('tab20b', 4))
+cbar = plt.colorbar(plot,label="Dataset")
+plt.clim(0, 3)
+cbar.ax.set_yticklabels(['Beijing winter', '', 'Beijing summer', '', 'Delhi summer', 'Delhi autumn'])
+sns.scatterplot(ax=ax,x=latent_space[:,0], y=latent_space[:,1],c=c_dataset,style=dataset_cat,cmap=plt.cm.get_cmap('tab20b', 4))
+ax.plot()
 
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_filters.columns])
-fig,ax = plt.subplots(8,1,figsize=(10,10))
-ax[0].stem(mz_columns.to_numpy(),factor_A,markerfmt=' ')
-ax[1].stem(mz_columns.to_numpy(),factor_B,markerfmt=' ')
-ax[2].stem(mz_columns.to_numpy(),factor_C,markerfmt=' ')
-ax[3].stem(mz_columns.to_numpy(),factor_D,markerfmt=' ')
-ax[4].stem(mz_columns.to_numpy(),latent0_decoded_min1,markerfmt=' ')
-ax[5].stem(mz_columns.to_numpy(),latent0_decoded_plus1,markerfmt=' ')
-ax[6].stem(mz_columns.to_numpy(),latent1_decoded_min1,markerfmt=' ')
-ax[7].stem(mz_columns.to_numpy(),latent1_decoded_plus1,markerfmt=' ')
-plt.setp(ax, xlim=(100,400), ylim=(0,0.75))
-plt.show()
+#plt.imshow(I, cmap=plt.cm.get_cmap('Blues', 6))
+#plt.colorbar()
 
 
-#%%Decode corners from latent space
-latent_mm_decoded = ae_obj.decoder.predict(np.array([[-1,-1]]))
-latent_mp_decoded = ae_obj.decoder.predict(np.array([[-1,1]]))
-latent_pm_decoded = ae_obj.decoder.predict(np.array([[1,-1]]))
-latent_pp_decoded = ae_obj.decoder.predict(np.array([[1,1]]))
-latent_00_decoded = ae_obj.decoder.predict(np.array([[0,0]]))
 
-# latent_mm_decoded = (latent_mm_decoded+1)/2
-# latent_mp_decoded = (latent_mp_decoded+1)/2
-# latent_pm_decoded = (latent_pm_decoded+1)/2
-# latent_pp_decoded = (latent_pp_decoded+1)/2
-# latent_00_decoded = (latent_00_decoded+1)/2
+#plt.scatter(latent_grid[:,0],latent_grid[:,1])
 
-latent_mm_decoded = MM_4factor.inverse_transform(latent_mm_decoded).T
-latent_mp_decoded = MM_4factor.inverse_transform(latent_mp_decoded).T
-latent_pm_decoded = MM_4factor.inverse_transform(latent_pm_decoded).T
-latent_pp_decoded = MM_4factor.inverse_transform(latent_pp_decoded).T
-latent_00_decoded = MM_4factor.inverse_transform(latent_00_decoded).T
-
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_filters.columns])
-fig,ax = plt.subplots(9,1,figsize=(10,10))
-ax[0].stem(mz_columns.to_numpy(),factor_A,markerfmt=' ')
-ax[1].stem(mz_columns.to_numpy(),factor_B,markerfmt=' ')
-ax[2].stem(mz_columns.to_numpy(),factor_C,markerfmt=' ')
-ax[3].stem(mz_columns.to_numpy(),factor_D,markerfmt=' ')
-ax[4].stem(mz_columns.to_numpy(),latent_mm_decoded,markerfmt=' ')
-ax[5].stem(mz_columns.to_numpy(),latent_mp_decoded,markerfmt=' ')
-ax[6].stem(mz_columns.to_numpy(),latent_pm_decoded,markerfmt=' ')
-ax[7].stem(mz_columns.to_numpy(),latent_pp_decoded,markerfmt=' ')
-ax[8].stem(mz_columns.to_numpy(),latent_00_decoded,markerfmt=' ')
-plt.setp(ax, xlim=(100,400), ylim=(0,0.75))
-plt.show()
-
-
-#%%Plot a 2x2 input and a 3x3 output
-#%%Plot input factors
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_filters.columns])
-fig,ax = plt.subplots(4,1,figsize=(6.66,10))
-ax[0].stem(mz_columns.to_numpy(),factor_A,markerfmt=' ')
-ax[1].stem(mz_columns.to_numpy(),factor_B,markerfmt=' ')
-ax[2].stem(mz_columns.to_numpy(),factor_C,markerfmt=' ')
-ax[3].stem(mz_columns.to_numpy(),factor_D,markerfmt=' ')
-plt.setp(ax, xlim=(100,400))
-ax[0].set_title('Input factors')
-ax[3].set_xlabel('m/z')
-plt.show()
-
-#%%Plot output factors
-
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_filters.columns])
-fig,ax = plt.subplots(3,3,figsize=(20,10))
-ax[0][0].stem(mz_columns.to_numpy(),latent_mm_decoded,markerfmt=' ')
-ax[0][1].stem(mz_columns.to_numpy(),latent0_decoded_min1,markerfmt=' ')
-ax[0][2].stem(mz_columns.to_numpy(),latent_mp_decoded,markerfmt=' ')
-ax[1][0].stem(mz_columns.to_numpy(),latent1_decoded_min1,markerfmt=' ')
-ax[1][1].stem(mz_columns.to_numpy(),latent_00_decoded,markerfmt=' ')
-ax[1][2].stem(mz_columns.to_numpy(),latent1_decoded_plus1,markerfmt=' ')
-ax[2][0].stem(mz_columns.to_numpy(),latent_pm_decoded,markerfmt=' ')
-ax[2][1].stem(mz_columns.to_numpy(),latent0_decoded_plus1,markerfmt=' ')
-ax[2][2].stem(mz_columns.to_numpy(),latent_pp_decoded,markerfmt=' ')
-plt.setp(ax, xlim=(100,400))
-plt.tight_layout()
-plt.show()
+#%%
+fig,ax = plt.subplots(2,1,figsize=(8,5))
+ax = ax.ravel()
+sns.scatterplot(ax=ax[0],x=c,y=latent_space[:,0],markers='s',c=c_dataset,cmap=plt.cm.get_cmap('tab20b', 4))
+sns.scatterplot(ax=ax[1],x=c,y=latent_space[:,1],markers='o',c=c_dataset,cmap=plt.cm.get_cmap('tab20b', 4))
+ax[0].set_ylabel('Latent dimension 0')
+ax[1].set_ylabel('Latent dimension 1')
+ax[1].set_xlabel('~Time (arb units)')
+#ax.xlabel('~Time (arb units)')
+#ax[0].legend()#(['Beijing winter','Beijing summer','Delhi summer','Delhi autumn','a','b'])
 
 
 #%%Check Pearson's R correlation between input and output factors
-latent_grid = np.mgrid[-1:2:1, -1:2:1].reshape(2, -1).T
-#df_latent_grid_decoded = pd.DataFrame(QT_4factor.inverse_transform((ae_obj.decoder.predict(latent_grid)+1)/2),columns=df_all_filters.columns)
-df_latent_grid_decoded = pd.DataFrame(PT_4factor_aug.inverse_transform(ae_obj.decoder.predict(latent_grid)),columns=df_all_filters.columns)
-df_latent_grid_decoded = pd.DataFrame(ae_obj.decoder.predict(latent_grid),columns=df_all_filters.columns)
+#latent_grid = np.mgrid[-1:2:1, -1:2:1].reshape(2, -1).T
+
+#df_latent_grid_decoded = pd.DataFrame(QT_4factor.inverse_transform((ae_obj.decoder.predict(latent_grid)+1)/2),columns=df_all_data.columns)
+#df_latent_grid_decoded = pd.DataFrame(PT_4factor_aug.inverse_transform(ae_obj.decoder.predict(latent_grid)),columns=df_all_data.columns)
+df_latent_grid_decoded = pd.DataFrame(ae_obj.decoder.predict(latent_grid),columns=df_all_data.columns)
 #df_latent_grid_decoded = df_latent_grid_decoded.fillna(0)
 latent_grid_decoded_corr = corr_coeff_rowwise_loops(df_latent_grid_decoded.to_numpy(),df_4factor_factors.to_numpy())
 latent_grid_decoded_corr = np.around(latent_grid_decoded_corr,3)
 
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_filters.columns])
+mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
 fig,ax = plt.subplots(3,3,figsize=(20,10))
 axs = ax.ravel()
     
 for i in range(9):   
     axs[i].stem(mz_columns.to_numpy(),df_latent_grid_decoded.iloc[i],markerfmt=' ')
     best_R = latent_grid_decoded_corr[i]
-    axs[i].text(0.95,0.5,latent_grid_decoded_corr[i].max(),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes)
-    axs[i].text(0.95,0.4,latent_grid_decoded_corr[i].argmax(),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes)
+    axs[i].text(0.95,0.5,'R = ' + str(latent_grid_decoded_corr[i].max()),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes,fontsize=14)
+    axs[i].text(0.95,0.4,'Factor ' + str(latent_grid_decoded_corr[i].argmax()),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes,fontsize=14)
     
 
 plt.setp(ax, xlim=(100,400))
 plt.tight_layout()
 plt.show()
 
+#%%Find the best R for the decoded data time series
+latent_space_decoded_corr = corr_coeff_rowwise_loops(ae_obj.ae.predict(df_4factor_01.to_numpy()),df_4factor_factors.to_numpy())
+latent_space_decoded_corr = np.around(latent_space_decoded_corr,3)
+latent_space_decoded_best_corr_id = latent_space_decoded_corr.argmax(axis=1)
 
 
+input_data_corr = corr_coeff_rowwise_loops(df_4factor_01.to_numpy(),df_4factor_factors.to_numpy())
+input_data_corr = np.around(input_data_corr,3)
+input_data_best_corr_id = input_data_corr.argmax(axis=1)
+
+
+
+
+
+
+#%%Check Pearson's R correlation between input and output factors
+latent_grid = np.mgrid[-1:3:1, -1:3:1].reshape(2, -1).T
+#df_latent_grid_decoded = pd.DataFrame(QT_4factor.inverse_transform((ae_obj.decoder.predict(latent_grid)+1)/2),columns=df_all_data.columns)
+#df_latent_grid_decoded = pd.DataFrame(PT_4factor_aug.inverse_transform(ae_obj.decoder.predict(latent_grid)),columns=df_all_data.columns)
+df_latent_grid_decoded = pd.DataFrame(ae_obj.decoder.predict(latent_grid),columns=df_all_data.columns)
+#df_latent_grid_decoded = df_latent_grid_decoded.fillna(0)
+latent_grid_decoded_corr = corr_coeff_rowwise_loops(df_latent_grid_decoded.to_numpy(),df_4factor_factors.to_numpy())
+latent_grid_decoded_corr = np.around(latent_grid_decoded_corr,3)
+
+mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
+fig,ax = plt.subplots(4,4,figsize=(20,10))
+axs = ax.ravel()
+    
+for i in range(16):   
+    axs[i].stem(mz_columns.to_numpy(),df_latent_grid_decoded.iloc[i],markerfmt=' ')
+    best_R = latent_grid_decoded_corr[i]
+    axs[i].text(0.95,0.5,latent_grid_decoded_corr[i].max(),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes)
+    axs[i].text(0.95,0.4,latent_grid_decoded_corr[i].argmax(),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes)
+    
+
+plt.setp(ax, xlim=(100,500))
+plt.tight_layout()
+plt.show()
+
+
+#%%Check Pearson's R correlation between input and output factors
+latent_grid = np.mgrid[latent_space[:,0].min():latent_space[:,0].max():10j, latent_space[:,1].min():latent_space[:,1].max():10j].reshape(2, -1).T
+df_latent_grid = pd.DataFrame(latent_grid).sort_values([1, 0], ascending=[False, True])
+latent_grid = df_latent_grid.to_numpy()
+#df_latent_grid_decoded = pd.DataFrame(QT_4factor.inverse_transform((ae_obj.decoder.predict(latent_grid)+1)/2),columns=df_all_data.columns)
+#df_latent_grid_decoded = pd.DataFrame(PT_4factor_aug.inverse_transform(ae_obj.decoder.predict(latent_grid)),columns=df_all_data.columns)
+df_latent_grid_decoded = pd.DataFrame(ae_obj.decoder.predict(latent_grid),columns=df_all_data.columns)
+#df_latent_grid_decoded = df_latent_grid_decoded.fillna(0)
+latent_grid_decoded_corr = corr_coeff_rowwise_loops(df_latent_grid_decoded.to_numpy(),df_4factor_factors.to_numpy())
+latent_grid_decoded_corr = np.around(latent_grid_decoded_corr,3)
+
+mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
+fig,ax = plt.subplots(10,10,figsize=(20,10))
+axs = ax.ravel()
+    
+for i in range(100):   
+    axs[i].stem(mz_columns.to_numpy(),df_latent_grid_decoded.iloc[i],markerfmt=' ')
+    best_R = latent_grid_decoded_corr[i]
+    axs[i].text(0.95,0.5,latent_grid_decoded_corr[i].max(),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes)
+    axs[i].text(0.95,0.4,latent_grid_decoded_corr[i].argmax(),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes)
+    
+
+plt.setp(ax, xlim=(100,500))
+plt.tight_layout()
+plt.show()
+
+#%%Plot input factors
+mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
+#fig,ax = plt.subplots(4,1,figsize=(6.66,10))
+fig,ax = plt.subplots(2,2,figsize=(10,6))
+ax = ax.ravel()
+ax[0].stem(mz_columns.to_numpy(),factor_A,markerfmt=' ')
+ax[1].stem(mz_columns.to_numpy(),factor_B,markerfmt=' ')
+ax[2].stem(mz_columns.to_numpy(),factor_C,markerfmt=' ')
+ax[3].stem(mz_columns.to_numpy(),factor_D,markerfmt=' ')
+ax[0].text(0.95,0.95,'Factor 0',horizontalalignment='right', verticalalignment='top',transform=ax[0].transAxes)
+ax[1].text(0.95,0.95,'Factor 1',horizontalalignment='right', verticalalignment='top',transform=ax[1].transAxes)
+ax[2].text(0.95,0.95,'Factor 2',horizontalalignment='right', verticalalignment='top',transform=ax[2].transAxes)
+ax[3].text(0.95,0.95,'Factor 3',horizontalalignment='right', verticalalignment='top',transform=ax[3].transAxes)
+plt.setp(ax, xlim=(100,400))
+ax[0].set_title('Input factors')
+ax[3].set_xlabel('m/z')
+plt.tight_layout()
+plt.show()
+
+
+#%%Some quick clustering
 
 #%%
 

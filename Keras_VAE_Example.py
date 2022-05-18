@@ -6,11 +6,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 
-from keras.layers import Input, Dense, Lambda
-from keras.models import Model
-from keras import backend as K
-from keras import metrics
-from keras.datasets import mnist
+from tensorflow.keras.layers import Input, Dense, Lambda
+from tensorflow.keras.models import Model
+from tensorflow.keras import backend as K
+from tensorflow.keras import metrics
+from tensorflow.keras.datasets import mnist
 
 K.clear_session()
 

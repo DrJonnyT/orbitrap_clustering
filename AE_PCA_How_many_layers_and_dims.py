@@ -47,20 +47,37 @@ os.chdir('C:/Work/Python/Github/Orbitrap_clustering')
 from ae_functions import *
 
 # %%Load data
+# %%Load data
 
 path='C:/Users/mbcx5jt5/Google Drive/Shared_York_Man2/'
-df_beijing_raw, df_beijing_filters, df_beijing_metadata = beijing_load(
+df_beijing_data, df_beijing_err, df_beijing_metadata, df_beijing_raw = beijing_load(
     path + 'BJ_UnAmbNeg9.1.1_20210505-Times_Fixed.xlsx',path + 'BJ_UnAmbNeg9.1.1_20210505-Times_Fixed.xlsx',
     peaks_sheetname="Compounds",metadata_sheetname="massloading_Beijing")
 
-df_delhi_raw, df_delhi_filters, df_delhi_metadata = delhi_load(
-    path + 'Delhi_Amb3.1_MZ.xlsx',path + 'Delhi/Delhi_massloading_autumn_summer.xlsx')
+df_delhi_data, df_delhi_err, df_delhi_metadata, df_delhi_raw = delhi_load2(path + '/Delhi/Orbitrap/')
 
-df_beijing_winter = df_beijing_filters.iloc[0:124].copy()
-df_beijing_summer = df_beijing_filters.iloc[124:].copy()
+df_all_data = pd.concat([df_beijing_data, df_delhi_data], axis=0, join="inner")
+df_all_err = pd.concat([df_beijing_err, df_delhi_err], axis=0, join="inner")
+df_all_raw = pd.concat([df_beijing_raw, df_delhi_raw], axis=1, join="inner")
+df_all_raw = df_all_raw.loc[:,~df_all_raw.columns.duplicated()] #Remove duplicate columns: m/z, RT, molecular weight, formula
 
-df_all_filters = df_beijing_filters.append(df_delhi_filters,sort=True).fillna(0)
-df_all_raw = df_beijing_raw.transpose().append(df_delhi_raw.transpose(),sort=True).transpose()
+dataset_cat = delhi_beijing_datetime_cat(df_all_data)
+df_dataset_cat = pd.DataFrame(delhi_beijing_datetime_cat(df_all_data),columns=['dataset_cat'],index=df_all_data.index)
+ds_dataset_cat = df_dataset_cat['dataset_cat']
+
+time_cat = delhi_calc_time_cat(df_all_data)
+df_time_cat = pd.DataFrame(delhi_calc_time_cat(df_all_data),columns=['time_cat'],index=df_all_data.index)
+ds_time_cat = df_time_cat['time_cat']
+
+mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
+
+
+#Sort columns by m/z
+mz_columns_sorted = mz_columns.sort_values("Molecular Weight",axis=0)
+df_all_data.columns= mz_columns['Molecular Weight']
+df_all_data.sort_index(axis=1,inplace=True)
+df_all_data.columns = mz_columns_sorted.index
+mz_columns = mz_columns_sorted
 
 # %%Check largest peaks
 

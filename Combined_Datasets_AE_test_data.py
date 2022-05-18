@@ -62,23 +62,34 @@ from ae_functions import *
 # %%Load data
 
 path='C:/Users/mbcx5jt5/Google Drive/Shared_York_Man2/'
-df_beijing_raw, df_beijing_filters, df_beijing_metadata = beijing_load(
+df_beijing_data, df_beijing_err, df_beijing_metadata, df_beijing_raw = beijing_load(
     path + 'BJ_UnAmbNeg9.1.1_20210505-Times_Fixed.xlsx',path + 'BJ_UnAmbNeg9.1.1_20210505-Times_Fixed.xlsx',
     peaks_sheetname="Compounds",metadata_sheetname="massloading_Beijing")
 
-df_delhi_raw, df_delhi_filters, df_delhi_metadata = delhi_load2(path + '/Delhi/Orbitrap/')
+df_delhi_data, df_delhi_err, df_delhi_metadata, df_delhi_raw = delhi_load2(path + '/Delhi/Orbitrap/')
 
-df_all_filters = pd.concat([df_beijing_filters, df_delhi_filters], axis=0, join="inner")
+df_all_data = pd.concat([df_beijing_data, df_delhi_data], axis=0, join="inner")
+df_all_err = pd.concat([df_beijing_err, df_delhi_err], axis=0, join="inner")
 df_all_raw = pd.concat([df_beijing_raw, df_delhi_raw], axis=1, join="inner")
 df_all_raw = df_all_raw.loc[:,~df_all_raw.columns.duplicated()] #Remove duplicate columns: m/z, RT, molecular weight, formula
 
-dataset_cat = delhi_beijing_datetime_cat(df_all_filters)
-df_dataset_cat = pd.DataFrame(delhi_beijing_datetime_cat(df_all_filters),columns=['dataset_cat'],index=df_all_filters.index)
+dataset_cat = delhi_beijing_datetime_cat(df_all_data)
+df_dataset_cat = pd.DataFrame(delhi_beijing_datetime_cat(df_all_data),columns=['dataset_cat'],index=df_all_data.index)
 ds_dataset_cat = df_dataset_cat['dataset_cat']
 
-time_cat = delhi_calc_time_cat(df_all_filters)
-df_time_cat = pd.DataFrame(delhi_calc_time_cat(df_all_filters),columns=['time_cat'],index=df_all_filters.index)
+time_cat = delhi_calc_time_cat(df_all_data)
+df_time_cat = pd.DataFrame(delhi_calc_time_cat(df_all_data),columns=['time_cat'],index=df_all_data.index)
 ds_time_cat = df_time_cat['time_cat']
+
+mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
+
+
+#Sort columns by m/z
+mz_columns_sorted = mz_columns.sort_values("Molecular Weight",axis=0)
+df_all_data.columns= mz_columns['Molecular Weight']
+df_all_data.sort_index(axis=1,inplace=True)
+df_all_data.columns = mz_columns_sorted.index
+mz_columns = mz_columns_sorted
 
 
 
@@ -318,6 +329,8 @@ plt.plot(factorB_total)
 plt.plot(factorC_total)
 plt.show()
 
+ds_3factor_total = factorA_total + factorB_total + factorC_total
+
 
 #%%Train an entirely new AE for the test data
 #%%Work out how many epochs to train for
@@ -339,6 +352,9 @@ ae_obj_testdata = AE_n_layer(input_dim=input_dim,latent_dim=19,int_layers=2,late
 ae_obj_testdata.fit_model(ae_input_testdata, x_test=ae_input_val_testdata,epochs=best_epoch)
 print('Best epoch: %d' % (best_epoch,))
 
+latent_space = ae_obj_testdata.encoder(ae_input_val_testdata).numpy()
+latent_space_noisy = np.multiply(latent_space,np.random.normal(1, 0.05, latent_space.shape))
+
 #%%Test data in AE
 fig,ax = plt.subplots(1)
 plt.scatter(ae_input_val_testdata,ae_obj_testdata.ae(ae_input_val_testdata))
@@ -346,3 +362,159 @@ plt.title("AE input vs output")
 plt.xlabel('AE input')
 plt.ylabel('AE output')
 plt.show()
+
+
+#%%Basic nmf, on the unscaled data
+def get_score(model, data, scorer=explained_variance_score):
+    """ Estimate performance of the model on the data """
+    prediction = model.inverse_transform(model.transform(data))
+    return scorer(data, prediction)
+
+
+#Work out how many factors
+nmf_input = df_3factor.clip(lower=0).values
+ks = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30]
+perfs_train = []
+nmf_recon_err = []
+for k in ks:
+    nmf = NMF(n_components=k).fit(nmf_input)
+    perfs_train.append(get_score(nmf, nmf_input))
+    nmf_recon_err.append(nmf.reconstruction_err_)
+print(perfs_train)
+
+fig,ax = plt.subplots(1)
+ax.plot(ks,perfs_train,marker='x')
+ax.set_ylim(0,)
+ax.set_ylabel('Explained variance score (x)')
+ax.set_xlabel('Num factors')
+ax.xaxis.set_major_locator(plticker.MultipleLocator(base=2.0) )
+ax.xaxis.set_minor_locator(plticker.MultipleLocator(base=1.0) )
+
+ax2=ax.twinx()
+color='k'
+ax2.plot(ks,nmf_recon_err,marker='o',color=color)
+ax2.set_ylabel('NMF reconstruction error (o)')
+ax2.set_ylim(0,)
+
+
+#%%3-factor nmf
+nmf3 = NMF(n_components=3).fit(nmf_input)
+W = nmf3.transform(nmf_input)
+H = nmf3.components_
+
+df_nmf3_factors = pd.DataFrame(nmf3.components_,columns=df_3factor.columns)
+
+#Collate the factor totals
+factor_totals = np.ndarray(W.shape)
+for x in np.arange(3):
+    factor_totals[:,x] =  (np.outer(W.T[x], H[x]).sum(axis=1))
+df_factor_totals = pd.DataFrame(factor_totals)
+df_factor_totals.columns = [("factor"+str(num)+"") for num in range(3)]
+
+plt.scatter(ds_3factor_total,factor_totals.sum(axis=1))
+
+nmf3_reconstructed_total = np.dot(W, H).sum(axis=1)
+
+
+
+#%%Now NMF on the latent space
+#Work out how many factors
+#nmf_input = latent_space.clip(lower=0).values
+ks = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30]
+perfs_train = []
+nmf_recon_err = []
+for k in ks:
+    nmf = NMF(n_components=k).fit(latent_space)
+    perfs_train.append(get_score(nmf, latent_space))
+    nmf_recon_err.append(nmf.reconstruction_err_)
+print(perfs_train)
+
+fig,ax = plt.subplots(1)
+ax.plot(ks,perfs_train,marker='x')
+ax.set_ylim(0,)
+ax.set_ylabel('Explained variance score (x)')
+ax.set_xlabel('Num factors')
+ax.xaxis.set_major_locator(plticker.MultipleLocator(base=2.0) )
+ax.xaxis.set_minor_locator(plticker.MultipleLocator(base=1.0) )
+
+ax2=ax.twinx()
+color='k'
+ax2.plot(ks,nmf_recon_err,marker='o',color=color)
+ax2.set_ylabel('NMF reconstruction error (o)')
+ax2.set_ylim(0,)
+
+
+#%%3-factor nmf
+nmf3 = NMF(n_components=3).fit(latent_space)
+W = nmf3.transform(latent_space)
+H = nmf3.components_
+
+W0 = W
+W0[:,1:3] = 0
+Factor0_lat_mtx2 = np.dot(W0, H)
+
+
+# df_nmf3_factors = pd.DataFrame(nmf3.components_,columns=df_3factor.columns)
+
+# #Collate the factor totals
+# factor_totals = np.ndarray(W.shape)
+# for x in np.arange(3):
+#     factor_totals[:,x] =  (np.outer(W.T[x], H[x]).sum(axis=1))
+# df_factor_totals = pd.DataFrame(factor_totals)
+# df_factor_totals.columns = [("factor"+str(num)+"") for num in range(3)]
+
+# plt.scatter(ds_3factor_total,factor_totals.sum(axis=1))
+
+
+Factor0_lat = H[0]
+Factor1_lat = H[1]
+Factor2_lat = H[2]
+
+
+Factor0_lat_mtx = np.outer(W.T[0], H[0])
+Factor1_lat_mtx = np.outer(W.T[1], H[1])
+Factor2_lat_mtx = np.outer(W.T[2], H[2])
+total_lat_mtx = Factor0_lat_mtx + Factor1_lat_mtx + Factor2_lat_mtx
+#Now need to decode these matrices to get the time series matrix of each factor
+
+Factor0_decod = ae_obj_testdata.decoder.predict(np.expand_dims(Factor0_lat, axis=0))
+Factor1_decod = ae_obj_testdata.decoder.predict(np.expand_dims(Factor1_lat, axis=0))
+Factor2_decod = ae_obj_testdata.decoder.predict(np.expand_dims(Factor2_lat, axis=0))
+
+Factor0_mtx_decod = ae_obj_testdata.decoder.predict(Factor0_lat_mtx)
+Factor1_mtx_decod = ae_obj_testdata.decoder.predict(Factor1_lat_mtx)
+Factor2_mtx_decod = ae_obj_testdata.decoder.predict(Factor2_lat_mtx)
+
+Factor0_decod_sum = Factor0_mtx_decod.sum(axis=1)
+Factor1_decod_sum = Factor1_mtx_decod.sum(axis=1)
+Factor2_decod_sum = Factor2_mtx_decod.sum(axis=1)
+
+plt.plot(Factor0_decod_sum)
+plt.plot(Factor1_decod_sum)
+plt.plot(Factor2_decod_sum)
+plt.ylim(bottom=0)
+plt.show()
+
+decoded_total_sum = Factor0_decod_sum + Factor1_decod_sum + Factor2_decod_sum
+
+nmf3_reconstructed_latent_mtx = np.dot(W, H)
+nmf3_reconstructed_latent_mtx_decoded = ae_obj_testdata.decoder.predict(nmf3_reconstructed_latent_mtx)
+
+test = ae_obj_testdata.decoder.predict(total_lat_mtx)
+
+
+
+
+#%%
+plt.plot(decoded_total_sum,label='latent nmf decoded components sum')
+#plt.plot(ds_3factor_total.values,c='r',label='input_sum')
+#plt.plot(factor_totals.sum(axis=1),c='k',label='nmf sum')
+plt.plot(nmf3_reconstructed_total,c='k',label='nmf sum')
+plt.plot(nmf_input.sum(axis=1),c='y',label='nmf input sum')
+plt.plot(nmf3_reconstructed_latent_mtx_decoded.sum(axis=1),c='r',label='latent nmf reconstructed mtx decoded')
+
+plt.legend()
+plt.show()
+
+
+

@@ -26,6 +26,7 @@ import tensorflow.keras.optimizers as optimizers
 from tensorflow.keras.models import Model
 import tensorflow.keras.backend as K
 import tensorflow.keras as keras
+import tensorflow_probability as tfp
 from tensorflow.keras import metrics
 import kerastuner as kt
 from sklearn.preprocessing import RobustScaler, StandardScaler,FunctionTransformer,MinMaxScaler
@@ -39,6 +40,18 @@ import os
 ####FILE_LOADERS#######
 #######################
 def beijing_load(peaks_filepath,metadata_filepath,peaks_sheetname="DEFAULT",metadata_sheetname="DEFAULT",subtract_blank=True):
+    #Define constants
+    CalPA = 28138.3956527531 #Pinonic acid calibration
+    FF = 0.1115 #Fraction of the filter used for analysis
+    EF = 0.85 #Extraction efficiency of pinonic acid
+    RIE = 4.2 #Relative ionization efficiency of pinonic acid
+    
+    LOD = 8.6 ##Limit of detection in ppb, so raw signal/CalPA
+    u_RIE = 3.9 # Uncertainty in RIE
+    u_analytical = 0.063 # 6.3%
+    
+    
+    #Load metadata
     if(metadata_sheetname=="DEFAULT"):
         df_beijing_metadata = pd.read_excel(metadata_filepath,engine='openpyxl',
                                            usecols='A:K',nrows=329,converters={'mid_datetime': str})
@@ -47,6 +60,7 @@ def beijing_load(peaks_filepath,metadata_filepath,peaks_sheetname="DEFAULT",meta
                                        sheet_name=metadata_sheetname,usecols='A:K',nrows=329,converters={'mid_datetime': str})
     df_beijing_metadata['Sample.ID'] = df_beijing_metadata['Sample.ID'].astype(str)
 
+    #Load peaks
     if(peaks_sheetname=="DEFAULT"):
         df_beijing_raw = pd.read_excel(peaks_filepath,engine='openpyxl')
     else:
@@ -56,106 +70,140 @@ def beijing_load(peaks_filepath,metadata_filepath,peaks_sheetname="DEFAULT",meta
     df_beijing_raw = orbitrap_filter(df_beijing_raw)
 
     #Cut some fluff columns out and make new df
-    df_beijing_filters = df_beijing_raw.iloc[:,list(range(4,len(df_beijing_raw.columns)))].copy()
-    index_backup = df_beijing_filters.index
+    df_beijing_data = df_beijing_raw.iloc[:,list(range(4,len(df_beijing_raw.columns)))].copy()
+    index_backup = df_beijing_data.index
 
-
+    #Apply calibrations
+    #Step 1. Subtract blanks
     if(subtract_blank == True):
         #Extract blank
         beijing_blank = df_beijing_raw.iloc[:,320].copy()
         #Subtract blank
-        df_beijing_filters = df_beijing_filters.subtract(beijing_blank.values,axis=0)
+        df_beijing_data = df_beijing_data.subtract(beijing_blank.values,axis=0)
+    
+    #Step 2. Apply CalPA, Pinonic acid calibration to turn area into ppb (ug/ml)
+    df_beijing_data = df_beijing_data * (1/CalPA)
+    
+    #Step 3. Calculate error in ppb
+    df_beijing_err = df_beijing_data.copy()
+    #pdb.set_trace()
+    df_beijing_err[df_beijing_data.abs() <= LOD] = 5/6 * LOD
+    df_beijing_err[df_beijing_data.abs() > LOD] = np.sqrt( (df_beijing_data[df_beijing_data.abs() > LOD] * u_analytical)**2  +  (df_beijing_data[df_beijing_data.abs() > LOD] * 3.9/4.2)**2  +  (0.5 * LOD)**2  )
+    
+    #Step 4. Apply FF, EF and RIE calibrations
+    df_beijing_data = df_beijing_data * (1/FF) * (1/EF) * RIE
+    df_beijing_err = df_beijing_err * (1/FF) * (1/EF) * RIE
     
     
     #Set the index to sample ID for merging peaks with metadata
-    sample_id = df_beijing_filters.columns.str.split('_|.raw').str[2]
-    df_beijing_filters.columns = sample_id
-    df_beijing_filters = df_beijing_filters.transpose()
+    sample_id = df_beijing_data.columns.str.split('_|.raw').str[2]
+    df_beijing_data.columns = sample_id
+    df_beijing_err.columns = sample_id
+    df_beijing_data = df_beijing_data.transpose()
+    df_beijing_err = df_beijing_err.transpose()
     
     #Add on the metadata
     df_beijing_metadata.set_index(df_beijing_metadata["Sample.ID"].astype('str'),inplace=True)    
-    df_beijing_filters = pd.concat([df_beijing_filters, df_beijing_metadata[['Volume_m3', 'Dilution_mL']]], axis=1, join="inner")
+    df_beijing_data = pd.concat([df_beijing_data, df_beijing_metadata[['Volume_m3', 'Dilution_mL']]], axis=1, join="inner")
+    df_beijing_err = pd.concat([df_beijing_err, df_beijing_metadata[['Volume_m3', 'Dilution_mL']]], axis=1, join="inner")
 
-    #Divide the data columns by the sample volume and multiply by the dilution liquid volume (pinonic acid)
-    df_beijing_filters = df_beijing_filters.div(df_beijing_filters['Volume_m3'], axis=0).mul(df_beijing_filters['Dilution_mL'], axis=0)
-    df_beijing_filters.drop(columns=['Volume_m3','Dilution_mL'],inplace=True)
-    df_beijing_filters['mid_datetime'] = pd.to_datetime(df_beijing_metadata['mid_datetime'],yearfirst=True)
-    df_beijing_filters.set_index('mid_datetime',inplace=True)
-    df_beijing_filters = df_beijing_filters.astype(float)   
-    df_beijing_filters.columns = index_backup
+    #Step 5. Divide the data columns by the sample volume and multiply by the dilution liquid volume (pinonic acid)
+    df_beijing_data = df_beijing_data.div(df_beijing_data['Volume_m3'], axis=0).mul(df_beijing_data['Dilution_mL'], axis=0) / 1000  #The 1000 comes from 1000ml division in the dilution
+    df_beijing_data.drop(columns=['Volume_m3','Dilution_mL'],inplace=True)
+    df_beijing_data['mid_datetime'] = pd.to_datetime(df_beijing_metadata['mid_datetime'],yearfirst=True)
+    df_beijing_data.set_index('mid_datetime',inplace=True)
+    df_beijing_data = df_beijing_data.astype(float)   
+    df_beijing_data.columns = index_backup
     
-    return df_beijing_raw, df_beijing_filters, df_beijing_metadata
+    df_beijing_err = df_beijing_err.div(df_beijing_err['Volume_m3'], axis=0).mul(df_beijing_err['Dilution_mL'], axis=0) / 1000  #The 1000 comes from 1000ml division in the dilution
+    df_beijing_err.drop(columns=['Volume_m3','Dilution_mL'],inplace=True)
+    df_beijing_err['mid_datetime'] = pd.to_datetime(df_beijing_metadata['mid_datetime'],yearfirst=True)
+    df_beijing_err.set_index('mid_datetime',inplace=True)
+    df_beijing_err = df_beijing_err.astype(float)   
+    df_beijing_err.columns = index_backup
+    
+    return df_beijing_data, df_beijing_err, df_beijing_metadata, df_beijing_raw
 
 
 
-def delhi_load(peaks_filepath,metadata_filepath,peaks_sheetname="DEFAULT",metadata_sheetname="DEFAULT",subtract_blank=True):
-    if(metadata_sheetname=="DEFAULT"):
-        df_delhi_metadata = pd.read_excel(metadata_filepath,engine='openpyxl',
-                                           usecols='a:N',skiprows=0,nrows=108, converters={'mid_datetime': str})
-    else:
-        df_delhi_metadata = pd.read_excel(metadata_filepath,engine='openpyxl',
-                                           sheet_name=metadata_sheetname,usecols='a:N',skiprows=0,nrows=108, converters={'mid_datetime': str})
-    #df_delhi_metadata['Sample.ID'] = df_delhi_metadata['Sample.ID'].astype(str)
+# def delhi_load(peaks_filepath,metadata_filepath,peaks_sheetname="DEFAULT",metadata_sheetname="DEFAULT",subtract_blank=True):
+#     if(metadata_sheetname=="DEFAULT"):
+#         df_delhi_metadata = pd.read_excel(metadata_filepath,engine='openpyxl',
+#                                            usecols='a:N',skiprows=0,nrows=108, converters={'mid_datetime': str})
+#     else:
+#         df_delhi_metadata = pd.read_excel(metadata_filepath,engine='openpyxl',
+#                                            sheet_name=metadata_sheetname,usecols='a:N',skiprows=0,nrows=108, converters={'mid_datetime': str})
+#     #df_delhi_metadata['Sample.ID'] = df_delhi_metadata['Sample.ID'].astype(str)
 
-    if(peaks_sheetname=="DEFAULT"):
-        df_delhi_raw = pd.read_excel(peaks_filepath,engine='openpyxl')
-    else:
-        df_delhi_raw = pd.read_excel(peaks_filepath,engine='openpyxl',sheet_name=peaks_sheetname)
+#     if(peaks_sheetname=="DEFAULT"):
+#         df_delhi_raw = pd.read_excel(peaks_filepath,engine='openpyxl')
+#     else:
+#         df_delhi_raw = pd.read_excel(peaks_filepath,engine='openpyxl',sheet_name=peaks_sheetname)
     
 
-    #Get rid of columns that are not needed
-    df_delhi_raw.drop(df_delhi_raw.iloc[:,np.r_[0, 2:11, 14:18]],axis=1,inplace=True)
+#     #Get rid of columns that are not needed
+#     df_delhi_raw.drop(df_delhi_raw.iloc[:,np.r_[0, 2:11, 14:18]],axis=1,inplace=True)
     
     
     
-    #Fix column labels so they are consistent
-    df_delhi_raw.columns = df_delhi_raw.columns.str.replace('DelhiS','Delhi_S')
+#     #Fix column labels so they are consistent
+#     df_delhi_raw.columns = df_delhi_raw.columns.str.replace('DelhiS','Delhi_S')
     
-    df_delhi_metadata.drop(labels="Filter ID.1",axis=1,inplace=True)
-    df_delhi_metadata.set_index("Filter ID",inplace=True)
-    #Get rid of bad filters, based on the notes
-    df_delhi_metadata.drop(labels=["-","S25","S42","S51","S55","S68","S72"],axis=0,inplace=True)
+#     df_delhi_metadata.drop(labels="Filter ID.1",axis=1,inplace=True)
+#     df_delhi_metadata.set_index("Filter ID",inplace=True)
+#     #Get rid of bad filters, based on the notes
+#     df_delhi_metadata.drop(labels=["-","S25","S42","S51","S55","S68","S72"],axis=0,inplace=True)
      
-    #Filter out "bad" columns
-    df_delhi_raw = orbitrap_filter(df_delhi_raw)
+#     #Filter out "bad" columns
+#     df_delhi_raw = orbitrap_filter(df_delhi_raw)
     
-    #Cut some fluff columns out and make new df
-    df_delhi_filters = df_delhi_raw.iloc[:,list(range(4,len(df_delhi_raw.columns)))].copy()
-    df_delhi_filters.columns = df_delhi_filters.columns.str.replace('DelhiS','Delhi_S')
-    index_backup = df_delhi_filters.index
+#     #Cut some fluff columns out and make new df
+#     df_delhi_data = df_delhi_raw.iloc[:,list(range(4,len(df_delhi_raw.columns)))].copy()
+#     df_delhi_data.columns = df_delhi_data.columns.str.replace('DelhiS','Delhi_S')
+#     index_backup = df_delhi_data.index
     
-    if(subtract_blank == True):
-        #Extract blanks
-        df_delhi_raw_blanks = df_delhi_raw[df_delhi_raw.columns[df_delhi_raw.columns.str.contains('Blank')]] 
-        #Subtract mean blank
-        df_delhi_filters = df_delhi_filters.subtract(df_delhi_raw_blanks.transpose().mean().values,axis=0)
+#     if(subtract_blank == True):
+#         #Extract blanks
+#         df_delhi_raw_blanks = df_delhi_raw[df_delhi_raw.columns[df_delhi_raw.columns.str.contains('Blank')]] 
+#         #Subtract mean blank
+#         df_delhi_data = df_delhi_data.subtract(df_delhi_raw_blanks.transpose().mean().values,axis=0)
     
     
-    sample_id = df_delhi_filters.columns.str.split('_|.raw').str[2]
-    df_delhi_filters.columns = sample_id
+#     sample_id = df_delhi_data.columns.str.split('_|.raw').str[2]
+#     df_delhi_data.columns = sample_id
 
-    df_delhi_filters = df_delhi_filters.transpose()    
+#     df_delhi_data = df_delhi_data.transpose()    
     
-    #Add on the metadata    
-    df_delhi_filters = pd.concat([df_delhi_filters, df_delhi_metadata[['Volume / m3', 'Dilution']]], axis=1, join="inner")
+#     #Add on the metadata    
+#     df_delhi_data = pd.concat([df_delhi_data, df_delhi_metadata[['Volume / m3', 'Dilution']]], axis=1, join="inner")
 
-    #Divide the data columns by the sample volume and multiply by the dilution liquid volume (pinonic acid)
-    df_delhi_filters = df_delhi_filters.div(df_delhi_filters['Volume / m3'], axis=0).mul(df_delhi_filters['Dilution'], axis=0)
-    df_delhi_filters.drop(columns=['Volume / m3','Dilution'],inplace=True)
+#     #Divide the data columns by the sample volume and multiply by the dilution liquid volume (pinonic acid)
+#     df_delhi_data = df_delhi_data.div(df_delhi_data['Volume / m3'], axis=0).mul(df_delhi_data['Dilution'], axis=0)
+#     df_delhi_data.drop(columns=['Volume / m3','Dilution'],inplace=True)
     
-    #Some final QA
-    df_delhi_filters['mid_datetime'] = pd.to_datetime(df_delhi_metadata['Mid-Point'],yearfirst=True)
-    df_delhi_filters.set_index('mid_datetime',inplace=True)
-    df_delhi_filters = df_delhi_filters.astype(float)
-    df_delhi_filters.columns = index_backup
+#     #Some final QA
+#     df_delhi_data['mid_datetime'] = pd.to_datetime(df_delhi_metadata['Mid-Point'],yearfirst=True)
+#     df_delhi_data.set_index('mid_datetime',inplace=True)
+#     df_delhi_data = df_delhi_data.astype(float)
+#     df_delhi_data.columns = index_backup
 
-    return df_delhi_raw, df_delhi_filters, df_delhi_metadata
+#     return df_delhi_raw, df_delhi_data, df_delhi_metadata
 
 
 #Load the Delhi data, from files 
 #Raw peaks: DH_UnAmbNeg9.0_20210409.xlsx
 #Metadata- Delhi_massloading_autumn_summer.xlsx
 def delhi_load2(path,subtract_blank=True,output="DEFAULT"):
+    CalPA = 28138.3956527531 #Pinonic acid calibration
+    FF = 0.1115 #Fraction of the filter used for analysis
+    EF = 0.85 #Extraction efficiency of pinonic acid
+    RIE = 4.2 #Relative ionization efficiency of pinonic acid
+    
+    LOD = 8.6 ##Limit of detection in ppb, so raw signal/CalPA
+    u_RIE = 3.9 # Uncertainty in RIE
+    u_analytical = 0.063 # 6.3%
+    
+    
     peaks_filepath = path + 'DH_UnAmbNeg9.0_20210409.xlsx'
     metadata_filepath = path + 'Delhi_massloading_autumn_summer.xlsx'
     df_metadata_autumn = pd.read_excel(metadata_filepath,engine='openpyxl',
@@ -166,12 +214,12 @@ def delhi_load2(path,subtract_blank=True,output="DEFAULT"):
     df_metadata_summer['sample_ID'] = df_metadata_summer['sample_ID'].astype(str)
     
     df_delhi_raw = pd.read_excel(peaks_filepath,engine='openpyxl')
-    df_delhi_filters = 1
+    #df_delhi_data = 1
     
-    
+    #Remove columns that are not needed
     df_delhi_raw.drop(df_delhi_raw.iloc[:,np.r_[0:7, 10:14]],axis=1,inplace=True)
-    #This column is not in the spreadsheet, so create one using the average difference from other data
     
+    #This column is not in the spreadsheet, so create one using the average difference from other data 
     df_delhi_raw.insert(loc=2, column='m/z', value=(df_delhi_raw['Molecular Weight'] - 1.0073))
     
     
@@ -196,79 +244,105 @@ def delhi_load2(path,subtract_blank=True,output="DEFAULT"):
     
     df_metadata_autumn['start_datetime'] = pd.to_datetime(df_metadata_autumn['start_datetime'],yearfirst=True)
     df_metadata_autumn['mid_datetime'] = pd.to_datetime(df_metadata_autumn['mid_datetime'],yearfirst=True)
-    df_metadata_autumn['end_datetime'] = pd.to_datetime(df_metadata_autumn['end_datetime'],yearfirst=True)
-    
-    
-    
-    
-    
-    #Fix column labels so they are consistent
-    #df_delhi_raw.columns = df_delhi_raw.columns.str.replace('DelhiS','Delhi_S')
-    
-    
-        
-    
-    #return df_delhi_raw, df_delhi_filters, df_delhi_metadata     
+    df_metadata_autumn['end_datetime'] = pd.to_datetime(df_metadata_autumn['end_datetime'],yearfirst=True)   
     
     
     #Cut some fluff columns out and make new df
-    df_delhi_filters_autumn = df_delhi_raw_autumn.copy()
-    df_delhi_filters_summer = df_delhi_raw_summer.copy()
-    index_backup_autumn = df_delhi_filters_autumn.index
-    index_backup_summer = df_delhi_filters_summer.index
+    df_delhi_data_autumn = df_delhi_raw_autumn.copy()
+    df_delhi_data_summer = df_delhi_raw_summer.copy()
+    index_backup_autumn = df_delhi_data_autumn.index
+    index_backup_summer = df_delhi_data_summer.index
     
+    
+    #Apply calibrations
+    #Step 1. Subtract blanks
     if(subtract_blank == True):
         #Subtract mean blank
-        df_delhi_filters_autumn = df_delhi_filters_autumn.subtract(df_delhi_raw_blanks.transpose().mean().values,axis=0)
-        df_delhi_filters_summer = df_delhi_filters_summer.subtract(df_delhi_raw_blanks.transpose().mean().values,axis=0)
+        df_delhi_data_autumn = df_delhi_data_autumn.subtract(df_delhi_raw_blanks.transpose().mean().values,axis=0)
+        df_delhi_data_summer = df_delhi_data_summer.subtract(df_delhi_raw_blanks.transpose().mean().values,axis=0)
         
+    #Step 2. Apply CalPA, Pinonic acid calibration to turn area into ppb (ug/ml)
+    df_delhi_data_autumn = df_delhi_data_autumn * (1/CalPA)
+    df_delhi_data_summer = df_delhi_data_summer * (1/CalPA)
     
+    #Step 3. Calculate error in ppb
+    df_delhi_err_autumn = df_delhi_data_autumn.copy()
+    df_delhi_err_summer = df_delhi_data_summer.copy()
+    df_delhi_err_autumn[df_delhi_data_autumn.abs() < LOD] = 5/6 * LOD
+    df_delhi_err_summer[df_delhi_data_summer.abs() < LOD] = 5/6 * LOD
+    df_delhi_err_autumn[df_delhi_data_autumn.abs() >= LOD] = np.sqrt( (df_delhi_data_autumn[df_delhi_data_autumn.abs() >= LOD] * u_analytical)**2  +  (df_delhi_data_autumn[df_delhi_data_autumn.abs() >= LOD] * 3.9/4.2)**2  +  (0.5 * LOD)**2  )
+    df_delhi_err_summer[df_delhi_data_summer.abs() >= LOD] = np.sqrt( (df_delhi_data_summer[df_delhi_data_summer.abs() >= LOD] * u_analytical)**2  +  (df_delhi_data_summer[df_delhi_data_summer.abs() >= LOD] * 3.9/4.2)**2  +  (0.5 * LOD)**2  )
     
-    sample_id_autumn = df_delhi_filters_autumn.columns.str.split('_|.raw').str[2]
-    sample_id_summer = df_delhi_filters_summer.columns.str.split('_|.raw').str[2]
-    df_delhi_filters_autumn.columns = sample_id_autumn
-    df_delhi_filters_summer.columns = sample_id_summer
+    #Step 4. Apply FF, EF and RIE calibrations
+    df_delhi_data_autumn = df_delhi_data_autumn * (1/FF) * (1/EF) * RIE
+    df_delhi_err_autumn = df_delhi_err_autumn * (1/FF) * (1/EF) * RIE
+    df_delhi_data_summer = df_delhi_data_summer * (1/FF) * (1/EF) * RIE
+    df_delhi_err_summer = df_delhi_err_summer * (1/FF) * (1/EF) * RIE
+    
+    #Sort out indexing
+    sample_id_autumn = df_delhi_data_autumn.columns.str.split('_|.raw').str[2]
+    sample_id_summer = df_delhi_data_summer.columns.str.split('_|.raw').str[2]
+    df_delhi_data_autumn.columns = sample_id_autumn
+    df_delhi_err_autumn.columns = sample_id_autumn
+    df_delhi_data_summer.columns = sample_id_summer
+    df_delhi_err_summer.columns = sample_id_summer
 
-    df_delhi_filters_autumn = df_delhi_filters_autumn.transpose()    
-    df_delhi_filters_summer = df_delhi_filters_summer.transpose()    
-    
-    
-    #Add on the metadata    
-    df_delhi_filters_autumn = pd.concat([df_delhi_filters_autumn, df_metadata_autumn[['volume_m3', 'dilution']]], axis=1, join="inner")
-    df_delhi_filters_summer = pd.concat([df_delhi_filters_summer, df_metadata_summer[['volume_m3', 'dilution']]], axis=1, join="inner")
-
-    #Divide the data columns by the sample volume and multiply by the dilution liquid volume (pinonic acid)
-    df_delhi_filters_autumn = df_delhi_filters_autumn.div(df_delhi_filters_autumn['volume_m3'], axis=0).mul(df_delhi_filters_autumn['dilution'], axis=0)
-    df_delhi_filters_summer = df_delhi_filters_summer.div(df_delhi_filters_summer['volume_m3'], axis=0).mul(df_delhi_filters_summer['dilution'], axis=0)
-    df_delhi_filters_autumn.drop(columns=['volume_m3','dilution'],inplace=True)
-    df_delhi_filters_summer.drop(columns=['volume_m3','dilution'],inplace=True)
-    
-    #Some final QA
-    df_delhi_filters_autumn['mid_datetime'] = pd.to_datetime(df_metadata_autumn['mid_datetime'],yearfirst=True)
-    df_delhi_filters_summer['mid_datetime'] = pd.to_datetime(df_metadata_summer['mid_datetime'],yearfirst=True)
-    df_delhi_filters_autumn.set_index('mid_datetime',inplace=True)
-    df_delhi_filters_summer.set_index('mid_datetime',inplace=True)
-    
-    
-    df_delhi_filters_autumn = df_delhi_filters_autumn.astype(float)
-    df_delhi_filters_summer = df_delhi_filters_summer.astype(float)
-    df_delhi_filters_autumn.columns = index_backup_autumn
-    df_delhi_filters_summer.columns = index_backup_summer
+    df_delhi_data_autumn = df_delhi_data_autumn.transpose()
+    df_delhi_err_autumn = df_delhi_err_autumn.transpose()
+    df_delhi_data_summer = df_delhi_data_summer.transpose() 
+    df_delhi_err_summer = df_delhi_err_summer.transpose()
     
     #pdb.set_trace()
+    #Add on the metadata    
+    df_delhi_data_autumn = pd.concat([df_delhi_data_autumn, df_metadata_autumn[['volume_m3', 'dilution']]], axis=1, join="inner")
+    df_delhi_err_autumn = pd.concat([df_delhi_err_autumn, df_metadata_autumn[['volume_m3', 'dilution']]], axis=1, join="inner")
+    df_delhi_data_summer = pd.concat([df_delhi_data_summer, df_metadata_summer[['volume_m3', 'dilution']]], axis=1, join="inner")
+    df_delhi_err_summer = pd.concat([df_delhi_err_summer, df_metadata_summer[['volume_m3', 'dilution']]], axis=1, join="inner")
+
+    #Step 5. #Divide the data columns by the sample volume and multiply by the dilution liquid volume (pinonic acid)
+    df_delhi_err_autumn = df_delhi_err_autumn.div(df_delhi_err_autumn['volume_m3'], axis=0).mul(df_delhi_err_autumn['dilution'], axis=0) / 1000
+    df_delhi_data_autumn = df_delhi_data_autumn.div(df_delhi_data_autumn['volume_m3'], axis=0).mul(df_delhi_data_autumn['dilution'], axis=0) / 1000
+    df_delhi_err_summer = df_delhi_err_summer.div(df_delhi_err_summer['volume_m3'], axis=0).mul(df_delhi_err_summer['dilution'], axis=0) / 1000
+    df_delhi_data_summer = df_delhi_data_summer.div(df_delhi_data_summer['volume_m3'], axis=0).mul(df_delhi_data_summer['dilution'], axis=0) / 1000
+    df_delhi_data_autumn.drop(columns=['volume_m3','dilution'],inplace=True)
+    df_delhi_err_autumn.drop(columns=['volume_m3','dilution'],inplace=True)
+    df_delhi_data_summer.drop(columns=['volume_m3','dilution'],inplace=True)
+    df_delhi_err_summer.drop(columns=['volume_m3','dilution'],inplace=True)
+    
+    #Some final QA
+    df_delhi_data_autumn['mid_datetime'] = pd.to_datetime(df_metadata_autumn['mid_datetime'],yearfirst=True)
+    df_delhi_err_autumn['mid_datetime'] = pd.to_datetime(df_metadata_autumn['mid_datetime'],yearfirst=True)
+    df_delhi_data_summer['mid_datetime'] = pd.to_datetime(df_metadata_summer['mid_datetime'],yearfirst=True)
+    df_delhi_err_summer['mid_datetime'] = pd.to_datetime(df_metadata_summer['mid_datetime'],yearfirst=True)
+    df_delhi_data_autumn.set_index('mid_datetime',inplace=True)
+    df_delhi_err_autumn.set_index('mid_datetime',inplace=True)
+    df_delhi_data_summer.set_index('mid_datetime',inplace=True)
+    df_delhi_err_summer.set_index('mid_datetime',inplace=True)
+    
+    
+    df_delhi_data_autumn = df_delhi_data_autumn.astype(float)
+    df_delhi_err_autumn = df_delhi_err_autumn.astype(float)
+    df_delhi_data_summer = df_delhi_data_summer.astype(float)
+    df_delhi_err_summer = df_delhi_err_summer.astype(float)
+    df_delhi_data_autumn.columns = index_backup_autumn
+    df_delhi_err_autumn.columns = index_backup_autumn
+    df_delhi_data_summer.columns = index_backup_summer
+    df_delhi_err_summer.columns = index_backup_summer
+    #pdb.set_trace()
+    
     #Make the final output data
     if(output=="DEFAULT" or output=="all"):
         df_delhi_metadata = pd.concat([df_metadata_summer,df_metadata_autumn])
-        df_delhi_filters = pd.concat([df_delhi_filters_summer,df_delhi_filters_autumn])
-        return df_delhi_raw, df_delhi_filters, df_delhi_metadata
+        df_delhi_data = pd.concat([df_delhi_data_summer,df_delhi_data_autumn])
+        df_delhi_err = pd.concat([df_delhi_err_summer,df_delhi_err_autumn])
+        return df_delhi_data, df_delhi_err, df_delhi_metadata, df_delhi_raw
     elif(output=="summer"):
         df_delhi_raw_summer = pd.concat([df_delhi_raw_chem,df_delhi_raw_summer])
-        return df_delhi_raw_summer, df_delhi_filters_summer, df_metadata_summer
+        return df_delhi_data_summer, df_delhi_err_summer, df_metadata_summer, df_delhi_raw_summer
     elif(output=="autumn"):
         df_delhi_raw_autumn = pd.concat([df_delhi_raw_chem,df_delhi_raw_autumn])
-        return df_delhi_raw_autumn, df_delhi_filters_autumn, df_metadata_autumn
+        return df_delhi_data_autumn, df_delhi_err_autumn, df_metadata_autumn, df_delhi_raw_autumn
     
-
     return None
 
 
@@ -743,27 +817,6 @@ class FVAE_n_layer():
         self.ae = Model(inputs=encoder_input_layer, outputs=outputs, name="vae")
         #optimizer = optimizers.Adam(learning_rate=self.learning_rate)
         optimizer = optimizers.RMSprop(learning_rate=self.learning_rate)
-
-    
-        # def vae_loss(encoder_input_layer, outputs):
-        #     mse_loss = self.input_dim * metrics.mse(encoder_input_layer, outputs)
-        #     #xent_loss = original_dim * metrics.binary_crossentropy(x, x_decoded_mean)
-        #     kl_loss = - 0.5 * K.sum(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
-        #     return mse_loss + kl_loss
-        # def mse_loss(encoder_input_layer,outputs):
-        #     mse_loss = metrics.mse(encoder_input_layer, outputs)
-        #     return mse_loss
-        
-        # def kl_loss(encoder_input_layer,outputs):
-        #     kl_loss = - 0.5 * K.sum(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
-        #     return kl_loss
-        
-        
-        
-        
-        # def mse_loss2(y_true, y_pred):
-        #     r_loss = K.mean(K.square(y_true - y_pred), axis = [1,2,3])
-        #     return 1000 * r_loss
         
         def mse_loss(y_true,y_pred):
             mse_total = tf.reduce_mean(tf.metrics.mean_squared_error(y_true, y_pred))
@@ -793,10 +846,17 @@ class FVAE_n_layer():
             
                 thiscol_decoded = self.decoder(onecol_withzeros)
                 latent_columns_decoded = latent_columns_decoded + thiscol_decoded
-
             
             mse_cols = tf.reduce_mean(tf.metrics.mean_squared_error(y_true, latent_columns_decoded))
             return mse_cols
+        
+        
+        def zero_nudge(y_true,y_pred):
+            the_latent_space = self.encoder(y_true)
+            latent_zeros = tf.zeros(tf.shape(the_latent_space))
+            decoded_zeros = self.decoder(latent_zeros)
+            mse_zeros = tf.reduce_mean(tf.metrics.mean_squared_error(decoded_zeros, tf.zeros(tf.shape(y_true))))
+            return mse_zeros
         
         # def mse2(y_true, y_pred):
         #     the_latent_space = self.encoder(y_true)
@@ -810,9 +870,208 @@ class FVAE_n_layer():
         def FVAE_loss(y_true, y_pred):
             a = mse_loss(y_true,y_pred)
             b = kl_loss(y_true, y_pred)
-            #c = FAE_loss(y_true,y_pred)
-            #d = mse2(y_true,y_pred)
-            return a + b#+ c# + d
+            c = FAE_loss(y_true,y_pred)
+            d = zero_nudge(y_true,y_pred)
+            return a+c# + b# + c + d#+ d#+ c# + d
+        
+
+        
+        #self.vae.compile(optimizer=optimizer, loss=vae_loss,metrics=[mse_loss,kl_loss])
+        #COMPILING
+        self.ae.compile(optimizer, loss=FVAE_loss,experimental_run_tf_function=False,metrics=[mse_loss,kl_loss])
+        #self.ae.compile(optimizer, loss='mse',experimental_run_tf_function=False,metrics=[mse_loss,kl_loss])
+    
+    def fit_model(self, x_train,x_test='DEFAULT',batch_size=100,epochs=30,verbose='auto'):
+        if(x_test=='DEFAULT'):
+            _history = self.ae.fit(x_train,x_train,
+                         shuffle=True,
+                         epochs=epochs,
+                         batch_size=batch_size,
+                         validation_data=(x_train,x_train),verbose=verbose)
+        else:
+            _history = self.ae.fit(x_train,x_train,
+                        shuffle=True,
+                        epochs=epochs,
+                        batch_size=batch_size,
+                        validation_data=(x_test,x_test),verbose=verbose)
+            
+        return _history
+
+
+    def encode(self, data,batch_size=100):
+        return self.encoder.predict(data, batch_size=batch_size)
+    
+    def decode(self, data,batch_size=100):
+        return self.decoder.predict(data, batch_size=batch_size)
+    
+    
+    
+    
+# %%AE with single layer decoder
+class testAE_n_layer():
+    def __init__(self,hp='DEFAULT',input_dim=964,latent_dim=15,int_layers=2,int_layer_dims='DEFAULT',learning_rate=1e-3,latent_activation='relu'):
+        if(hp=='DEFAULT'):#Use parameters from the list
+            self.input_dim = input_dim
+            self.latent_dim = latent_dim
+            self.int_layers = int_layers
+            self.latent_activation = latent_activation
+            self.learning_rate = learning_rate 
+            
+            
+            #Make logspace int layer dims if required
+            if(int_layer_dims=='DEFAULT'):
+                self.int_layer_dims = []
+                if(self.int_layers>0):
+                    layer1_dim_mid = (self.input_dim**self.int_layers *self.latent_dim)**(1/(self.int_layers+1))
+                    self.int_layer_dims.append(round(layer1_dim_mid))
+                    if(self.int_layers>1):
+                        for int_layer in range(2,self.int_layers+1):
+                            thislayer_dim_mid = round(layer1_dim_mid**(int_layer) / (self.input_dim**(int_layer-1)))
+                            self.int_layer_dims.append(thislayer_dim_mid)
+                            
+            else:
+                self.int_layer_dims = int_layer_dims
+   
+            
+            
+            
+        
+        else:   #Use kerastuner hyperparameters
+            self.input_dim = hp.get('input_dim')
+            self.latent_dim = hp.get('latent_dim')
+            self.int_layers = hp.get('intermediate_layers')
+            self.int_layer_dims = [val.value for key, val in hp._space.items() if 'intermediate_dim' in key]
+            self.learning_rate = hp.get('learning_rate')
+            self.latent_activation = hp.get('decoder_output_activation')
+        
+        self.ae = None
+        self.encoder = None
+        self.decoder = None
+        self.build_model()
+        
+    def build_model(self):
+
+        #Define encoder model
+        encoder_input_layer = keras.Input(shape=(self.input_dim,), name="encoder_input_layer")
+        
+        #Create the encoder layers
+        #The dimensions of the intermediate layers are stored in self.int_layer_dims
+        #The number of intermediate layers is stored in self.int_layers
+        if(self.int_layers>0):
+            layer1_dim_mid = self.int_layer_dims[0]
+            encoder_layer = layers.Dense(layer1_dim_mid, activation="relu",name='intermediate_layer_1',use_bias=False)(encoder_input_layer)
+            if(self.int_layers>1):
+                for int_layer in range(2,self.int_layers+1):
+                    thislayer_dim = self.int_layer_dims[int_layer-1]
+                    encoder_layer = layers.Dense(thislayer_dim, activation="relu",name='intermediate_layer_'+str(int_layer),use_bias=False)(encoder_layer)
+
+        #z is the latent layer
+        #z_mean = layers.Dense(self.latent_dim,activation=self.latent_activation,name='latent_mean',use_bias=False)(encoder_layer)
+        z_mean = layers.Dense(self.latent_dim,activation=self.latent_activation,name='latent_mean',use_bias=False)(encoder_input_layer)
+        z_log_var = layers.Dense(self.latent_dim,name='latent_log_var',use_bias=False)(encoder_layer)
+        self.z_mean = z_mean
+        self.z_log_var = z_log_var
+        self.encoder = Model(inputs=encoder_input_layer, outputs=z_mean, name="encoder_vae")
+        
+        # # #Resample
+        # def sampling(args):
+        #     z_mean, z_log_var = args
+        #     batch = tf.shape(z_mean)[0]
+        #     dim = tf.shape(z_mean)[1]
+        #     #epsilon = K.random_normal(shape=(batch_size, latent_dim), mean=0.,
+        #                               #stddev=epsilon_std)
+        #     epsilon = K.random_normal(shape=(batch, dim), mean=0.,
+        #                               stddev=1)
+        #     return z_mean + K.exp(z_log_var / 2) * epsilon
+        
+        #This is the reparameterization trick
+        def sampling(args):
+            z_mean, z_log_var = args
+            batch = K.shape(z_mean)[0]
+            dim = K.int_shape(z_mean)[1]
+            epsilon = K.random_normal(shape=(batch, dim))
+            return z_mean + K.exp(0.5 * z_log_var) * epsilon
+
+        
+        latent_resampled = layers.Lambda(sampling, output_shape=(self.latent_dim,),name='resampled_latent_mean')([z_mean, z_log_var])
+        
+    
+        # Define decoder model.
+        decoder_input_layer = keras.Input(shape=(self.latent_dim,), name="decoder_input_layer")
+        decoder_output_layer = layers.Dense(self.input_dim, activation='linear',name='decoder_output_layer',use_bias=False)(decoder_input_layer)
+        self.decoder = Model(inputs=decoder_input_layer, outputs=decoder_output_layer, name="decoder_vae")
+        
+        #outputs = self.decoder(latent_resampled)
+        outputs = self.decoder(z_mean)
+        
+        
+        self.ae = Model(inputs=encoder_input_layer, outputs=outputs, name="ae")
+        #optimizer = optimizers.Adam(learning_rate=self.learning_rate)
+        optimizer = optimizers.RMSprop(learning_rate=self.learning_rate)
+
+        
+        def mse_loss(y_true,y_pred):
+            mse_total = tf.reduce_mean(tf.metrics.mean_squared_error(y_true, y_pred))
+            return mse_total
+
+        # rate = K.variable(0.0,name='KL_Annealing')
+        # annealing_rate = 0.0001
+        self.beta = 0.0001
+        def kl_loss(y_true, y_pred):
+            mean=self.z_mean
+            log_var = self.z_log_var
+            kl_loss = self.beta * -0.5 * K.sum(1 + log_var - K.square(mean) - K.exp(log_var), axis = 1)
+            self.beta = self.beta*1.3
+            return kl_loss
+
+
+        def FAE_loss(y_true, y_pred):
+            the_latent_space = self.encoder(y_true)
+            latent_columns_decoded = tf.zeros(tf.shape(y_true))            
+            
+            for i in np.arange(self.latent_dim):
+            #TRY each column in latent space is a factor
+                split1, split2, split3 = tf.split(the_latent_space,[i,1,(-1+self.latent_dim-i)],1)    
+                zeros1 = tf.zeros(tf.shape(split1))
+                zeros3 = tf.zeros(tf.shape(split3))
+                onecol_withzeros = tf.concat([zeros1,split2,zeros3],axis=1)
+            
+                thiscol_decoded = self.decoder(onecol_withzeros)
+                latent_columns_decoded = latent_columns_decoded + thiscol_decoded
+                
+            #pdb.set_trace()
+            aa = tfp.stats.correlation(the_latent_space)
+            bb = tf.math.reduce_min(aa)
+            tf.print(aa)
+            tf.print(bb)
+            
+            
+            mse_cols = tf.reduce_mean(tf.metrics.mean_squared_error(y_true, latent_columns_decoded))
+            return mse_cols
+        
+        
+        def zero_nudge(y_true,y_pred):
+            the_latent_space = self.encoder(y_true)
+            latent_zeros = tf.zeros(tf.shape(the_latent_space))
+            decoded_zeros = self.decoder(latent_zeros)
+            mse_zeros = tf.reduce_mean(tf.metrics.mean_squared_error(decoded_zeros, tf.zeros(tf.shape(y_true))))
+            return mse_zeros
+        
+        # def mse2(y_true, y_pred):
+        #     the_latent_space = self.encoder(y_true)
+        #     y_decoded = self.decoder(the_latent_space)
+        #     #mse_cols = tf.reduce_mean(tf.metrics.mean_squared_error(y_true, y_decoded))
+        #     #mse_cols=  tf.metrics.mean_squared_error(y_true, y_decoded)
+        #     return K.mean(K.square(y_true-y_decoded))
+        #     #return mse_cols
+
+
+        def FVAE_loss(y_true, y_pred):
+            a = mse_loss(y_true,y_pred)
+            b = kl_loss(y_true, y_pred)
+            c = FAE_loss(y_true,y_pred)
+            d = zero_nudge(y_true,y_pred)
+            return a + 10*c# + b + c + d#+ d#+ c# + d
         
 
         
