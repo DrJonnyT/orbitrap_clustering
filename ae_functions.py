@@ -32,6 +32,7 @@ import kerastuner as kt
 from sklearn.preprocessing import RobustScaler, StandardScaler,FunctionTransformer,MinMaxScaler
 from sklearn.pipeline import Pipeline
 
+import re
 import os
 
 #%%
@@ -469,16 +470,43 @@ def orbitrap_filter(df_in):
 #A class for chemical formula
 class chemform:
   def __init__(self, formula):
-    #fiddle with the string so you can get the number of each element out, including 1 and 0
-    formula = formula + " "
-    formula = formula.replace(" ","1")
-    formula = "0" + formula
+      #OLD VERSION DOESNT WORK FOR NUMBERS >9
+    # #fiddle with the string so you can get the number of each element out, including 1 and 0
+    # formula = formula + " "
+    # formula = formula.replace(" ","1")
+    # formula = "0" + formula
     
-    self.C = int(formula[formula.find("C")+1])
-    self.H = int(formula[formula.find("H")+1])
-    self.O = int(formula[formula.find("O")+1])
-    self.N = int(formula[formula.find("N")+1])
-    self.S = int(formula[formula.find("S")+1])
+    # self.C = int(formula[formula.find("C")+1])
+    # self.H = int(formula[formula.find("H")+1])
+    # self.O = int(formula[formula.find("O")+1])
+    # self.N = int(formula[formula.find("N")+1])
+    # self.S = int(formula[formula.find("S")+1])
+    
+    try:
+        self.C = int(re.findall(r'C(\d+)',formula)[0])
+    except:
+        self.C = len(re.findall(r'C',formula))
+        
+    try:
+        self.H = int(re.findall(r'H(\d+)',formula)[0])
+    except:
+        self.H = len(re.findall(r'H',formula))
+    
+    try:
+        self.O = int(re.findall(r'O(\d+)',formula)[0])
+    except:
+        self.O = len(re.findall(r'O',formula))
+        
+    try:
+        self.S = int(re.findall(r'S(\d+)',formula)[0])
+    except:
+        self.S = len(re.findall(r'S',formula))
+        
+    try:
+        self.N = int(re.findall(r'N(\d+)',formula)[0])
+    except:
+        self.N = len(re.findall(r'N',formula))
+        
     
 
 # #Take a string and work out the chemical formula, then return true or false if it's good or bad   
@@ -496,8 +524,8 @@ def filter_by_chemform(formula):
         return False
     else:
         return True
-    
-    
+
+  
 #######################
 ####CHEMICAL ANALYSIS#######
 #######################
