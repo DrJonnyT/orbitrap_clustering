@@ -81,18 +81,33 @@ mz_columns_sorted = mz_columns.sort_values("Molecular Weight",axis=0)
 df_all_data.columns= mz_columns['Molecular Weight']
 df_all_data.sort_index(axis=1,inplace=True)
 df_all_data.columns = mz_columns_sorted.index
+df_all_err.columns= mz_columns['Molecular Weight']
+df_all_err.sort_index(axis=1,inplace=True)
+df_all_err.columns = mz_columns_sorted.index
 mz_columns = mz_columns_sorted
 
 #%%Compare inner vs outer join
 df_all_data_outer = pd.concat([df_beijing_data, df_delhi_data], axis=0, join="outer")
 df_all_data_outer_sum = df_all_data_outer.sum(axis=1)
 df_all_data_inner_sum = df_all_data.sum(axis=1)
-m, b = np.polyfit(df_all_data_outer_sum, df_all_data_inner_sum, 1)
+m, b = np.polyfit(x=df_all_data_outer_sum, y=df_all_data_inner_sum,deg=1)
 
 sns.scatterplot(df_all_data_outer_sum,df_all_data_inner_sum,marker='o',hue=dataset_cat)
 plt.plot(df_all_data_outer_sum, m*df_all_data_outer_sum + b,c='k')
 plt.xlabel('Outer join total concentration (µg/m3)')
 plt.ylabel('Inner join total concentration (µg/m3)')
+plt.text(700,50,"y = " + str(round(m,3)) + " + " + str(round(b,2)),horizontalalignment='right', verticalalignment='bottom')
+
+
+#%%Work out O:C, H:C, S:C, N:C ratios for all peaks
+df_element_ratios = mz_columns.index.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[0])
+df_element_ratios = pd.DataFrame()
+df_element_ratios['H/C'] = mz_columns.index.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[0])
+df_element_ratios['O/C'] = mz_columns.index.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[1])
+df_element_ratios['N/C'] = mz_columns.index.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[2])
+df_element_ratios['S/C'] = mz_columns.index.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[3])
+
+
 
 #%%Load chemform namelists
 chemform_namelist_beijing = load_chemform_namelist(path + 'Beijing_Amb3.1_MZ.xlsx')
@@ -333,9 +348,9 @@ factor_B = 1 * factor_B / factor_B.sum()
 factor_C = 1 * factor_C / factor_C.sum()
 factor_D = 1 * factor_D / factor_D.sum()
 #Make factor E so all columns between mz 350 -- 400 are...dataful...
-factor_E  = np.ones(523)
+factor_E  = np.ones(df_all_data.shape[1])
 factor_E[np.ravel(np.logical_and(mz_columns.to_numpy() > 350, mz_columns.to_numpy() < 400))] = 50
-factor_E = factor_E * np.random.normal(1, 0.3, [523]).clip(min=0)
+factor_E = factor_E * np.random.normal(1, 0.3, [df_all_data.shape[1]]).clip(min=0)
 factor_E = 1 * factor_E / factor_E.sum()
 
 #%%Hard mode factor amplitudes

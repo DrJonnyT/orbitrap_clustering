@@ -75,21 +75,24 @@ def beijing_load(peaks_filepath,metadata_filepath,peaks_sheetname="DEFAULT",meta
     index_backup = df_beijing_data.index
 
     #Apply calibrations
-    #Step 1. Subtract blanks
-    if(subtract_blank == True):
-        #Extract blank
-        beijing_blank = df_beijing_raw.iloc[:,320].copy()
-        #Subtract blank
-        df_beijing_data = df_beijing_data.subtract(beijing_blank.values,axis=0)
-    
-    #Step 2. Apply CalPA, Pinonic acid calibration to turn area into ppb (ug/ml)
+    #Step 1. Apply CalPA, Pinonic acid calibration to turn area into ppb (ug/ml)
     df_beijing_data = df_beijing_data * (1/CalPA)
     
-    #Step 3. Calculate error in ppb
+    #Step 2. Calculate error in ppb
     df_beijing_err = df_beijing_data.copy()
     #pdb.set_trace()
     df_beijing_err[df_beijing_data.abs() <= LOD] = 5/6 * LOD
     df_beijing_err[df_beijing_data.abs() > LOD] = np.sqrt( (df_beijing_data[df_beijing_data.abs() > LOD] * u_analytical)**2  +  (df_beijing_data[df_beijing_data.abs() > LOD] * 3.9/4.2)**2  +  (0.5 * LOD)**2  )
+    
+    #Step 1. Subtract blanks
+    if(subtract_blank == True):
+        #Extract blank
+        beijing_blank = df_beijing_data.iloc[:,316].copy()
+        beijing_blank_err = df_beijing_err.iloc[:,316].copy()
+        #Subtract blank
+        df_beijing_data = df_beijing_data.subtract(beijing_blank.values,axis=0)
+        df_beijing_err = ((df_beijing_err**2).add(np.square(beijing_blank_err.values),axis=0))**(1/2)
+    
     
     #Step 4. Apply FF, EF and RIE calibrations
     df_beijing_data = df_beijing_data * (1/FF) * (1/EF) * RIE
@@ -254,25 +257,38 @@ def delhi_load2(path,subtract_blank=True,output="DEFAULT"):
     index_backup_autumn = df_delhi_data_autumn.index
     index_backup_summer = df_delhi_data_summer.index
     
+    df_delhi_data_blanks = df_delhi_raw_blanks.copy()
     
-    #Apply calibrations
-    #Step 1. Subtract blanks
-    if(subtract_blank == True):
-        #Subtract mean blank
-        df_delhi_data_autumn = df_delhi_data_autumn.subtract(df_delhi_raw_blanks.transpose().mean().values,axis=0)
-        df_delhi_data_summer = df_delhi_data_summer.subtract(df_delhi_raw_blanks.transpose().mean().values,axis=0)
-        
-    #Step 2. Apply CalPA, Pinonic acid calibration to turn area into ppb (ug/ml)
+    
+    #Apply calibrations      
+    #Step 1. Apply CalPA, Pinonic acid calibration to turn area into ppb (ug/ml)
     df_delhi_data_autumn = df_delhi_data_autumn * (1/CalPA)
     df_delhi_data_summer = df_delhi_data_summer * (1/CalPA)
+    df_delhi_data_blanks = df_delhi_data_blanks * (1/CalPA)
     
-    #Step 3. Calculate error in ppb
+    #Step 2. Calculate error in ppb
     df_delhi_err_autumn = df_delhi_data_autumn.copy()
     df_delhi_err_summer = df_delhi_data_summer.copy()
+    df_delhi_err_blanks = df_delhi_data_blanks.copy()
     df_delhi_err_autumn[df_delhi_data_autumn.abs() < LOD] = 5/6 * LOD
     df_delhi_err_summer[df_delhi_data_summer.abs() < LOD] = 5/6 * LOD
+    df_delhi_err_blanks[df_delhi_data_blanks.abs() < LOD] = 5/6 * LOD
     df_delhi_err_autumn[df_delhi_data_autumn.abs() >= LOD] = np.sqrt( (df_delhi_data_autumn[df_delhi_data_autumn.abs() >= LOD] * u_analytical)**2  +  (df_delhi_data_autumn[df_delhi_data_autumn.abs() >= LOD] * 3.9/4.2)**2  +  (0.5 * LOD)**2  )
     df_delhi_err_summer[df_delhi_data_summer.abs() >= LOD] = np.sqrt( (df_delhi_data_summer[df_delhi_data_summer.abs() >= LOD] * u_analytical)**2  +  (df_delhi_data_summer[df_delhi_data_summer.abs() >= LOD] * 3.9/4.2)**2  +  (0.5 * LOD)**2  )
+    df_delhi_err_blanks[df_delhi_data_blanks.abs() >= LOD] = np.sqrt( (df_delhi_data_blanks[df_delhi_data_blanks.abs() >= LOD] * u_analytical)**2  +  (df_delhi_data_blanks[df_delhi_data_blanks.abs() >= LOD] * 3.9/4.2)**2  +  (0.5 * LOD)**2  )
+    
+    #Step 1. Subtract blanks
+    if(subtract_blank == True):
+        #Subtract mean blank        
+        delhi_blank_mean = df_delhi_data_blanks.mean(axis=1)
+        delhi_blank_err = df_delhi_err_blanks.mean(axis=1)
+        
+        df_delhi_data_autumn = df_delhi_data_autumn.subtract(delhi_blank_mean.values,axis=0)
+        df_delhi_data_summer = df_delhi_data_summer.subtract(delhi_blank_mean.values,axis=0)
+        
+        df_delhi_err_autumn = ((df_delhi_err_autumn**2).add(np.square(delhi_blank_err.values),axis=0))**(1/2)
+        df_delhi_err_summer = ((df_delhi_err_summer**2).add(np.square(delhi_blank_err.values),axis=0))**(1/2)   
+
     
     #Step 4. Apply FF, EF and RIE calibrations
     df_delhi_data_autumn = df_delhi_data_autumn * (1/FF) * (1/EF) * RIE
@@ -524,6 +540,23 @@ def filter_by_chemform(formula):
         return False
     else:
         return True
+    
+#Calculate H:C, O:C, S:C, N:C ratios
+#Ratio is element1:element2
+def chemform_ratios(formula):
+    chemformula = chemform(formula)
+    if(chemformula.C == 0):
+        return np.NaN, np.NaN, np.NaN, np.NaN
+    else:
+        H_C = chemformula.H / chemformula.C
+        O_C = chemformula.O / chemformula.C
+        N_C = chemformula.N / chemformula.C
+        S_C = chemformula.S / chemformula.C
+        return H_C, O_C, N_C, S_C
+    
+    
+    
+  
 
   
 #######################

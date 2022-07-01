@@ -68,6 +68,7 @@ df_merge_filtime["toluene_over_benzene_syft"].values[df_merge_filtime["toluene_o
 
 #benzene/tolluene emission ratio
 benzene_tolluene_ER = df_merge_filtime["toluene_over_benzene_syft"].quantile(0.99)
+print("check this photochemical age!! benzene/toluene or toluene/benzene??")
 
 df_merge_filtime["Photochem_age_h"] = 1/(3600*OH_conc*(k_toluene-k_benzene))  * (np.log(benzene_tolluene_ER) - np.log(df_merge_filtime["toluene_over_benzene_syft"]))
 # %%

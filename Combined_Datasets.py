@@ -37,6 +37,7 @@ from sklearn import metrics
 from matplotlib.colors import BoundaryNorm, ListedColormap
 from matplotlib.cm import ScalarMappable
 import matplotlib.ticker as plticker
+import matplotlib.dates as mdates
 
 import skfuzzy as fuzz
 
@@ -84,6 +85,16 @@ df_all_data.sort_index(axis=1,inplace=True)
 df_all_data.columns = mz_columns_sorted.index
 mz_columns = mz_columns_sorted
 
+#%%Work out O:C, H:C, S:C, N:C ratios for all peaks
+df_element_ratios = mz_columns.index.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[0])
+df_element_ratios = pd.DataFrame()
+df_element_ratios['H/C'] = mz_columns.index.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[0])
+df_element_ratios['O/C'] = mz_columns.index.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[1])
+df_element_ratios['N/C'] = mz_columns.index.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[2])
+df_element_ratios['S/C'] = mz_columns.index.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[3])
+
+
+
 #%%Load chemform namelists
 chemform_namelist_beijing = load_chemform_namelist(path + 'Beijing_Amb3.1_MZ.xlsx')
 chemform_namelist_delhi = load_chemform_namelist(path + 'Delhi_Amb3.1_MZ.xlsx')
@@ -94,42 +105,42 @@ chemform_namelist_all = combine_chemform_namelists(chemform_namelist_beijing,che
 #Divide whole thing by 1e6
 scalefactor = 1e6
 pipe_1e6 = FunctionTransformer(lambda x: np.divide(x,scalefactor),inverse_func = lambda x: np.multiply(x,scalefactor))
-pipe_1e6.fit(df_all_filters)
+pipe_1e6.fit(df_all_data)
 
-df_all_filters_1e6 = pd.DataFrame(pipe_1e6.transform(df_all_filters),columns=df_all_filters.columns)
-ds_all_filters_total_1e6 = df_all_filters_1e6.sum(axis=1)
+df_all_data_1e6 = pd.DataFrame(pipe_1e6.transform(df_all_data),columns=df_all_data.columns)
+ds_all_data_total_1e6 = df_all_data_1e6.sum(axis=1)
 
 #Normalise so the mean of the whole matrix is 1
-orig_mean = df_all_filters.mean().mean()
+orig_mean = df_all_data.mean().mean()
 pipe_norm1_mtx = FunctionTransformer(lambda x: np.divide(x,orig_mean),inverse_func = lambda x: np.multiply(x,orig_mean))
-pipe_norm1_mtx.fit(df_all_filters)
-df_all_filters_norm1 = pd.DataFrame(pipe_norm1_mtx.transform(df_all_filters),columns=df_all_filters.columns)
+pipe_norm1_mtx.fit(df_all_data)
+df_all_data_norm1 = pd.DataFrame(pipe_norm1_mtx.transform(df_all_data),columns=df_all_data.columns)
 
 #Minmax scaling
 minmaxscaler_all = MinMaxScaler()
-df_all_filters_minmax = pd.DataFrame(minmaxscaler_all.fit_transform(df_all_filters.to_numpy()),columns=df_all_filters.columns)
+df_all_data_minmax = pd.DataFrame(minmaxscaler_all.fit_transform(df_all_data.to_numpy()),columns=df_all_data.columns)
 
 #Standard scaling
 standardscaler_all = StandardScaler()
-df_all_filters_standard = pd.DataFrame(standardscaler_all.fit_transform(df_all_filters.to_numpy()),columns=df_all_filters.columns)
+df_all_data_standard = pd.DataFrame(standardscaler_all.fit_transform(df_all_data.to_numpy()),columns=df_all_data.columns)
 
 #Robust scaling
 robustscaler_all = RobustScaler()
-df_all_filters_robust = pd.DataFrame(robustscaler_all.fit_transform(df_all_filters.to_numpy()),columns=df_all_filters.columns)
+df_all_data_robust = pd.DataFrame(robustscaler_all.fit_transform(df_all_data.to_numpy()),columns=df_all_data.columns)
 
 #df scaled so it is normalised by the total from each filter
-df_all_filters_norm = df_all_filters.div(df_all_filters.sum(axis=1), axis=0)
+df_all_data_norm = df_all_data.div(df_all_data.sum(axis=1), axis=0)
 
 #Log data and add one
-offset_min = df_all_filters.min().min() * (-1)
+offset_min = df_all_data.min().min() * (-1)
 pipe_log1p = FunctionTransformer(lambda x: np.log1p(x+offset_min),inverse_func = lambda x: (np.expm1(x) - offset_min) )
-df_all_filters_log1p = pd.DataFrame(pipe_log1p.fit_transform(df_all_filters.to_numpy()),columns=df_all_filters.columns)
+df_all_data_log1p = pd.DataFrame(pipe_log1p.fit_transform(df_all_data.to_numpy()),columns=df_all_data.columns)
 
 #%%Export data for R tests
-np.savetxt(path + "/processed/all_filters_norm1.csv", df_all_filters_norm1.to_numpy(), delimiter=",")
-np.savetxt(path + "/processed/all_filters_log1p.csv", df_all_filters_log1p.to_numpy(), delimiter=",")
+np.savetxt(path + "/processed/all_data_norm1.csv", df_all_data_norm1.to_numpy(), delimiter=",")
+np.savetxt(path + "/processed/all_data_log1p.csv", df_all_data_log1p.to_numpy(), delimiter=",")
 
-df_all_filters_norm1.to_csv(path+ "/processed/all_filters_log1p.csv")
+df_all_data_norm1.to_csv(path+ "/processed/all_data_log1p.csv")
 
 
 #%%Try nmf on whole dataset of 4 experiments
@@ -140,7 +151,7 @@ def get_score(model, data, scorer=explained_variance_score):
 
 
 #Work out how many factors
-nmf_input = df_all_filters_1e6.clip(lower=0).values
+nmf_input = df_all_data_1e6.clip(lower=0).values
 ks = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30]
 perfs_train = []
 nmf_recon_err = []
@@ -171,7 +182,7 @@ nmf4 = NMF(n_components=4).fit(nmf_input)
 W = nmf4.transform(nmf_input)
 H = nmf4.components_
 
-df_nmf4_factors = pd.DataFrame(nmf4.components_,columns=df_all_filters.columns)
+df_nmf4_factors = pd.DataFrame(nmf4.components_,columns=df_all_data.columns)
 
 #Collate the factor totals
 factor_totals = np.ndarray(W.shape)
@@ -180,7 +191,7 @@ for x in np.arange(4):
 df_factor_totals = pd.DataFrame(factor_totals)
 df_factor_totals.columns = [("factor"+str(num)+"") for num in range(4)]
 
-plt.scatter(ds_all_filters_total_1e6,factor_totals.sum(axis=1))
+plt.scatter(ds_all_data_total_1e6,factor_totals.sum(axis=1))
 
 #Bar chart of the avg factors for each dataset
 df_nmf4_datetimecat_mean = df_factor_totals.groupby(dataset_cat).mean()
@@ -216,7 +227,7 @@ def nmf_score_per_sample(nmf_model,data,scorer=mean_squared_error):
     return score_per_sample
 
 
-ds_nmf4_score_per_sample = pd.Series(nmf_score_per_sample(nmf4,nmf_input), index=df_all_filters.index)
+ds_nmf4_score_per_sample = pd.Series(nmf_score_per_sample(nmf4,nmf_input), index=df_all_data.index)
 
 index_top_nmf4_mse= ds_nmf4_score_per_sample.nlargest(1).index
 
@@ -234,7 +245,7 @@ ax[0].stem(mz_columns.to_numpy(),df_nmf4_factors.loc[0],markerfmt=' ')
 ax[1].stem(mz_columns.to_numpy(),df_nmf4_factors.loc[1],markerfmt=' ')
 ax[2].stem(mz_columns.to_numpy(),df_nmf4_factors.loc[2],markerfmt=' ')
 ax[3].stem(mz_columns.to_numpy(),df_nmf4_factors.loc[3],markerfmt=' ')
-ax[4].stem(mz_columns.to_numpy(),df_all_filters_1e6.loc[index_top_nmf4_mse].transpose().values,markerfmt=' ',label='Sample with highest loss')
+ax[4].stem(mz_columns.to_numpy(),df_all_data_1e6.loc[index_top_nmf4_mse].transpose().values,markerfmt=' ',label='Sample with highest loss')
 ax[0].set_xlim(right=500)
 ax[1].set_xlim(right=500)
 ax[2].set_xlim(right=500)
@@ -255,7 +266,7 @@ for x in np.arange(12):
 df_factor_totals = pd.DataFrame(factor_totals)
 df_factor_totals.columns = [("factor"+str(num)+"") for num in range(12)]
 
-plt.scatter(ds_all_filters_total_1e6,factor_totals.sum(axis=1))
+plt.scatter(ds_all_data_total_1e6,factor_totals.sum(axis=1))
 
 #Bar chart of the avg factors for each dataset
 df_nmf12_datetimecat_mean = df_factor_totals.groupby(dataset_cat).mean()
@@ -285,7 +296,7 @@ df_nmf12_cat_mean = df_factor_totals.groupby(dataset_cat).mean()
 df_nmf12_cat_mean_norm = df_nmf12_cat_mean.div(df_nmf12_cat_mean.sum(axis=1),axis=0)
 
 #%%Calculate nmf12 highest loss sample
-ds_nmf12_score_per_sample = pd.Series(nmf_score_per_sample(nmf12,nmf_input), index=df_all_filters.index)
+ds_nmf12_score_per_sample = pd.Series(nmf_score_per_sample(nmf12,nmf_input), index=df_all_data.index)
 
 index_top_nmf12_mse= ds_nmf12_score_per_sample.nlargest(1).index
 
@@ -320,11 +331,11 @@ ax2.legend(bbox_to_anchor=(1.22, 0.7))
 
 
 
-#%%Diurnal plots of real space cluster labels
+#%%Real-space cluster labels
 
 #Try 5 clusters initially
 agglom = AgglomerativeClustering(n_clusters = 5, linkage = 'ward')
-clustering = agglom.fit(df_all_filters_1e6.values)
+clustering = agglom.fit(df_all_data_1e6.values)
 c = relabel_clusters_most_freq(clustering.labels_)
 
 a = pd.DataFrame(c,columns=['clust'],index=df_dataset_cat.index)
@@ -360,18 +371,181 @@ plt.title('Cluster labels')
 plt.xlabel('~Time (arb units)')
 
 
+#%% Plot the time series divided into 4 projects
+#c is the time series of cluster index
+#ds_dataset_cat is the categorical data series of which dataset there is
+#suptitle is the title to go at the top of the plot
+def plot_cluster_tseries_BeijingDelhi(c,ds_dataset_cat,suptitle):
+    fig,ax = plt.subplots(2,2,figsize=(9,9))
+    ax=ax.ravel()
+    ax0=ax[0]
+    ax0.plot(df_all_data.index,c)
+    ax0.set_xlim(ds_dataset_cat[ds_dataset_cat == "Beijing_winter"].index.min(),ds_dataset_cat[ds_dataset_cat == "Beijing_winter"].index.max())
+    ax0.set_title('Beijing winter')
+    ax0.set_ylabel('Cluster label')
 
-#%%Plot the 5 clusters
+    ax1=ax[1]
+    ax1.plot(df_all_data.index,c)
+    ax1.set_xlim(ds_dataset_cat[ds_dataset_cat == "Beijing_summer"].index.min(),ds_dataset_cat[ds_dataset_cat == "Beijing_summer"].index.max())
+    ax1.set_title('Beijing summer')
+    ax1.set_ylabel('Cluster label')
 
-cluster_totals = np.ndarray([df_all_filters_1e6.shape[1],5])
+    ax2=ax[2]
+    ax2.plot(df_all_data.index,c)
+    ax2.set_xlim(ds_dataset_cat[ds_dataset_cat == "Delhi_summer"].index.min(),ds_dataset_cat[ds_dataset_cat == "Delhi_summer"].index.max())
+    ax2.set_title('Delhi summer')
+    ax2.set_ylabel('Cluster label')
+
+    ax3=ax[3]
+    ax3.plot(df_all_data.index,c)
+    ax3.set_xlim(ds_dataset_cat[ds_dataset_cat == "Delhi_autumn"].index.min(),ds_dataset_cat[ds_dataset_cat == "Delhi_autumn"].index.max())
+    ax3.set_title('Delhi autumn')
+    ax3.set_ylabel('Cluster label')
+
+
+    myFmt = mdates.DateFormatter('%d/%m')
+    ax0.xaxis.set_major_formatter(myFmt)
+    ax1.xaxis.set_major_formatter(myFmt)
+    ax2.xaxis.set_major_formatter(myFmt)
+    ax3.xaxis.set_major_formatter(myFmt)
+    ax0.tick_params(axis='x', labelrotation=45)
+    ax1.tick_params(axis='x', labelrotation=45)
+    ax2.tick_params(axis='x', labelrotation=45)
+    ax3.tick_params(axis='x', labelrotation=45)
+
+    fig.suptitle(suptitle)
+    fig.subplots_adjust(top=0.88)
+    fig.tight_layout()
+    plt.show()
+    
+    
+#%%Run Clustering a set number of times
+def cluster_n_times(df_data,max_num_clusters,min_num_clusters=1):
+    num_clusters_array = np.arange(min_num_clusters,max_num_clusters+1)
+    cluster_labels_mtx = []
+    
+    for num_clusters in num_clusters_array:
+        #First run the clustering
+        agglom = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
+        clustering = agglom.fit(df_data.values)
+        c = relabel_clusters_most_freq(clustering.labels_)
+        cluster_labels_mtx.append(c)
+        
+    df_cluster_labels_mtx = pd.DataFrame(cluster_labels_mtx,index=num_clusters_array).T
+    df_cluster_labels_mtx.index=df_data.index
+    return df_cluster_labels_mtx 
+    
+df_cluster_labels_mtx = cluster_n_times(df_all_data_1e6,10) 
+#%%Calc cluster elemental ratios
+def calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios):
+    df_clusters_HC_mtx = pd.DataFrame(np.NaN, index = df_cluster_labels_mtx.columns, columns = np.arange(df_cluster_labels_mtx.columns.max()))
+    df_clusters_NC_mtx = pd.DataFrame(np.NaN, index = df_cluster_labels_mtx.columns, columns = np.arange(df_cluster_labels_mtx.columns.max()))
+    df_clusters_OC_mtx = pd.DataFrame(np.NaN, index = df_cluster_labels_mtx.columns, columns = np.arange(df_cluster_labels_mtx.columns.max()))
+    df_clusters_SC_mtx = pd.DataFrame(np.NaN, index = df_cluster_labels_mtx.columns, columns = np.arange(df_cluster_labels_mtx.columns.max()))
+    
+    
+    #index is the number of clusters
+    #columns is the cluster in question
+    for num_clusters in df_cluster_labels_mtx.columns:
+        c = df_cluster_labels_mtx[num_clusters]
+        for this_cluster in np.arange(num_clusters):
+            cluster_sum = df_all_data[c==this_cluster].sum().values
+            df_clusters_HC_mtx.loc[num_clusters,this_cluster] = (cluster_sum * df_element_ratios['H/C']).sum() / cluster_sum.sum()
+            df_clusters_NC_mtx.loc[num_clusters,this_cluster] = (cluster_sum * df_element_ratios['N/C']).sum() / cluster_sum.sum()
+            df_clusters_OC_mtx.loc[num_clusters,this_cluster] = (cluster_sum * df_element_ratios['O/C']).sum() / cluster_sum.sum()
+            df_clusters_SC_mtx.loc[num_clusters,this_cluster] = (cluster_sum * df_element_ratios['S/C']).sum() / cluster_sum.sum()
+    return df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx
+
+df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
+#%%Plot cluster elemental ratios
+def plot_cluster_elemental_ratios(df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx):
+    #Make X and Y for plotting
+    
+    #X = np.tile(df_clusters_HC_mtx.columns,(df_clusters_HC_mtx.shape[0],1)).T.ravel()
+    #Y = np.tile(df_clusters_HC_mtx.index,df_clusters_HC_mtx.shape[1]) 
+    
+    X = np.arange(df_clusters_HC_mtx.index.min(),df_clusters_HC_mtx.index.max()+2) - 0.5
+    Y = np.arange(df_clusters_HC_mtx.columns.min(),df_clusters_HC_mtx.columns.max()+2) - 0.5
+    
+    fig,ax = plt.subplots(2,2,figsize=(12,8))
+    ax = ax.ravel()
+    plot0 = ax[0].pcolor(X,Y,df_clusters_HC_mtx.T,cmap='RdBu')
+    ax[0].set_xlabel('Num clusters')
+    ax[0].set_ylabel('Cluster index')
+    plt.colorbar(plot0, label='H/C',ax=ax[0])
+    
+    plot1 = ax[1].pcolor(X,Y,df_clusters_NC_mtx.T,cmap='RdBu')
+    ax[1].set_xlabel('Num clusters')
+    ax[1].set_ylabel('Cluster index')
+    plt.colorbar(plot1, label='N/C',ax=ax[1])
+    
+    plot2 = ax[2].pcolor(X,Y,df_clusters_OC_mtx.T,cmap='RdBu')
+    ax[2].set_xlabel('Num clusters')
+    ax[2].set_ylabel('Cluster index')
+    plt.colorbar(plot2, label='O/C',ax=ax[2])
+    
+    plot3 = ax[3].pcolor(X,Y,df_clusters_SC_mtx.T,cmap='RdBu')
+    ax[3].set_xlabel('Num clusters')
+    ax[3].set_ylabel('Cluster index')
+    ax[3].set_ylabel('Cluster index')
+    plt.colorbar(plot3, label='S/C',ax=ax[3])
+    
+    
+    return X,Y
+
+
+plot_cluster_elemental_ratios(df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx)
+#%%
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.cbook as cbook
+import matplotlib.colors as colors
+
+filename = cbook.get_sample_data('topobathy.npz', asfileobj=False)
+with np.load(filename) as dem:
+    topo = dem['topo']
+    longitude = dem['longitude']
+    latitude = dem['latitude']
+    
+    
+#%%
+for(p_map_index=0;p_map_index<(numpnts(p_map));p_map_index++)
+	variable num_factors = p_map[p_map_index]
+	make/o/n=(max_num_factors,num_peaks) ProfilesMx2d, ProfilesMx2d_last
+	make/o/n=(max_num_factors,num_rows) TseriesMx2d, TseriesMx2d_last
+	
+	ProfilesMx2d = Fmx4d[p][q][fpeakdex][p_map_index]
+	TseriesMx2d = Gmx4d[q][p][fpeakDex][p_map_index]	//Note q then p
+	
+	//Calculate elemental ratios for each factor
+	for(factor_index=0;factor_index < max_num_factors; factor_index++)
+		//This dot product works because the sum of each factor profile is normalised to 1
+		MatrixOP/o/FREE thisHC = H_C . row(ProfilesMx2d,factor_index)
+		MatrixOP/o/FREE thisOC = O_C . row(ProfilesMx2d,factor_index)
+		MatrixOP/o/FREE thisSC = S_C . row(ProfilesMx2d,factor_index)
+		MatrixOP/o/FREE thisNC = N_C . row(ProfilesMx2d,factor_index)
+		H_C_mtx[p_map_index][factor_index] = thisHC[0]
+		O_C_mtx[p_map_index][factor_index] = thisOC[0]
+		S_C_mtx[p_map_index][factor_index] = thisSC[0]
+		N_C_mtx[p_map_index][factor_index] = thisNC[0]
+		
+		//For plotting max R index
+		Max_R_index_plotX[p_map_index][factor_index] = p_map[p_map_index]
+		Max_R_index_plotY[p_map_index][factor_index] = p_map[factor_index]
+	endfor
+    
+
+#%%Plot the 5 cluster profiles
+
+cluster_totals = np.ndarray([df_all_data_1e6.shape[1],5])
 for x in np.arange(5):
-    cluster_totals[:,x] =  (df_all_filters_1e6.iloc[c==x]).sum(axis=0)
+    cluster_totals[:,x] =  (df_all_data_1e6.iloc[c==x]).sum(axis=0)
 df_cluster_totals = pd.DataFrame(cluster_totals)
 df_cluster_totals.columns = [("cluster"+str(num)+"") for num in range(5)]
 df_cluster_totals = df_cluster_totals
 
 
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_nmf4_factors.columns])
+mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
 fig,ax = plt.subplots(5,1,figsize=(10,10))
 ax[0].stem(mz_columns.to_numpy(),df_cluster_totals['cluster0'],markerfmt=' ')
 ax[1].stem(mz_columns.to_numpy(),df_cluster_totals['cluster1'],markerfmt=' ')
@@ -392,9 +566,9 @@ plt.show()
 
 
 #%%Try autoencoder
-df_aug = augment_data_noise(df_all_filters_norm1,50,1,0)
+df_aug = augment_data_noise(df_all_data_norm1,50,1,0)
 ae_input = df_aug.values
-ae_input_val = df_all_filters_norm1.values
+ae_input_val = df_all_data_norm1.values
 input_dim = ae_input.shape[1]
 #%%Now compare loss for different latent dimensions
 #This is NOT using kerastuner, and is using log-spaced intermediate layers
@@ -529,17 +703,17 @@ plt.show()
 
 
 #%%See that one filter has higher loss in the AE, but not sure why
-ds_AE_loss_per_sample = pd.Series(AE_calc_loss_per_sample(ae_obj.ae,ae_input_val,ae_input_val), index=df_all_filters.index)
+ds_AE_loss_per_sample = pd.Series(AE_calc_loss_per_sample(ae_obj.ae,ae_input_val,ae_input_val), index=df_all_data.index)
 #%%
 index_top_loss= ds_AE_loss_per_sample.nlargest(1).index
 print(ds_AE_loss_per_sample[index_top_loss])
 
 
-cluster_extract_peaks(df_all_filters.loc[index_top_loss].mean(), df_all_raw,10,chemform_namelist_all,dp=1,printdf=False)
+cluster_extract_peaks(df_all_data.loc[index_top_loss].mean(), df_all_raw,10,chemform_namelist_all,dp=1,printdf=False)
 
-cluster_extract_peaks(df_all_filters.mean(), df_all_raw,10,chemform_namelist_all,dp=1,printdf=False)
+cluster_extract_peaks(df_all_data.mean(), df_all_raw,10,chemform_namelist_all,dp=1,printdf=False)
 
-cluster_extract_peaks(df_all_filters_log1p.mean(), df_all_raw,10,chemform_namelist_all,dp=1,printdf=False)
+cluster_extract_peaks(df_all_data_log1p.mean(), df_all_raw,10,chemform_namelist_all,dp=1,printdf=False)
 
 #%%Make some plots of the above
 
@@ -597,20 +771,20 @@ top_features_hist(ae_input_val,25)
 top_features_hist(latent_space,25,logx=True)
 top_features_hist(latent_space,25)
 
-top_features_hist(df_all_filters_minmax.values,25,logx=True)
-top_features_hist(df_all_filters_minmax.values,25)
+top_features_hist(df_all_data_minmax.values,25,logx=True)
+top_features_hist(df_all_data_minmax.values,25)
 
-top_features_hist(df_all_filters_standard.values,25,logx=True)
-top_features_hist(df_all_filters_standard.values,25)
+top_features_hist(df_all_data_standard.values,25,logx=True)
+top_features_hist(df_all_data_standard.values,25)
 
-top_features_hist(df_all_filters_robust.values,25,logx=True)
-top_features_hist(df_all_filters_robust.values,25)
+top_features_hist(df_all_data_robust.values,25,logx=True)
+top_features_hist(df_all_data_robust.values,25)
 
-top_features_hist(df_all_filters_norm.values,25,logx=True)
-top_features_hist(df_all_filters_norm.values,25)
+top_features_hist(df_all_data_norm.values,25,logx=True)
+top_features_hist(df_all_data_norm.values,25)
 
-top_features_hist(df_all_filters_log1p.values,25,logx=True)
-top_features_hist(df_all_filters_log1p.values,25)
+top_features_hist(df_all_data_log1p.values,25,logx=True)
+top_features_hist(df_all_data_log1p.values,25)
 
 #%%Do some clustering of the various spaces
 #%%Now do some clustering on the real-space data
@@ -698,7 +872,7 @@ for num_clusters in range(2,10):
 #Lets try a dendrogram to work out the optimal number of clusters
 fig,axes = plt.subplots(1,1,figsize=(20,10))
 plt.title('Real space dendrogram')
-dendrogram = sch.dendrogram(sch.linkage(df_all_filters_log1p.to_numpy(), method='ward'))
+dendrogram = sch.dendrogram(sch.linkage(df_all_data_log1p.to_numpy(), method='ward'))
 plt.show()
 
 
@@ -714,10 +888,10 @@ silhouette_scores = np.empty(len(num_clusters_index))
 for num_clusters in num_clusters_index:
     agglom_native = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
     #agglom_native = KMeans(n_clusters = num_clusters)
-    clustering = agglom_native.fit(df_all_filters_log1p.to_numpy())
-    ch_score[num_clusters-min_clusters] = calinski_harabasz_score(df_all_filters_log1p.to_numpy(), clustering.labels_)
-    db_score[num_clusters-min_clusters] = davies_bouldin_score(df_all_filters_log1p.to_numpy(), clustering.labels_)
-    silhouette_scores[num_clusters-min_clusters] = silhouette_score(df_all_filters_log1p.to_numpy(), clustering.labels_)
+    clustering = agglom_native.fit(df_all_data_log1p.to_numpy())
+    ch_score[num_clusters-min_clusters] = calinski_harabasz_score(df_all_data_log1p.to_numpy(), clustering.labels_)
+    db_score[num_clusters-min_clusters] = davies_bouldin_score(df_all_data_log1p.to_numpy(), clustering.labels_)
+    silhouette_scores[num_clusters-min_clusters] = silhouette_score(df_all_data_log1p.to_numpy(), clustering.labels_)
 fig,ax1 = plt.subplots(figsize=(10,6))
 ax2=ax1.twinx()
 ax1.plot(num_clusters_index,ch_score,label="CH score")
@@ -742,12 +916,12 @@ colormap = ['k','blue','red','yellow','gray','purple','aqua','gold','orange']
 
 for num_clusters in range(2,10):
     agglom = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
-    clustering = agglom.fit(df_all_filters_log1p.to_numpy())
+    clustering = agglom.fit(df_all_data_log1p.to_numpy())
     # plt.plot(clustering.labels_)
     # plt.scatter(df_beijing_filters.index,clustering.labels_,marker='.')
     
     tsne = TSNE(n_components=2, random_state=0)
-    X_tsne = tsne.fit_transform(df_all_filters_log1p.to_numpy())
+    X_tsne = tsne.fit_transform(df_all_data_log1p.to_numpy())
     plt.figure(figsize=(9,5))
     plt.scatter(X_tsne[:, 0], X_tsne[:, 1],
                 c=clustering.labels_,
@@ -810,7 +984,7 @@ pca_ae_variance_explained = np.empty(len(num_components_index))
 for num_components in num_components_index:
     pca = PCA(n_components = num_components)
     #pca_ae = PCA(n_components = num_components)
-    prin_comp = pca.fit_transform(np.nan_to_num(df_all_filters_log1p.to_numpy()))
+    prin_comp = pca.fit_transform(np.nan_to_num(df_all_data_log1p.to_numpy()))
     pca_variance_explained[num_components-min_components] = pca.explained_variance_ratio_.sum()
     #prin_comp = pca.fit_transform(ae_input_val)
     #pca_scaled_variance_explained[num_components-min_components] = pca.explained_variance_ratio_.sum()
@@ -834,7 +1008,7 @@ plt.show()
 #%%PCA7 transform the native dataset
 #Go with 7 because it covers 95% of the variance of the original dataset
 pca7 = PCA(n_components = 7)
-all_filters_PCA7_space = pca7.fit_transform(pipe_1e6.transform(ae_input_val))
+all_data_PCA7_space = pca7.fit_transform(pipe_1e6.transform(ae_input_val))
 
 # %%Comparing clustering labels
 ################################################
@@ -851,21 +1025,21 @@ arand_real_norm = []
 
 for num_clusters in range(2,10):
     agglom = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
-    clustering_real = agglom.fit(df_all_filters_1e6.to_numpy())
+    clustering_real = agglom.fit(df_all_data_1e6.to_numpy())
     # agglom = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
     # clustering_top70 = agglom.fit(scaled_top70_np)
     agglom = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
-    clustering_minmax = agglom.fit(df_all_filters_minmax.to_numpy())
+    clustering_minmax = agglom.fit(df_all_data_minmax.to_numpy())
     agglom = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
-    clustering_norm = agglom.fit(df_all_filters_norm.to_numpy())
+    clustering_norm = agglom.fit(df_all_data_norm.to_numpy())
     # agglom = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
-    # clustering_norm1 = agglom.fit(df_all_filters_norm1.to_numpy())
+    # clustering_norm1 = agglom.fit(df_all_data_norm1.to_numpy())
     agglom = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
-    clustering_pca7 = agglom.fit(all_filters_PCA7_space)
+    clustering_pca7 = agglom.fit(all_data_PCA7_space)
     agglom = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
     clustering_ae = agglom.fit(latent_space)
     agglom = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
-    clustering_log1p = agglom.fit(df_all_filters_log1p.to_numpy())
+    clustering_log1p = agglom.fit(df_all_data_log1p.to_numpy())
     
     clusters.append(num_clusters)
     #arand_real_top70.append(adjusted_rand_score(clustering_real.labels_, clustering_top70.labels_))
@@ -971,7 +1145,7 @@ def summarise_cluster_comparison(input_data1,input_data2,nclust1,nclust2_min,ncl
     
 
 #%%Try plot this badboy
-a,b = summarise_cluster_comparison(ae_input_val,df_all_filters_norm.to_numpy(),5,2,8,sub_from_mean=True)
+a,b = summarise_cluster_comparison(ae_input_val,df_all_data_norm.to_numpy(),5,2,8,sub_from_mean=True)
 
 table_vals = np.char.replace(np.around(a.values,2).astype(str),'nan','')
 vals = np.nan_to_num(np.around(b.values,2))
