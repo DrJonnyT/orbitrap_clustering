@@ -77,6 +77,10 @@ ds_time_cat = df_time_cat['time_cat']
 
 mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
 
+#This is a list of peaks with SAri's description from her PMF
+Sari_peaks_list = pd.read_csv(r'C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\Sari_Peaks_Sources.csv',index_col='Formula',na_filter=False)
+Sari_peaks_list = Sari_peaks_list[~Sari_peaks_list.index.duplicated(keep='first')]
+
 
 #Sort columns by m/z
 mz_columns_sorted = mz_columns.sort_values("Molecular Weight",axis=0)
@@ -143,200 +147,209 @@ np.savetxt(path + "/processed/all_data_log1p.csv", df_all_data_log1p.to_numpy(),
 df_all_data_norm1.to_csv(path+ "/processed/all_data_log1p.csv")
 
 
-#%%Try nmf on whole dataset of 4 experiments
-def get_score(model, data, scorer=explained_variance_score):
-    """ Estimate performance of the model on the data """
-    prediction = model.inverse_transform(model.transform(data))
-    return scorer(data, prediction)
+# #%%Try nmf on whole dataset of 4 experiments
+# def get_score(model, data, scorer=explained_variance_score):
+#     """ Estimate performance of the model on the data """
+#     prediction = model.inverse_transform(model.transform(data))
+#     return scorer(data, prediction)
 
 
-#Work out how many factors
-nmf_input = df_all_data_1e6.clip(lower=0).values
-ks = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30]
-perfs_train = []
-nmf_recon_err = []
-for k in ks:
-    nmf = NMF(n_components=k).fit(nmf_input)
-    perfs_train.append(get_score(nmf, nmf_input))
-    nmf_recon_err.append(nmf.reconstruction_err_)
-print(perfs_train)
+# #Work out how many factors
+# nmf_input = df_all_data_1e6.clip(lower=0).values
+# ks = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30]
+# perfs_train = []
+# nmf_recon_err = []
+# for k in ks:
+#     nmf = NMF(n_components=k).fit(nmf_input)
+#     perfs_train.append(get_score(nmf, nmf_input))
+#     nmf_recon_err.append(nmf.reconstruction_err_)
+# print(perfs_train)
 
-fig,ax = plt.subplots(1)
-ax.plot(ks,perfs_train,marker='x')
-ax.set_ylim(0,)
-ax.set_ylabel('Explained variance score (x)')
-ax.set_xlabel('Num factors')
-ax.xaxis.set_major_locator(plticker.MultipleLocator(base=2.0) )
-ax.xaxis.set_minor_locator(plticker.MultipleLocator(base=1.0) )
+# fig,ax = plt.subplots(1)
+# ax.plot(ks,perfs_train,marker='x')
+# ax.set_ylim(0,)
+# ax.set_ylabel('Explained variance score (x)')
+# ax.set_xlabel('Num factors')
+# ax.xaxis.set_major_locator(plticker.MultipleLocator(base=2.0) )
+# ax.xaxis.set_minor_locator(plticker.MultipleLocator(base=1.0) )
 
-ax2=ax.twinx()
-color='k'
-ax2.plot(ks,nmf_recon_err,marker='o',color=color)
-ax2.set_ylabel('NMF reconstruction error (o)')
-ax2.set_ylim(0,)
-
-
-
-#%%4-factor nmf
-nmf4 = NMF(n_components=4).fit(nmf_input)
-W = nmf4.transform(nmf_input)
-H = nmf4.components_
-
-df_nmf4_factors = pd.DataFrame(nmf4.components_,columns=df_all_data.columns)
-
-#Collate the factor totals
-factor_totals = np.ndarray(W.shape)
-for x in np.arange(4):
-    factor_totals[:,x] =  (np.outer(W.T[x], H[x]).sum(axis=1))
-df_factor_totals = pd.DataFrame(factor_totals)
-df_factor_totals.columns = [("factor"+str(num)+"") for num in range(4)]
-
-plt.scatter(ds_all_data_total_1e6,factor_totals.sum(axis=1))
-
-#Bar chart of the avg factors for each dataset
-df_nmf4_datetimecat_mean = df_factor_totals.groupby(dataset_cat).mean()
-
-fig,ax = plt.subplots(1,figsize=(8,6))
-df_nmf4_datetimecat_mean.plot.bar(ax=ax)
-ax.set_ylabel('µg m$^{-3}$')
-ax.set_ylim(0,)
-ax.legend(bbox_to_anchor=(1.32, 0.7))
-plt.show()
-
-df_nmf4_factor_frac = df_factor_totals.div(df_factor_totals.sum(axis=1),axis=0)
-df_nmf4_datetimecat_mean_frac = df_nmf4_datetimecat_mean.div(df_nmf4_datetimecat_mean.sum(axis=1),axis=0)
-df_nmf4_datetimecat_mean_frac.columns = df_nmf4_factor_frac.columns
-
-fig,ax = plt.subplots(1,figsize=(8,6))
-ax.set_ylabel('Fraction')
-ax.set_ylim(0,)
-df_nmf4_datetimecat_mean_frac.plot.bar(stacked=True,ax=ax)
-ax.legend(bbox_to_anchor=(1.32, 0.7))
-plt.show()
-
-#%%
-#Calculate nmf4 loss per sample
-
-#Calculate the loss per sample for an autoencoder
-#x and y must be numpy arrays
-def nmf_score_per_sample(nmf_model,data,scorer=mean_squared_error):
-    score_per_sample = []
-    for i in range(data.shape[0]):
-        score_i = get_score(nmf_model,data=data[i:i+1],scorer=scorer)
-        score_per_sample.append(score_i)
-    return score_per_sample
+# ax2=ax.twinx()
+# color='k'
+# ax2.plot(ks,nmf_recon_err,marker='o',color=color)
+# ax2.set_ylabel('NMF reconstruction error (o)')
+# ax2.set_ylim(0,)
 
 
-ds_nmf4_score_per_sample = pd.Series(nmf_score_per_sample(nmf4,nmf_input), index=df_all_data.index)
 
-index_top_nmf4_mse= ds_nmf4_score_per_sample.nlargest(1).index
+# #%%4-factor nmf
+# nmf4 = NMF(n_components=4).fit(nmf_input)
+# W = nmf4.transform(nmf_input)
+# H = nmf4.components_
 
-print(ds_nmf4_score_per_sample[index_top_nmf4_mse])
-ds_nmf4_score_per_sample.plot(title='4-factor PMF MSE')
+# df_nmf4_factors = pd.DataFrame(nmf4.components_,columns=df_all_data.columns)
 
-fig,ax = plt.subplots(1,figsize=(8,5))
-plt.plot(ds_nmf4_score_per_sample.to_numpy())
-plt.title('4-factor PMF MSE error')
+# #Collate the factor totals
+# factor_totals = np.ndarray(W.shape)
+# for x in np.arange(4):
+#     factor_totals[:,x] =  (np.outer(W.T[x], H[x]).sum(axis=1))
+# df_factor_totals = pd.DataFrame(factor_totals)
+# df_factor_totals.columns = [("factor"+str(num)+"") for num in range(4)]
 
-#%%Plot PMF4 factors and high loss sample
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_nmf4_factors.columns])
-fig,ax = plt.subplots(5,1,figsize=(10,10))
-ax[0].stem(mz_columns.to_numpy(),df_nmf4_factors.loc[0],markerfmt=' ')
-ax[1].stem(mz_columns.to_numpy(),df_nmf4_factors.loc[1],markerfmt=' ')
-ax[2].stem(mz_columns.to_numpy(),df_nmf4_factors.loc[2],markerfmt=' ')
-ax[3].stem(mz_columns.to_numpy(),df_nmf4_factors.loc[3],markerfmt=' ')
-ax[4].stem(mz_columns.to_numpy(),df_all_data_1e6.loc[index_top_nmf4_mse].transpose().values,markerfmt=' ',label='Sample with highest loss')
-ax[0].set_xlim(right=500)
-ax[1].set_xlim(right=500)
-ax[2].set_xlim(right=500)
-ax[3].set_xlim(right=500)
-ax[4].set_xlim(right=500)
-ax[4].legend()
-plt.show()
+# plt.scatter(ds_all_data_total_1e6,factor_totals.sum(axis=1))
 
-#%%12-factor nmf
-nmf12 = NMF(n_components=12).fit(nmf_input)
-W = nmf12.transform(nmf_input)
-H = nmf12.components_
+# #Bar chart of the avg factors for each dataset
+# df_nmf4_datetimecat_mean = df_factor_totals.groupby(dataset_cat).mean()
 
-#Collate the factor totals
-factor_totals = np.ndarray(W.shape)
-for x in np.arange(12):
-    factor_totals[:,x] =  (np.outer(W.T[x], H[x]).sum(axis=1))
-df_factor_totals = pd.DataFrame(factor_totals)
-df_factor_totals.columns = [("factor"+str(num)+"") for num in range(12)]
+# fig,ax = plt.subplots(1,figsize=(8,6))
+# df_nmf4_datetimecat_mean.plot.bar(ax=ax)
+# ax.set_ylabel('µg m$^{-3}$')
+# ax.set_ylim(0,)
+# ax.legend(bbox_to_anchor=(1.32, 0.7))
+# plt.show()
 
-plt.scatter(ds_all_data_total_1e6,factor_totals.sum(axis=1))
+# df_nmf4_factor_frac = df_factor_totals.div(df_factor_totals.sum(axis=1),axis=0)
+# df_nmf4_datetimecat_mean_frac = df_nmf4_datetimecat_mean.div(df_nmf4_datetimecat_mean.sum(axis=1),axis=0)
+# df_nmf4_datetimecat_mean_frac.columns = df_nmf4_factor_frac.columns
 
-#Bar chart of the avg factors for each dataset
-df_nmf12_datetimecat_mean = df_factor_totals.groupby(dataset_cat).mean()
+# fig,ax = plt.subplots(1,figsize=(8,6))
+# ax.set_ylabel('Fraction')
+# ax.set_ylim(0,)
+# df_nmf4_datetimecat_mean_frac.plot.bar(stacked=True,ax=ax)
+# ax.legend(bbox_to_anchor=(1.32, 0.7))
+# plt.show()
 
-fig,ax = plt.subplots(1)
-df_nmf12_datetimecat_mean.plot.bar(ax=ax)
-ax.set_ylabel('µg m$^{-3}$')
-ax.set_ylim(0,)
-ax.legend(bbox_to_anchor=(1.32, 0.7))
-plt.show()
+# #%%
+# #Calculate nmf4 loss per sample
 
-df_nmf12_factor_frac = df_factor_totals.div(df_factor_totals.sum(axis=1),axis=0)
-df_nmf12_datetimecat_mean_frac = df_nmf12_datetimecat_mean.div(df_nmf12_datetimecat_mean.sum(axis=1),axis=0)
-df_nmf12_datetimecat_mean_frac.columns = df_nmf12_factor_frac.columns
-
-fig,ax = plt.subplots(1)
-ax.set_ylabel('Fraction')
-ax.set_ylim(0,)
-df_nmf12_datetimecat_mean_frac.plot.bar(stacked=True,ax=ax,cmap=plt.cm.get_cmap('tab20b', 12))
-ax.legend(bbox_to_anchor=(1.32, 0.7))
-plt.show()
+# #Calculate the loss per sample for an autoencoder
+# #x and y must be numpy arrays
+# def nmf_score_per_sample(nmf_model,data,scorer=mean_squared_error):
+#     score_per_sample = []
+#     for i in range(data.shape[0]):
+#         score_i = get_score(nmf_model,data=data[i:i+1],scorer=scorer)
+#         score_per_sample.append(score_i)
+#     return score_per_sample
 
 
-#[['factor0','factor1','factor2','factor3','factor4']]
-df_nmf12_cat_mean = df_factor_totals.groupby(dataset_cat).mean()
-#df_nmf12_cat_std = df_factor_totals[['factor0','factor1','factor2','factor3','factor4']].groupby(df_merge_beijing_summer['time_cat']).std()
-df_nmf12_cat_mean_norm = df_nmf12_cat_mean.div(df_nmf12_cat_mean.sum(axis=1),axis=0)
+# ds_nmf4_score_per_sample = pd.Series(nmf_score_per_sample(nmf4,nmf_input), index=df_all_data.index)
 
-#%%Calculate nmf12 highest loss sample
-ds_nmf12_score_per_sample = pd.Series(nmf_score_per_sample(nmf12,nmf_input), index=df_all_data.index)
+# index_top_nmf4_mse= ds_nmf4_score_per_sample.nlargest(1).index
 
-index_top_nmf12_mse= ds_nmf12_score_per_sample.nlargest(1).index
+# print(ds_nmf4_score_per_sample[index_top_nmf4_mse])
+# ds_nmf4_score_per_sample.plot(title='4-factor PMF MSE')
 
-print(ds_nmf12_score_per_sample[index_top_nmf12_mse])
-ds_nmf12_score_per_sample.plot(title='12-factor PMF MSE')
+# fig,ax = plt.subplots(1,figsize=(8,5))
+# plt.plot(ds_nmf4_score_per_sample.to_numpy())
+# plt.title('4-factor PMF MSE error')
 
-#%%nmf Line plot
-fig,ax = plt.subplots(2,1,figsize=(7,10))
-ax1=ax[0]
-ax2=ax[1]
-ax1.set_title('Orbitrap PMF, 12 factors')
+# #%%Plot PMF4 factors and high loss sample
+# mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_nmf4_factors.columns])
+# fig,ax = plt.subplots(5,1,figsize=(10,10))
+# ax[0].stem(mz_columns.to_numpy(),df_nmf4_factors.loc[0],markerfmt=' ')
+# ax[1].stem(mz_columns.to_numpy(),df_nmf4_factors.loc[1],markerfmt=' ')
+# ax[2].stem(mz_columns.to_numpy(),df_nmf4_factors.loc[2],markerfmt=' ')
+# ax[3].stem(mz_columns.to_numpy(),df_nmf4_factors.loc[3],markerfmt=' ')
+# ax[4].stem(mz_columns.to_numpy(),df_all_data_1e6.loc[index_top_nmf4_mse].transpose().values,markerfmt=' ',label='Sample with highest loss')
+# ax[0].set_xlim(right=500)
+# ax[1].set_xlim(right=500)
+# ax[2].set_xlim(right=500)
+# ax[3].set_xlim(right=500)
+# ax[4].set_xlim(right=500)
+# ax[4].legend()
+# plt.show()
 
-#ax1.plot(df_nmf_cat_mean.index, df_nmf_cat_mean['factor0'], linewidth=5,c='b',label='factor0')
-#ax1.plot(df_nmf_cat_mean.index, df_nmf_cat_mean['factor1'], linewidth=5,c='lime',label='factor1')
-#ax1.plot(df_nmf_cat_mean.index, df_nmf_cat_mean['factor2'], linewidth=5,c='r',label='factor2')
-#ax1.plot(df_nmf_cat_mean.index, df_nmf_cat_mean['factor3'], linewidth=5,c='orange',label='factor3')
-#ax1.plot(df_nmf_cat_mean.index, df_nmf_cat_mean['factor4'], linewidth=5,c='pink',label='factor4')
-df_nmf12_cat_mean.plot.bar(ax=ax1)
-ax1.set_ylabel('µg m$^{-3}$')
-ax1.set_ylim(0,)
-ax1.legend(bbox_to_anchor=(1.22, 0.7))
+# #%%12-factor nmf
+# nmf12 = NMF(n_components=12).fit(nmf_input)
+# W = nmf12.transform(nmf_input)
+# H = nmf12.components_
 
-# ax2.stackplot(df_nmf_cat_mean.index,df_nmf12_cat_mean_norm['factor0'], df_nmf_cat_mean_norm['factor1'],
-#               df_nmf_cat_mean_norm['factor2'],df_nmf_cat_mean_norm['factor3'],
-#               df_nmf_cat_mean_norm['factor4'], labels=['factor0','factor1','factor2','factor3','factor4'],
-#              colors=['b','lime','r','orange','pink'])
-df_nmf12_cat_mean_norm.plot.bar(ax=ax2,stacked=True,cmap=plt.cm.get_cmap('tab20b', 12))
-ax2.set_ylabel('Fraction')
-ax2.set_ylim(0,)
-ax2.legend(bbox_to_anchor=(1.22, 0.7))
+# #Collate the factor totals
+# factor_totals = np.ndarray(W.shape)
+# for x in np.arange(12):
+#     factor_totals[:,x] =  (np.outer(W.T[x], H[x]).sum(axis=1))
+# df_factor_totals = pd.DataFrame(factor_totals)
+# df_factor_totals.columns = [("factor"+str(num)+"") for num in range(12)]
 
+# plt.scatter(ds_all_data_total_1e6,factor_totals.sum(axis=1))
+
+# #Bar chart of the avg factors for each dataset
+# df_nmf12_datetimecat_mean = df_factor_totals.groupby(dataset_cat).mean()
+
+# fig,ax = plt.subplots(1)
+# df_nmf12_datetimecat_mean.plot.bar(ax=ax)
+# ax.set_ylabel('µg m$^{-3}$')
+# ax.set_ylim(0,)
+# ax.legend(bbox_to_anchor=(1.32, 0.7))
+# plt.show()
+
+# df_nmf12_factor_frac = df_factor_totals.div(df_factor_totals.sum(axis=1),axis=0)
+# df_nmf12_datetimecat_mean_frac = df_nmf12_datetimecat_mean.div(df_nmf12_datetimecat_mean.sum(axis=1),axis=0)
+# df_nmf12_datetimecat_mean_frac.columns = df_nmf12_factor_frac.columns
+
+# fig,ax = plt.subplots(1)
+# ax.set_ylabel('Fraction')
+# ax.set_ylim(0,)
+# df_nmf12_datetimecat_mean_frac.plot.bar(stacked=True,ax=ax,cmap=plt.cm.get_cmap('tab20b', 12))
+# ax.legend(bbox_to_anchor=(1.32, 0.7))
+# plt.show()
+
+
+# #[['factor0','factor1','factor2','factor3','factor4']]
+# df_nmf12_cat_mean = df_factor_totals.groupby(dataset_cat).mean()
+# #df_nmf12_cat_std = df_factor_totals[['factor0','factor1','factor2','factor3','factor4']].groupby(df_merge_beijing_summer['time_cat']).std()
+# df_nmf12_cat_mean_norm = df_nmf12_cat_mean.div(df_nmf12_cat_mean.sum(axis=1),axis=0)
+
+# #%%Calculate nmf12 highest loss sample
+# ds_nmf12_score_per_sample = pd.Series(nmf_score_per_sample(nmf12,nmf_input), index=df_all_data.index)
+
+# index_top_nmf12_mse= ds_nmf12_score_per_sample.nlargest(1).index
+
+# print(ds_nmf12_score_per_sample[index_top_nmf12_mse])
+# ds_nmf12_score_per_sample.plot(title='12-factor PMF MSE')
+
+# #%%nmf Line plot
+# fig,ax = plt.subplots(2,1,figsize=(7,10))
+# ax1=ax[0]
+# ax2=ax[1]
+# ax1.set_title('Orbitrap PMF, 12 factors')
+
+# #ax1.plot(df_nmf_cat_mean.index, df_nmf_cat_mean['factor0'], linewidth=5,c='b',label='factor0')
+# #ax1.plot(df_nmf_cat_mean.index, df_nmf_cat_mean['factor1'], linewidth=5,c='lime',label='factor1')
+# #ax1.plot(df_nmf_cat_mean.index, df_nmf_cat_mean['factor2'], linewidth=5,c='r',label='factor2')
+# #ax1.plot(df_nmf_cat_mean.index, df_nmf_cat_mean['factor3'], linewidth=5,c='orange',label='factor3')
+# #ax1.plot(df_nmf_cat_mean.index, df_nmf_cat_mean['factor4'], linewidth=5,c='pink',label='factor4')
+# df_nmf12_cat_mean.plot.bar(ax=ax1)
+# ax1.set_ylabel('µg m$^{-3}$')
+# ax1.set_ylim(0,)
+# ax1.legend(bbox_to_anchor=(1.22, 0.7))
+
+# # ax2.stackplot(df_nmf_cat_mean.index,df_nmf12_cat_mean_norm['factor0'], df_nmf_cat_mean_norm['factor1'],
+# #               df_nmf_cat_mean_norm['factor2'],df_nmf_cat_mean_norm['factor3'],
+# #               df_nmf_cat_mean_norm['factor4'], labels=['factor0','factor1','factor2','factor3','factor4'],
+# #              colors=['b','lime','r','orange','pink'])
+# df_nmf12_cat_mean_norm.plot.bar(ax=ax2,stacked=True,cmap=plt.cm.get_cmap('tab20b', 12))
+# ax2.set_ylabel('Fraction')
+# ax2.set_ylim(0,)
+# ax2.legend(bbox_to_anchor=(1.22, 0.7))
+
+
+
+#What fraction is C6H5NO3 as a function of time?
+Nitrophenol = df_all_data_1e6[('C6 H5 N O3',5)]
+Nitrophenol_frac = Nitrophenol / df_all_data_1e6.sum(axis=1)
+plt.plot(Nitrophenol_frac)
+
+plot_tseries_BeijingDelhi(Nitrophenol_frac,ds_dataset_cat,'C6H5NO3 (nitrophenol) fraction','Fraction')
 
 
 
 #%%Real-space cluster labels
 
 #Try 5 clusters initially
-agglom = AgglomerativeClustering(n_clusters = 5, linkage = 'ward')
+agglom = AgglomerativeClustering(n_clusters = 10, linkage = 'ward')
 clustering = agglom.fit(df_all_data_1e6.values)
-c = relabel_clusters_most_freq(clustering.labels_)
+#c = relabel_clusters_most_freq(clustering.labels_)
+c = clustering.labels_
 
 a = pd.DataFrame(c,columns=['clust'],index=df_dataset_cat.index)
 b = df_dataset_cat
@@ -348,7 +361,7 @@ df_cat_clust_counts = b.groupby(a['clust'])['dataset_cat'].value_counts(normaliz
 fig,ax = plt.subplots(2,1,figsize=(7,10))
 ax1=ax[0]
 ax2=ax[1]
-df_clust_cat_counts.plot.area(ax=ax1)
+df_clust_cat_counts.plot.area(ax=ax1,colormap='tab20')
 df_cat_clust_counts.plot.bar(ax=ax2,stacked=True,colormap='RdBu',width=0.8)
 ax1.set_title('Real space data, 5 clusters')
 ax1.set_ylabel('Fraction')
@@ -371,36 +384,58 @@ plt.title('Cluster labels')
 plt.xlabel('~Time (arb units)')
 
 
+#############################################################
+#############################################################
+#####CLUSTERING WORKFLOW#####################################
+#############################################################
+#############################################################
+#%%Run Clustering a set number of times
+def cluster_n_times(df_data,max_num_clusters,min_num_clusters=1):
+    num_clusters_array = np.arange(min_num_clusters,max_num_clusters+1)
+    cluster_labels_mtx = []
+    
+    for num_clusters in num_clusters_array:
+        #First run the clustering
+        agglom = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
+        clustering = agglom.fit(df_data.values)
+        #c = relabel_clusters_most_freq(clustering.labels_)
+        cluster_labels_mtx.append(clustering.labels_)
+        
+    df_cluster_labels_mtx = pd.DataFrame(cluster_labels_mtx,index=num_clusters_array).T
+    df_cluster_labels_mtx.index=df_data.index
+    return df_cluster_labels_mtx  
+
+
 #%% Plot the time series divided into 4 projects
 #c is the time series of cluster index
 #ds_dataset_cat is the categorical data series of which dataset there is
 #suptitle is the title to go at the top of the plot
-def plot_cluster_tseries_BeijingDelhi(c,ds_dataset_cat,suptitle):
+def plot_tseries_BeijingDelhi(c,ds_dataset_cat,suptitle,ylabel):
     fig,ax = plt.subplots(2,2,figsize=(9,9))
     ax=ax.ravel()
     ax0=ax[0]
     ax0.plot(df_all_data.index,c)
     ax0.set_xlim(ds_dataset_cat[ds_dataset_cat == "Beijing_winter"].index.min(),ds_dataset_cat[ds_dataset_cat == "Beijing_winter"].index.max())
     ax0.set_title('Beijing winter')
-    ax0.set_ylabel('Cluster label')
+    ax0.set_ylabel(ylabel)
 
     ax1=ax[1]
     ax1.plot(df_all_data.index,c)
     ax1.set_xlim(ds_dataset_cat[ds_dataset_cat == "Beijing_summer"].index.min(),ds_dataset_cat[ds_dataset_cat == "Beijing_summer"].index.max())
     ax1.set_title('Beijing summer')
-    ax1.set_ylabel('Cluster label')
+    ax1.set_ylabel(ylabel)
 
     ax2=ax[2]
     ax2.plot(df_all_data.index,c)
     ax2.set_xlim(ds_dataset_cat[ds_dataset_cat == "Delhi_summer"].index.min(),ds_dataset_cat[ds_dataset_cat == "Delhi_summer"].index.max())
     ax2.set_title('Delhi summer')
-    ax2.set_ylabel('Cluster label')
+    ax2.set_ylabel(ylabel)
 
     ax3=ax[3]
     ax3.plot(df_all_data.index,c)
     ax3.set_xlim(ds_dataset_cat[ds_dataset_cat == "Delhi_autumn"].index.min(),ds_dataset_cat[ds_dataset_cat == "Delhi_autumn"].index.max())
     ax3.set_title('Delhi autumn')
-    ax3.set_ylabel('Cluster label')
+    ax3.set_ylabel(ylabel)
 
 
     myFmt = mdates.DateFormatter('%d/%m')
@@ -419,23 +454,6 @@ def plot_cluster_tseries_BeijingDelhi(c,ds_dataset_cat,suptitle):
     plt.show()
     
     
-#%%Run Clustering a set number of times
-def cluster_n_times(df_data,max_num_clusters,min_num_clusters=1):
-    num_clusters_array = np.arange(min_num_clusters,max_num_clusters+1)
-    cluster_labels_mtx = []
-    
-    for num_clusters in num_clusters_array:
-        #First run the clustering
-        agglom = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
-        clustering = agglom.fit(df_data.values)
-        c = relabel_clusters_most_freq(clustering.labels_)
-        cluster_labels_mtx.append(c)
-        
-    df_cluster_labels_mtx = pd.DataFrame(cluster_labels_mtx,index=num_clusters_array).T
-    df_cluster_labels_mtx.index=df_data.index
-    return df_cluster_labels_mtx 
-    
-df_cluster_labels_mtx = cluster_n_times(df_all_data_1e6,10) 
 #%%Calc cluster elemental ratios
 def calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios):
     df_clusters_HC_mtx = pd.DataFrame(np.NaN, index = df_cluster_labels_mtx.columns, columns = np.arange(df_cluster_labels_mtx.columns.max()))
@@ -456,9 +474,18 @@ def calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_r
             df_clusters_SC_mtx.loc[num_clusters,this_cluster] = (cluster_sum * df_element_ratios['S/C']).sum() / cluster_sum.sum()
     return df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx
 
-df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
+
+#%%Make EOS11 cmap
+def Make_EOS11_cmap():
+    #colors = ["darkorange", "gold", "lawngreen", "lightseagreen"]
+    colors = [(157/255, 30/255, 55/255),(205/255,58/255,70/255),(233/255,111/255,103/255),(242/255,162/255,121/255),(247/255,209/255,152/255),(242/255,235/255,185/255),(207/255,231/255,239/255),(138/255,209/255,235/255),(58/255,187/255,236/255),(0,154/255,219/255), (0, 94/255, 173/255)]
+    print()
+    cmap1 = LinearSegmentedColormap.from_list("EOSSpectral11", colors,N=11)
+    return cmap1
+
+
 #%%Plot cluster elemental ratios
-def plot_cluster_elemental_ratios(df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx):
+def plot_cluster_elemental_ratios(df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,suptitle):
     #Make X and Y for plotting
     
     #X = np.tile(df_clusters_HC_mtx.columns,(df_clusters_HC_mtx.shape[0],1)).T.ravel()
@@ -467,72 +494,323 @@ def plot_cluster_elemental_ratios(df_clusters_HC_mtx,df_clusters_NC_mtx,df_clust
     X = np.arange(df_clusters_HC_mtx.index.min(),df_clusters_HC_mtx.index.max()+2) - 0.5
     Y = np.arange(df_clusters_HC_mtx.columns.min(),df_clusters_HC_mtx.columns.max()+2) - 0.5
     
+    cmap = Make_EOS11_cmap()
+    
     fig,ax = plt.subplots(2,2,figsize=(12,8))
     ax = ax.ravel()
-    plot0 = ax[0].pcolor(X,Y,df_clusters_HC_mtx.T,cmap='RdBu')
+    plot0 = ax[0].pcolor(X,Y,df_clusters_HC_mtx.T,cmap=cmap)
     ax[0].set_xlabel('Num clusters')
     ax[0].set_ylabel('Cluster index')
     plt.colorbar(plot0, label='H/C',ax=ax[0])
+    ax[0].set_title('H/C ratio')
     
-    plot1 = ax[1].pcolor(X,Y,df_clusters_NC_mtx.T,cmap='RdBu')
+    
+    plot1 = ax[1].pcolor(X,Y,df_clusters_NC_mtx.T,cmap=cmap)
     ax[1].set_xlabel('Num clusters')
     ax[1].set_ylabel('Cluster index')
     plt.colorbar(plot1, label='N/C',ax=ax[1])
+    ax[1].set_title('N/C ratio')
     
-    plot2 = ax[2].pcolor(X,Y,df_clusters_OC_mtx.T,cmap='RdBu')
+    plot2 = ax[2].pcolor(X,Y,df_clusters_OC_mtx.T,cmap=cmap)
     ax[2].set_xlabel('Num clusters')
     ax[2].set_ylabel('Cluster index')
     plt.colorbar(plot2, label='O/C',ax=ax[2])
+    ax[2].set_title('O/C ratio')
     
-    plot3 = ax[3].pcolor(X,Y,df_clusters_SC_mtx.T,cmap='RdBu')
+    plot3 = ax[3].pcolor(X,Y,df_clusters_SC_mtx.T,cmap=cmap)
     ax[3].set_xlabel('Num clusters')
     ax[3].set_ylabel('Cluster index')
     ax[3].set_ylabel('Cluster index')
+    ax[3].set_title('S/C ratio')
     plt.colorbar(plot3, label='S/C',ax=ax[3])
     
+    fig.suptitle(suptitle)
+    fig.subplots_adjust(top=0.88)
+    fig.tight_layout()
+    plt.show()
     
     return X,Y
 
 
-plot_cluster_elemental_ratios(df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx)
-#%%
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.cbook as cbook
-import matplotlib.colors as colors
+#%% Average the cluster profiles
+def average_cluster_profiles(df_cluster_labels_mtx,df_all_data): 
+    cluster_profiles_mtx = np.empty((df_cluster_labels_mtx.shape[1],df_cluster_labels_mtx.columns.max(),df_all_data.shape[1]))
+    cluster_profiles_mtx.fill(np.NaN)
+    cluster_profiles_mtx_norm = cluster_profiles_mtx.copy()
+    
+    num_clusters_index = df_cluster_labels_mtx.columns.values
+    cluster_index = np.arange(df_cluster_labels_mtx.columns.max())
+    
+    #Dimensions goes like [num_clusters_index,cluster_index,molecule]
+    #where num_clusters_index is from df_cluster_labels_mtx.columns
+    
+    #index is the number of clusters
+    #columns is the cluster in question
+    for num_clusters in num_clusters_index:
+        c = df_cluster_labels_mtx[num_clusters]
+        for this_cluster in np.arange(num_clusters):
+            cluster_sum = df_all_data[c==this_cluster].sum()
+            cluster_profiles_mtx[(num_clusters-df_cluster_labels_mtx.columns[0]),this_cluster,:] = cluster_sum
+            cluster_profiles_mtx_norm[(num_clusters-df_cluster_labels_mtx.columns[0]),this_cluster,:] = cluster_sum / cluster_sum.sum()
+    
+    return cluster_profiles_mtx, cluster_profiles_mtx_norm, num_clusters_index, cluster_index
 
-filename = cbook.get_sample_data('topobathy.npz', asfileobj=False)
-with np.load(filename) as dem:
-    topo = dem['topo']
-    longitude = dem['longitude']
-    latitude = dem['latitude']
+
+#%%Correlate cluster mass spectral profiles
+
+def correlate_cluster_profiles(cluster_profiles_mtx_norm, num_clusters_index, cluster_index):
     
+    df_cluster_corr_mtx = pd.DataFrame(np.NaN, index = num_clusters_index, columns = cluster_index)
+    df_prevcluster_corr_mtx = pd.DataFrame(np.NaN, index = num_clusters_index, columns = cluster_index)
     
+
+    #index is the number of clusters
+    #columns is the cluster in question
+    for x_idx in np.arange(cluster_profiles_mtx_norm.shape[0]):
+        num_clusters = num_clusters_index[x_idx]
+        print(num_clusters)
+        if(num_clusters>1):
+            for this_cluster in np.arange(num_clusters):
+                #Find correlations with other clusters from the same num_clusters
+                this_cluster_profile = cluster_profiles_mtx_norm[x_idx,this_cluster,:]  
+                other_clusters_profiles = cluster_profiles_mtx_norm[x_idx,cluster_index!=this_cluster,:]
+                profiles_corr = np.zeros(other_clusters_profiles.shape[0])
+                for y_idx in np.arange(num_clusters-1):
+                    this_other_cluster_profile = other_clusters_profiles[y_idx,:]
+                    profiles_corr[y_idx] = pearsonr(this_cluster_profile,this_other_cluster_profile)[0]
+                df_cluster_corr_mtx.loc[num_clusters,this_cluster] = profiles_corr.max()
+        if(num_clusters>1 and x_idx > 0):
+            for this_cluster in np.arange(num_clusters):
+                #Find correlations with the clusters from the previous num_clusters
+                this_cluster_profile = cluster_profiles_mtx_norm[x_idx,this_cluster,:]  
+                prev_clusters_profiles = cluster_profiles_mtx_norm[x_idx-1,:,:]
+                profiles_corr = np.zeros(prev_clusters_profiles.shape[0])
+                for y_idx in np.arange(num_clusters-1):
+                    this_prev_cluster_profile = prev_clusters_profiles[y_idx,:]
+                    #pdb.set_trace()
+                    profiles_corr[y_idx] = pearsonr(this_cluster_profile,this_prev_cluster_profile)[0]
+                df_prevcluster_corr_mtx.loc[num_clusters,this_cluster] = profiles_corr.max()
+            
+            
+    return df_cluster_corr_mtx, df_prevcluster_corr_mtx
+
+
+#%%Plot cluster profile correlations
+def plot_cluster_profile_corrs(df_cluster_corr_mtx, df_prevcluster_corr_mtx):
+    #Make X and Y for plotting
+        
+    X = np.arange(df_cluster_corr_mtx.index.min(),df_cluster_corr_mtx.index.max()+2) - 0.5
+    Y = np.arange(df_cluster_corr_mtx.columns.min(),df_cluster_corr_mtx.columns.max()+2) - 0.5
+    cmap = Make_EOS11_cmap()
+    
+    fig,ax = plt.subplots(1,2,figsize=(10,5))
+    ax = ax.ravel()
+    plot0 = ax[0].pcolor(X,Y,df_cluster_corr_mtx.T,cmap=cmap)
+    ax[0].set_xlabel('Num clusters')
+    ax[0].set_ylabel('Cluster index')
+    plt.colorbar(plot0, label='Pearson\'s R',ax=ax[0])
+    
+    plot1 = ax[1].pcolor(X,Y,df_prevcluster_corr_mtx.T,cmap=cmap)
+    ax[1].set_xlabel('Num clusters')
+    ax[1].set_ylabel('Cluster index')
+    plt.colorbar(plot1, label='Pearson\'s R',ax=ax[1])
+
+
+#%%Plot cluster profiles
+def plot_all_cluster_profiles(cluster_profiles_mtx_norm, num_clusters_index,mz_columns,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx):
+    for num_clusters in num_clusters_index:
+        plot_one_cluster_profile(cluster_profiles_mtx_norm, num_clusters_index,num_clusters, mz_columns)
+    
+            
+def plot_one_cluster_profile(cluster_profiles_mtx_norm, num_clusters_index, num_clusters, mz_columns,
+                             df_clusters_HC_mtx=pd.DataFrame(),df_clusters_NC_mtx=pd.DataFrame(),
+                             df_clusters_OC_mtx=pd.DataFrame(),df_clusters_SC_mtx=pd.DataFrame()):
+    if(len(num_clusters_index)==1):
+        if(num_clusters_index[0] == num_clusters):
+            x_idx=0
+        else:
+            print("plot_cluster_profiles() error: nclusters is " + str(num_clusters) + " which is not in num_clusters_index")
+    else:
+        x_idx = np.searchsorted(num_clusters_index,num_clusters,side='left')
+        if(x_idx == np.searchsorted(num_clusters_index,num_clusters,side='right')):
+            print("plot_cluster_profiles() error: nclusters is " + str(num_clusters) + " which is not in num_clusters_index")
+            return 0
+    
+    fig,axes = plt.subplots(num_clusters,2,figsize=(14,3.5*num_clusters),gridspec_kw={'width_ratios': [8, 4]})
+    #cluster_profiles_2D = cluster_profiles_mtx_norm[x_idx,:,:]
+    for y_idx in np.arange(num_clusters):
+        this_cluster_profile = cluster_profiles_mtx_norm[x_idx,y_idx,:]
+        ax = axes[-y_idx-1][0]
+        ax.stem(mz_columns.to_numpy(),this_cluster_profile,markerfmt=' ')
+        ax.set_xlim(left=100,right=400)
+        ax.set_xlabel('m/z')
+        ax.set_ylabel('Relative concentration')
+        #ax.set_title('Cluster' + str(y_idx))
+        ax.text(0.01, 0.95, 'Cluster ' + str(y_idx), transform=ax.transAxes, fontsize=12,
+                verticalalignment='top')
+        
+        #Add in elemental ratios
+        if(df_clusters_HC_mtx.empty == False ):
+            ax.text(0.69, 0.95, 'H/C = ' + str(round(df_clusters_HC_mtx.loc[num_clusters][y_idx],2) ), transform=ax.transAxes, fontsize=12,
+                    verticalalignment='top')
+        if(df_clusters_NC_mtx.empty == False ):
+            ax.text(0.84, 0.95, 'N/C = ' + str(round(df_clusters_NC_mtx.loc[num_clusters][y_idx],3) ), transform=ax.transAxes, fontsize=12,
+                    verticalalignment='top')
+        if(df_clusters_OC_mtx.empty == False ):
+            ax.text(0.69, 0.85, 'O/C = ' + str(round(df_clusters_OC_mtx.loc[num_clusters][y_idx],2) ), transform=ax.transAxes, fontsize=12,
+                    verticalalignment='top')
+        if(df_clusters_SC_mtx.empty == False ):
+            ax.text(0.84, 0.85, 'S/C = ' + str(round(df_clusters_SC_mtx.loc[num_clusters][y_idx],3) ), transform=ax.transAxes, fontsize=12,
+                    verticalalignment='top')
+    
+        #Add in a table with the top peaks
+        #pdb.set_trace()
+        ds_this_cluster_profile = pd.Series(this_cluster_profile,index=df_all_data.columns).T
+        df_top_peaks = cluster_extract_peaks(ds_this_cluster_profile, df_all_raw,10,chemform_namelist_all,dp=1,printdf=False)
+        df_top_peaks.index = df_top_peaks.index.str.replace(' ', '')
+        ax2 = axes[-y_idx-1][1]
+        #pdb.set_trace()
+        cellText = pd.merge(df_top_peaks, Sari_peaks_list, how="left",left_index=True,right_index=True)[['peak_pct','Source']]
+        cellText['Source'] = cellText['Source'].astype(str).replace(to_replace='nan',value='')
+        cellText = cellText.reset_index().values
+        the_table = ax2.table(cellText=cellText,loc='center',cellLoc='left',colLabels=['Formula','%','Potential source'],edges='open',colWidths=[0.3,0.1,0.6])
+        the_table.auto_set_font_size(False)
+        the_table.set_fontsize(11)
+        cells = the_table.properties()["celld"]
+        for i in range(0, 11):
+            cells[i, 1].set_text_props(ha="right")
+        
+        #the_table.scale(1, 1.5)  # may help
+        
+        plt.tight_layout()
+    
+    plt.show()
+
 #%%
-for(p_map_index=0;p_map_index<(numpnts(p_map));p_map_index++)
-	variable num_factors = p_map[p_map_index]
-	make/o/n=(max_num_factors,num_peaks) ProfilesMx2d, ProfilesMx2d_last
-	make/o/n=(max_num_factors,num_rows) TseriesMx2d, TseriesMx2d_last
-	
-	ProfilesMx2d = Fmx4d[p][q][fpeakdex][p_map_index]
-	TseriesMx2d = Gmx4d[q][p][fpeakDex][p_map_index]	//Note q then p
-	
-	//Calculate elemental ratios for each factor
-	for(factor_index=0;factor_index < max_num_factors; factor_index++)
-		//This dot product works because the sum of each factor profile is normalised to 1
-		MatrixOP/o/FREE thisHC = H_C . row(ProfilesMx2d,factor_index)
-		MatrixOP/o/FREE thisOC = O_C . row(ProfilesMx2d,factor_index)
-		MatrixOP/o/FREE thisSC = S_C . row(ProfilesMx2d,factor_index)
-		MatrixOP/o/FREE thisNC = N_C . row(ProfilesMx2d,factor_index)
-		H_C_mtx[p_map_index][factor_index] = thisHC[0]
-		O_C_mtx[p_map_index][factor_index] = thisOC[0]
-		S_C_mtx[p_map_index][factor_index] = thisSC[0]
-		N_C_mtx[p_map_index][factor_index] = thisNC[0]
-		
-		//For plotting max R index
-		Max_R_index_plotX[p_map_index][factor_index] = p_map[p_map_index]
-		Max_R_index_plotY[p_map_index][factor_index] = p_map[factor_index]
-	endfor
+#Implementation of workflow
+df_cluster_labels_mtx = cluster_n_times(df_all_data_1e6,10,min_num_clusters=1)
+df_latent_space=pd.DataFrame(latent_space,index=df_all_data_1e6.index)
+df_cluster_labels_mtx = cluster_n_times(df_latent_space,10,min_num_clusters=1)
+
+c= df_cluster_labels_mtx[10]
+plot_cluster_tseries_BeijingDelhi(c,ds_dataset_cat,'Latent-space clustering, 4 clusters')
+
+
+df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
+
+plot_cluster_elemental_ratios(df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,'Latent-space data elemental ratios')
+
+cluster_profiles_mtx, cluster_profiles_mtx_norm, num_clusters_index, cluster_index = average_cluster_profiles(df_cluster_labels_mtx,df_all_data)
+
+df_cluster_corr_mtx, df_prevcluster_corr_mtx = correlate_cluster_profiles(cluster_profiles_mtx_norm, num_clusters_index, cluster_index)
+
+plot_cluster_profile_corrs(df_cluster_corr_mtx, df_prevcluster_corr_mtx)
+
+plot_one_cluster_profile(cluster_profiles_mtx_norm, num_clusters_index,10,mz_columns,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx )
+
+
+
+#%%
+a = pd.DataFrame(c.values,columns=['clust'],index=df_dataset_cat.index)
+b = df_dataset_cat
+
+df_clust_cat_counts = a.groupby(b['dataset_cat'])['clust'].value_counts(normalize=True).unstack()
+df_cat_clust_counts = b.groupby(a['clust'])['dataset_cat'].value_counts(normalize=True).unstack()
+
+
+fig,ax = plt.subplots(2,1,figsize=(7,10))
+ax1=ax[0]
+ax2=ax[1]
+df_clust_cat_counts.plot.area(ax=ax1,colormap='tab20')
+df_cat_clust_counts.plot.bar(ax=ax2,stacked=True,colormap='RdBu',width=0.8)
+ax1.set_title('Real space data, 5 clusters')
+ax1.set_ylabel('Fraction')
+ax2.set_ylabel('Fraction')
+ax1.set_xlabel('')
+ax2.set_xlabel('Cluster number')
+ax1.legend(title='Cluster number',bbox_to_anchor=(1.25, 0.7))
+ax2.legend(bbox_to_anchor=(1.25, 0.7))
+handles, labels = ax1.get_legend_handles_labels()
+ax1.legend(reversed(handles), reversed(labels),title='Cluster number', bbox_to_anchor=(1.25, 0.7))
+handles, labels = ax2.get_legend_handles_labels()
+ax2.legend(reversed(handles), reversed(labels), bbox_to_anchor=(1.01, 0.65))
+
+plt.show()
+
+
+#%%Attempting mean shift clustering
+
+from sklearn.cluster import MeanShift, estimate_bandwidth
+# The following bandwidth can be automatically detected using
+#msdata = df_all_data_1e6.to_numpy()
+#msdata = df_all_data_norm1.to_numpy()
+#msdata = df_all_data_minmax.to_numpy()
+#msdata = df_all_data_standard.to_numpy()
+#msdata = df_all_data_robust.to_numpy()
+#msdata = df_all_data_norm.to_numpy()
+msdata = latent_space
+
+
+bandwidth = estimate_bandwidth(msdata, quantile=0.2)
+
+ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
+ms.fit(msdata)
+labels = ms.labels_
+cluster_centers = ms.cluster_centers_
+cluster_centers_norm = (cluster_centers.T / cluster_centers.sum(axis=1)).T
+
+labels_unique = np.unique(labels)
+n_clusters_ = len(labels_unique)
+
+print("number of estimated clusters : %d" % n_clusters_)
+
+ms_cluster_profiles_mtx = np.empty((1,n_clusters_,df_all_data.shape[1]))
+ms_cluster_profiles_mtx.fill(np.NaN)
+ms_cluster_profiles_mtx_norm = cluster_profiles_mtx.copy()
+for this_cluster in np.arange(n_clusters_):
+    cluster_sum = df_all_data[labels==this_cluster].sum(axis=0)
+    ms_cluster_profiles_mtx[0,this_cluster,:] = cluster_sum
+    ms_cluster_profiles_mtx_norm[0,this_cluster,:] = cluster_sum / cluster_sum.sum()
+
+
+
+
+ms_num_clusters_index = np.ones(1)
+ms_num_clusters_index.fill(n_clusters_)
+
+plot_one_cluster_profile(ms_cluster_profiles_mtx_norm, ms_num_clusters_index, n_clusters_, mz_columns)
+
+# def meanshift_data(df_data):
+#     num_clusters_array = np.arange(min_num_clusters,max_num_clusters+1)
+#     cluster_labels_mtx = []
+    
+#     #First run the clustering
+#     #agglom = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
+#     #clustering = agglom.fit(df_data.values)
+#     ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
+#     ms.fit(msdata)
+#     labels = ms.labels_
+#     cluster_centers = ms.cluster_centers_
+    
+#     cluster_labels_mtx.append(ms.labels_)
+#     labels = ms.labels_
+#     labels_unique = np.unique(labels)
+#     n_clusters_ = len(labels_unique)
+    
+#     df_cluster_labels_mtx = pd.DataFrame(cluster_labels_mtx,index=num_clusters_array).T
+#     df_cluster_labels_mtx.index=df_data.index
+    
+    
+#     num_clusters_array = np.array(1)
+#     num_clusters_array.fill(n_clusters_)
+    
+#     #Average the cluster profiles
+#     for this_cluster in np.arange(num_clusters):
+#         cluster_sum = df_data[labels==this_cluster].sum()
+#         cluster_profiles_mtx[(num_clusters-df_cluster_labels_mtx.columns[0]),this_cluster,:] = cluster_sum
+#         cluster_profiles_mtx_norm[(num_clusters-df_cluster_labels_mtx.columns[0]),this_cluster,:] = cluster_sum / cluster_sum.sum()
+    
+    # return df_cluster_labels_mtx, cluster_profiles_mtx, cluster_profiles_mtx_norm, num_clusters_index, cluster_index
     
 
 #%%Plot the 5 cluster profiles
@@ -648,7 +926,7 @@ plt.show()
 #%%Work out how many epochs to train for
 #Based on the above, use an AE with 2 intermediate layers and latent dim of 20
 ae_obj = AE_n_layer(input_dim=input_dim,latent_dim=21,int_layers=2)
-history = ae_obj.fit_model(ae_input, x_test=ae_input_val,epochs=300)
+history = ae_obj.fit_model(ae_input, x_test=ae_input_val,epochs=100)
 val_acc_per_epoch = history.history['val_loss']
 fig,ax = plt.subplots(1,figsize=(8,6))
 ax.plot(val_acc_per_epoch)

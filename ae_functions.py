@@ -20,6 +20,7 @@ import datetime as dt
 import numpy as np
 import pdb
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 
 import tensorflow.keras.layers as layers
 import tensorflow.keras.optimizers as optimizers
@@ -31,6 +32,7 @@ from tensorflow.keras import metrics
 import kerastuner as kt
 from sklearn.preprocessing import RobustScaler, StandardScaler,FunctionTransformer,MinMaxScaler
 from sklearn.pipeline import Pipeline
+
 
 import re
 import os
@@ -459,6 +461,8 @@ def orbitrap_filter(df_in):
     #pdb.set_trace()
     #Manually remove dedecanesulfonic acid as it's a huge background signal
     df_orbitrap_peaks.drop(df_orbitrap_peaks[df_orbitrap_peaks["Formula"] == "C12 H26 O3 S"].index,inplace=True)
+    #Manually remove 4-nitrophenol as it is a huge peak and domnates Delhi
+    df_orbitrap_peaks.drop(df_orbitrap_peaks[df_orbitrap_peaks["Formula"] == "C6 H5 N O3"].index,inplace=True)
 
     #Filter out peaks with strange formula
     df_orbitrap_peaks = df_orbitrap_peaks[df_orbitrap_peaks["Formula"].apply(lambda x: filter_by_chemform(x))]
@@ -564,7 +568,8 @@ def chemform_ratios(formula):
 #######################
 # %%
 #Function to extract the top n peaks from a cluster in terms of their chemical formula
-def cluster_extract_peaks(cluster, df_raw,num_peaks,chemform_namelist,dp=1,printdf=False):
+#cluster must be a data series with the column indices of the different peaks
+def cluster_extract_peaks(cluster, df_raw,num_peaks,chemform_namelist=pd.DataFrame(),dp=1,printdf=False):
     #Check they are the same length
     if(cluster.shape[0] != df_raw.shape[0]):
         print("cluster_extract_peaks returning null: cluster and peaks dataframe must have same number of peaks")
@@ -582,12 +587,13 @@ def cluster_extract_peaks(cluster, df_raw,num_peaks,chemform_namelist,dp=1,print
     output_df.set_index(output_df['Formula'],inplace=True)
     output_df["peak_pct"] = nlargest_pct.round(dp).values
     
-    overlap_indices = output_df.index.intersection(chemform_namelist.index)
-    
-    output_df["Name"] = chemform_namelist.loc[overlap_indices]
-    
-    output_df.loc[output_df['Name'].isnull(),'Name'] = output_df['Formula']
-    output_df.drop('Formula',axis=1,inplace=True)
+    if(chemform_namelist.empty == True):
+        output_df["Name"] = output_df["Formula"]
+    else:
+        overlap_indices = output_df.index.intersection(chemform_namelist.index)
+        output_df["Name"] = chemform_namelist.loc[overlap_indices]
+        output_df.loc[output_df['Name'].isnull(),'Name'] = output_df['Formula']
+        output_df.drop('Formula',axis=1,inplace=True)
 
     if(printdf == True):
         print(output_df)
@@ -1805,6 +1811,9 @@ def AE_calc_loss_per_sample(ae_model,x,y):
                                  )
         loss_per_sample.append(loss_i)
     return loss_per_sample
+
+
+
 
 #%%
 ###############################
