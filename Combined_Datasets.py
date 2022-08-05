@@ -66,13 +66,17 @@ df_all_data = pd.concat([df_beijing_data, df_delhi_data], axis=0, join="inner")
 df_all_err = pd.concat([df_beijing_err, df_delhi_err], axis=0, join="inner")
 df_all_raw = pd.concat([df_beijing_raw, df_delhi_raw], axis=1, join="inner")
 df_all_raw = df_all_raw.loc[:,~df_all_raw.columns.duplicated()] #Remove duplicate columns: m/z, RT, molecular weight, formula
+df_all_metadata_times = pd.concat([df_beijing_metadata[['start_datetime','mid_datetime','end_datetime']], df_delhi_metadata[['start_datetime','mid_datetime','end_datetime']]], axis=0, join="inner")
+df_all_metadata_times.columns=['date_start','date_mid','date_end']
+df_all_metadata_times.set_index(pd.to_datetime(df_all_metadata_times['date_mid']),inplace=True)
+df_all_metadata_times = df_all_metadata_times.loc[df_all_data.index]
 
 dataset_cat = delhi_beijing_datetime_cat(df_all_data)
 df_dataset_cat = pd.DataFrame(delhi_beijing_datetime_cat(df_all_data),columns=['dataset_cat'],index=df_all_data.index)
 ds_dataset_cat = df_dataset_cat['dataset_cat']
 
-time_cat = delhi_calc_time_cat(df_all_data)
-df_time_cat = pd.DataFrame(delhi_calc_time_cat(df_all_data),columns=['time_cat'],index=df_all_data.index)
+time_cat = delhi_calc_time_cat(df_all_metadata_times)
+df_time_cat = pd.DataFrame(delhi_calc_time_cat(df_all_metadata_times),columns=['time_cat'],index=df_all_metadata_times.index)
 ds_time_cat = df_time_cat['time_cat']
 
 mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
@@ -454,13 +458,81 @@ def plot_tseries_BeijingDelhi(c,ds_dataset_cat,suptitle,ylabel):
     plt.show()
     
     
+#%% Plot the time series divided into 4 projects
+#c is the time series of cluster index
+#ds_dataset_cat is the categorical data series of which dataset there is
+#suptitle is the title to go at the top of the plot
+def plot_AMS_tseries_BeijingDelhi(df_AQ_all,ds_dataset_cat,suptitle,ylabel):
+    fig,ax = plt.subplots(2,2,figsize=(9,9))
+    ax=ax.ravel()
+    ax0=ax[0]
+    ax0.plot(df_all_data.index,df_AQ_all['AMS_NO3'],c='b')
+    ax0.plot(df_all_data.index,df_AQ_all['AMS_SO4'],c='r')
+    ax0.plot(df_all_data.index,df_AQ_all['AMS_NH4'],c='orange')
+    ax0.plot(df_all_data.index,df_AQ_all['AMS_Chl'],c='pink')
+    ax0.plot(df_all_data.index,df_AQ_all['AMS_Org'],c='g')
+    ax0.set_xlim(ds_dataset_cat[ds_dataset_cat == "Beijing_winter"].index.min(),ds_dataset_cat[ds_dataset_cat == "Beijing_winter"].index.max())
+    ax0.set_ylim(0,110)
+    ax0.set_title('Beijing winter')
+    ax0.set_ylabel(ylabel)
+
+    ax1=ax[1]
+    ax1.plot(df_all_data.index,df_AQ_all['AMS_NO3'],c='b')
+    ax1.plot(df_all_data.index,df_AQ_all['AMS_SO4'],c='r')
+    ax1.plot(df_all_data.index,df_AQ_all['AMS_NH4'],c='orange')
+    ax1.plot(df_all_data.index,df_AQ_all['AMS_Chl'],c='pink')
+    ax1.plot(df_all_data.index,df_AQ_all['AMS_Org'],c='g')
+    ax1.set_xlim(ds_dataset_cat[ds_dataset_cat == "Beijing_summer"].index.min(),ds_dataset_cat[ds_dataset_cat == "Beijing_summer"].index.max())
+    ax1.set_ylim(0,35)
+    ax1.set_title('Beijing summer')
+    ax1.set_ylabel(ylabel)
+
+    ax2=ax[2]
+    ax2.plot(df_all_data.index,df_AQ_all['AMS_NO3'],c='b')
+    ax2.plot(df_all_data.index,df_AQ_all['AMS_SO4'],c='r')
+    ax2.plot(df_all_data.index,df_AQ_all['AMS_NH4'],c='orange')
+    ax2.plot(df_all_data.index,df_AQ_all['AMS_Chl'],c='pink')
+    ax2.plot(df_all_data.index,df_AQ_all['AMS_Org'],c='g')
+    ax2.set_xlim(ds_dataset_cat[ds_dataset_cat == "Delhi_summer"].index.min(),ds_dataset_cat[ds_dataset_cat == "Delhi_summer"].index.max())
+    ax2.set_ylim(0,75)
+    ax2.set_title('Delhi summer')
+    ax2.set_ylabel(ylabel)
+
+    ax3=ax[3]
+    ax3.plot(df_all_data.index,df_AQ_all['AMS_NO3'],c='b')
+    ax3.plot(df_all_data.index,df_AQ_all['AMS_SO4'],c='r')
+    ax3.plot(df_all_data.index,df_AQ_all['AMS_NH4'],c='orange')
+    ax3.plot(df_all_data.index,df_AQ_all['AMS_Chl'],c='pink')
+    ax3.plot(df_all_data.index,df_AQ_all['AMS_Org'],c='g')
+    ax3.plot(df_all_data.index,c)
+    ax3.set_xlim(ds_dataset_cat[ds_dataset_cat == "Delhi_autumn"].index.min(),ds_dataset_cat[ds_dataset_cat == "Delhi_autumn"].index.max())
+    ax3.set_title('Delhi autumn')
+    ax3.set_ylabel(ylabel)
+
+
+    myFmt = mdates.DateFormatter('%d/%m')
+    ax0.xaxis.set_major_formatter(myFmt)
+    ax1.xaxis.set_major_formatter(myFmt)
+    ax2.xaxis.set_major_formatter(myFmt)
+    ax3.xaxis.set_major_formatter(myFmt)
+    ax0.tick_params(axis='x', labelrotation=45)
+    ax1.tick_params(axis='x', labelrotation=45)
+    ax2.tick_params(axis='x', labelrotation=45)
+    ax3.tick_params(axis='x', labelrotation=45)
+
+    fig.suptitle(suptitle)
+    fig.subplots_adjust(top=0.88)
+    fig.tight_layout()
+    plt.show()
+    
+    
+    
 #%%Calc cluster elemental ratios
 def calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios):
     df_clusters_HC_mtx = pd.DataFrame(np.NaN, index = df_cluster_labels_mtx.columns, columns = np.arange(df_cluster_labels_mtx.columns.max()))
     df_clusters_NC_mtx = pd.DataFrame(np.NaN, index = df_cluster_labels_mtx.columns, columns = np.arange(df_cluster_labels_mtx.columns.max()))
     df_clusters_OC_mtx = pd.DataFrame(np.NaN, index = df_cluster_labels_mtx.columns, columns = np.arange(df_cluster_labels_mtx.columns.max()))
     df_clusters_SC_mtx = pd.DataFrame(np.NaN, index = df_cluster_labels_mtx.columns, columns = np.arange(df_cluster_labels_mtx.columns.max()))
-    
     
     #index is the number of clusters
     #columns is the cluster in question
@@ -473,6 +545,51 @@ def calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_r
             df_clusters_OC_mtx.loc[num_clusters,this_cluster] = (cluster_sum * df_element_ratios['O/C']).sum() / cluster_sum.sum()
             df_clusters_SC_mtx.loc[num_clusters,this_cluster] = (cluster_sum * df_element_ratios['S/C']).sum() / cluster_sum.sum()
     return df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx
+
+#%%Calc cluster AMS averages
+def calc_cluster_AMS_means(df_cluster_labels_mtx,df_AQ_all):
+    df_clusters_AMS_NO3_mtx = pd.DataFrame(np.NaN, index = df_cluster_labels_mtx.columns, columns = np.arange(df_cluster_labels_mtx.columns.max()))
+    df_clusters_AMS_SO4_mtx = pd.DataFrame(np.NaN, index = df_cluster_labels_mtx.columns, columns = np.arange(df_cluster_labels_mtx.columns.max()))
+    df_clusters_AMS_NH4_mtx = pd.DataFrame(np.NaN, index = df_cluster_labels_mtx.columns, columns = np.arange(df_cluster_labels_mtx.columns.max()))
+    df_clusters_AMS_Org_mtx = pd.DataFrame(np.NaN, index = df_cluster_labels_mtx.columns, columns = np.arange(df_cluster_labels_mtx.columns.max()))
+    df_clusters_AMS_Chl_mtx = pd.DataFrame(np.NaN, index = df_cluster_labels_mtx.columns, columns = np.arange(df_cluster_labels_mtx.columns.max()))
+    df_clusters_AMS_Total_mtx = pd.DataFrame(np.NaN, index = df_cluster_labels_mtx.columns, columns = np.arange(df_cluster_labels_mtx.columns.max()))
+    
+    #index is the number of clusters
+    #columns is the cluster in question
+    for num_clusters in df_cluster_labels_mtx.columns:
+        c = df_cluster_labels_mtx[num_clusters]
+        for this_cluster in np.arange(num_clusters):
+            df_clusters_AMS_NO3_mtx.loc[num_clusters,this_cluster] = df_AQ_all['AMS_NO3'][c==this_cluster].mean()
+            df_clusters_AMS_SO4_mtx.loc[num_clusters,this_cluster] = df_AQ_all['AMS_SO4'][c==this_cluster].mean()
+            df_clusters_AMS_NH4_mtx.loc[num_clusters,this_cluster] = df_AQ_all['AMS_NH4'][c==this_cluster].mean()
+            df_clusters_AMS_Org_mtx.loc[num_clusters,this_cluster] = df_AQ_all['AMS_Org'][c==this_cluster].mean()
+            df_clusters_AMS_Chl_mtx.loc[num_clusters,this_cluster] = df_AQ_all['AMS_Chl'][c==this_cluster].mean()
+            df_clusters_AMS_Total_mtx.loc[num_clusters,this_cluster] = df_AQ_all['AMS_Total'][c==this_cluster].mean()
+            
+    return df_clusters_AMS_NO3_mtx,df_clusters_AMS_SO4_mtx,df_clusters_AMS_NH4_mtx,df_clusters_AMS_Org_mtx,df_clusters_AMS_Chl_mtx,df_clusters_AMS_Total_mtx
+
+def calc_cluster_AMS_frac(df_cluster_labels_mtx,df_AQ_all):
+    df_clusters_AMS_NO3_frac_mtx = pd.DataFrame(np.NaN, index = df_cluster_labels_mtx.columns, columns = np.arange(df_cluster_labels_mtx.columns.max()))
+    df_clusters_AMS_SO4_frac_mtx = pd.DataFrame(np.NaN, index = df_cluster_labels_mtx.columns, columns = np.arange(df_cluster_labels_mtx.columns.max()))
+    df_clusters_AMS_NH4_frac_mtx = pd.DataFrame(np.NaN, index = df_cluster_labels_mtx.columns, columns = np.arange(df_cluster_labels_mtx.columns.max()))
+    df_clusters_AMS_Org_frac_mtx = pd.DataFrame(np.NaN, index = df_cluster_labels_mtx.columns, columns = np.arange(df_cluster_labels_mtx.columns.max()))
+    df_clusters_AMS_Chl_frac_mtx = pd.DataFrame(np.NaN, index = df_cluster_labels_mtx.columns, columns = np.arange(df_cluster_labels_mtx.columns.max()))
+    
+    
+    #index is the number of clusters
+    #columns is the cluster in question
+    for num_clusters in df_cluster_labels_mtx.columns:
+        c = df_cluster_labels_mtx[num_clusters]
+        for this_cluster in np.arange(num_clusters):
+            df_clusters_AMS_NO3_frac_mtx.loc[num_clusters,this_cluster] = df_AQ_all['AMS_NO3_frac'][c==this_cluster].mean()
+            df_clusters_AMS_SO4_frac_mtx.loc[num_clusters,this_cluster] = df_AQ_all['AMS_SO4_frac'][c==this_cluster].mean()
+            df_clusters_AMS_NH4_frac_mtx.loc[num_clusters,this_cluster] = df_AQ_all['AMS_NH4_frac'][c==this_cluster].mean()
+            df_clusters_AMS_Org_frac_mtx.loc[num_clusters,this_cluster] = df_AQ_all['AMS_Org_frac'][c==this_cluster].mean()
+            df_clusters_AMS_Chl_frac_mtx.loc[num_clusters,this_cluster] = df_AQ_all['AMS_Chl_frac'][c==this_cluster].mean()
+            
+    return df_clusters_AMS_NO3_frac_mtx,df_clusters_AMS_SO4_frac_mtx,df_clusters_AMS_NH4_frac_mtx,df_clusters_AMS_Org_frac_mtx,df_clusters_AMS_Chl_frac_mtx
+
 
 
 #%%Make EOS11 cmap
@@ -530,6 +647,66 @@ def plot_cluster_elemental_ratios(df_clusters_HC_mtx,df_clusters_NC_mtx,df_clust
     plt.show()
     
     return X,Y
+
+#%%Plot cluster AMS Means
+def plot_cluster_AMS_means(df_clusters_AMS_NO3_mtx,df_clusters_AMS_SO4_mtx,df_clusters_AMS_NH4_mtx,df_clusters_AMS_Org_mtx,df_clusters_AMS_Chl_mtx,df_clusters_AMS_Total_mtx,suptitle):
+    #Make X and Y for plotting
+    
+    #X = np.tile(df_clusters_HC_mtx.columns,(df_clusters_HC_mtx.shape[0],1)).T.ravel()
+    #Y = np.tile(df_clusters_HC_mtx.index,df_clusters_HC_mtx.shape[1]) 
+    
+    X = np.arange(df_clusters_AMS_NO3_mtx.index.min(),df_clusters_AMS_NO3_mtx.index.max()+2) - 0.5
+    Y = np.arange(df_clusters_AMS_NO3_mtx.columns.min(),df_clusters_AMS_NO3_mtx.columns.max()+2) - 0.5
+    
+    cmap = Make_EOS11_cmap()
+    
+    fig,ax = plt.subplots(2,3,figsize=(12,8))
+    ax = ax.ravel()
+    plot0 = ax[0].pcolor(X,Y,df_clusters_AMS_NO3_mtx.T,cmap=cmap)
+    ax[0].set_xlabel('Num clusters')
+    ax[0].set_ylabel('Cluster index')
+    plt.colorbar(plot0, label='µg/m3',ax=ax[0])
+    ax[0].set_title('AMS NO3')
+    
+    plot1 = ax[1].pcolor(X,Y,df_clusters_AMS_SO4_mtx.T,cmap=cmap)
+    ax[1].set_xlabel('Num clusters')
+    ax[1].set_ylabel('Cluster index')
+    plt.colorbar(plot1, label='µg/m3',ax=ax[1])
+    ax[1].set_title('AMS SO4')
+    
+    plot2 = ax[2].pcolor(X,Y,df_clusters_AMS_NH4_mtx.T,cmap=cmap)
+    ax[2].set_xlabel('Num clusters')
+    ax[2].set_ylabel('Cluster index')
+    plt.colorbar(plot2, label='µg/m3',ax=ax[2])
+    ax[2].set_title('AMS NH4')
+    
+    plot3 = ax[3].pcolor(X,Y,df_clusters_AMS_Org_mtx.T,cmap=cmap)
+    ax[3].set_xlabel('Num clusters')
+    ax[3].set_ylabel('Cluster index')
+    ax[3].set_ylabel('Cluster index')
+    ax[3].set_title('AMS Org')
+    plt.colorbar(plot3, label='µg/m3',ax=ax[3])
+    
+    plot3 = ax[4].pcolor(X,Y,df_clusters_AMS_Chl_mtx.T,cmap=cmap)
+    ax[3].set_xlabel('Num clusters')
+    ax[3].set_ylabel('Cluster index')
+    ax[3].set_ylabel('Cluster index')
+    ax[3].set_title('AMS Chl')
+    plt.colorbar(plot3, label='µg/m3',ax=ax[4])
+    
+    plot3 = ax[5].pcolor(X,Y,df_clusters_AMS_Total_mtx.T,cmap=cmap)
+    ax[3].set_xlabel('Num clusters')
+    ax[3].set_ylabel('Cluster index')
+    ax[3].set_ylabel('Cluster index')
+    ax[3].set_title('AMS Total')
+    plt.colorbar(plot3, label='µg/m3',ax=ax[5])
+    
+    fig.suptitle(suptitle)
+    fig.subplots_adjust(top=0.88)
+    fig.tight_layout()
+    plt.show()
+    
+    return 1
 
 
 #%% Average the cluster profiles
@@ -608,23 +785,26 @@ def plot_cluster_profile_corrs(df_cluster_corr_mtx, df_prevcluster_corr_mtx):
     plot0 = ax[0].pcolor(X,Y,df_cluster_corr_mtx.T,cmap=cmap)
     ax[0].set_xlabel('Num clusters')
     ax[0].set_ylabel('Cluster index')
+    ax[0].set_title('Highest R with other clusters')
     plt.colorbar(plot0, label='Pearson\'s R',ax=ax[0])
     
     plot1 = ax[1].pcolor(X,Y,df_prevcluster_corr_mtx.T,cmap=cmap)
     ax[1].set_xlabel('Num clusters')
     ax[1].set_ylabel('Cluster index')
+    ax[1].set_title('Highest R with other clusters from previous num clusters')
     plt.colorbar(plot1, label='Pearson\'s R',ax=ax[1])
 
 
 #%%Plot cluster profiles
-def plot_all_cluster_profiles(cluster_profiles_mtx_norm, num_clusters_index,mz_columns,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx):
+def plot_all_cluster_profiles(cluster_profiles_mtx_norm, num_clusters_index,mz_columns,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,df_cluster_corr_mtx,df_prevcluster_corr_mtx):
     for num_clusters in num_clusters_index:
-        plot_one_cluster_profile(cluster_profiles_mtx_norm, num_clusters_index,num_clusters, mz_columns)
+        plot_one_cluster_profile(cluster_profiles_mtx_norm, num_clusters_index,num_clusters, mz_columns,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,df_cluster_corr_mtx,df_prevcluster_corr_mtx)
     
             
 def plot_one_cluster_profile(cluster_profiles_mtx_norm, num_clusters_index, num_clusters, mz_columns,
                              df_clusters_HC_mtx=pd.DataFrame(),df_clusters_NC_mtx=pd.DataFrame(),
-                             df_clusters_OC_mtx=pd.DataFrame(),df_clusters_SC_mtx=pd.DataFrame()):
+                             df_clusters_OC_mtx=pd.DataFrame(),df_clusters_SC_mtx=pd.DataFrame(),
+                             df_cluster_corr_mtx=pd.DataFrame(),df_prevcluster_corr_mtx=pd.DataFrame()):
     if(len(num_clusters_index)==1):
         if(num_clusters_index[0] == num_clusters):
             x_idx=0
@@ -636,7 +816,7 @@ def plot_one_cluster_profile(cluster_profiles_mtx_norm, num_clusters_index, num_
             print("plot_cluster_profiles() error: nclusters is " + str(num_clusters) + " which is not in num_clusters_index")
             return 0
     
-    fig,axes = plt.subplots(num_clusters,2,figsize=(14,3.5*num_clusters),gridspec_kw={'width_ratios': [8, 4]})
+    fig,axes = plt.subplots(num_clusters,2,figsize=(14,2.65*num_clusters),gridspec_kw={'width_ratios': [8, 4]})
     #cluster_profiles_2D = cluster_profiles_mtx_norm[x_idx,:,:]
     for y_idx in np.arange(num_clusters):
         this_cluster_profile = cluster_profiles_mtx_norm[x_idx,y_idx,:]
@@ -662,6 +842,21 @@ def plot_one_cluster_profile(cluster_profiles_mtx_norm, num_clusters_index, num_
         if(df_clusters_SC_mtx.empty == False ):
             ax.text(0.84, 0.85, 'S/C = ' + str(round(df_clusters_SC_mtx.loc[num_clusters][y_idx],3) ), transform=ax.transAxes, fontsize=12,
                     verticalalignment='top')
+            
+        #Add in best correlation
+        if(df_cluster_corr_mtx.empty == False ):
+            #Find best cluster correlation
+            best_R = df_cluster_corr_mtx.loc[num_clusters][y_idx]
+            ax.text(0.69, 0.75, 'Highest R = ' + str(round(best_R,2) ), transform=ax.transAxes, fontsize=12,
+                    verticalalignment='top')
+        if(df_prevcluster_corr_mtx.empty == False):
+            #Find best cluster correlation
+            best_R_prev = df_prevcluster_corr_mtx.loc[num_clusters][y_idx]
+            if(best_R_prev < 0.9999999):
+                ax.text(0.69, 0.65, 'Highest R_prev = ' + str(round(best_R_prev,2) ), transform=ax.transAxes, fontsize=12,
+                    verticalalignment='top')
+        
+        
     
         #Add in a table with the top peaks
         #pdb.set_trace()
@@ -686,14 +881,93 @@ def plot_one_cluster_profile(cluster_profiles_mtx_norm, num_clusters_index, num_
     
     plt.show()
 
+
 #%%
-#Implementation of workflow
-df_cluster_labels_mtx = cluster_n_times(df_all_data_1e6,10,min_num_clusters=1)
+def plot_all_cluster_tseries_BeijingDelhi(df_cluster_labels_mtx,ds_dataset_cat, title_prefix='',title_suffix=''):
+    num_plots_to_make = df_cluster_labels_mtx.shape[1]
+    for num_clusters in df_cluster_labels_mtx.columns:
+        c = df_cluster_labels_mtx[num_clusters]
+        title = title_prefix + str(num_clusters) + ' clusters' + title_suffix
+        plot_tseries_BeijingDelhi(c,ds_dataset_cat,title,'Cluster index')
+        
+        
+#%%Count clusters by project and time
+def count_clusters_project_time(df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat,title_prefix='',title_suffix=''):
+    for num_clusters in df_cluster_labels_mtx.columns:
+        c = df_cluster_labels_mtx[num_clusters]
+        a = pd.DataFrame(c.values,columns=['clust'],index=df_dataset_cat.index)
+        a1 = pd.DataFrame(c.values,columns=['clust'],index=df_time_cat.index)
+        #b = df_dataset_cat
+
+        df_clust_cat_counts = a.groupby(df_dataset_cat['dataset_cat'])['clust'].value_counts(normalize=True).unstack()
+        df_cat_clust_counts = df_dataset_cat.groupby(a['clust'])['dataset_cat'].value_counts(normalize=True).unstack()
+        df_clust_time_cat_counts = a1.groupby(df_time_cat['time_cat'])['clust'].value_counts(normalize=True).unstack()
+        df_time_cat_clust_counts = df_time_cat.groupby(a1['clust'])['time_cat'].value_counts(normalize=True).unstack()
+
+
+        fig,ax = plt.subplots(2,2,figsize=(9,10))
+        ax = ax.ravel()
+        plt0 = df_clust_cat_counts.plot.area(ax=ax[0],colormap='tab20')
+        df_cat_clust_counts.plot.bar(ax=ax[1],stacked=True,colormap='RdBu',width=0.8)
+        df_clust_time_cat_counts.plot.area(ax=ax[2],colormap='tab20',legend=False)
+        df_time_cat_clust_counts.plot.bar(ax=ax[3],stacked=True,colormap='PuOr',width=0.8)
+        suptitle = title_prefix + str(num_clusters) + ' clusters' + title_suffix
+        plt.suptitle(suptitle)
+        ax[0].set_ylabel('Fraction')
+        ax[1].set_ylabel('Fraction')
+        ax[0].set_xlabel('')
+        ax[2].set_ylabel('Fraction')
+        ax[2].set_xlabel('')
+        ax[3].set_xlabel('Cluster number')
+        ax[3].set_ylabel('Fraction')
+        ax[1].set_xlabel('Cluster number')
+        #plt0.xticks(rotation=90)
+        #ax[2].set_xticklabels(rotation=90)
+        
+        #ax[0].legend(title='Cluster number',bbox_to_anchor=(0.5, -0.2))
+        #ax[1].legend(bbox_to_anchor=(1.25, 0.7))
+        handles, labels = ax[0].get_legend_handles_labels()
+        ax[0].legend(reversed(handles), reversed(labels),title='Cluster number', bbox_to_anchor=(0.7, -0.2))
+        handles, labels = ax[1].get_legend_handles_labels()
+        ax[1].legend(reversed(handles), reversed(labels), bbox_to_anchor=(0.6, -0.1))
+        handles, labels = ax[3].get_legend_handles_labels()
+        ax[3].legend(reversed(handles), reversed(labels), bbox_to_anchor=(0.6, -0.1))
+        #ax[0].set_xticks(ax[0].get_xticks(), ax[0].get_xticklabels(), rotation=60)
+        ax[0].tick_params(axis='x', labelrotation=30)
+        plt.tight_layout()
+        plt.show()
+        
+        
+
+#%%Implementation of workflow for real space data
+df_cluster_labels_mtx = cluster_n_times(df_all_data_1e6,10,min_num_clusters=2)
+
+#c= df_cluster_labels_mtx[10]
+#plot_tseries_BeijingDelhi(c,ds_dataset_cat,'Real-space clustering, 4 clusters','Cluster index')
+
+
+df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
+
+plot_cluster_elemental_ratios(df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,'Real-space data elemental ratios')
+
+cluster_profiles_mtx, cluster_profiles_mtx_norm, num_clusters_index, cluster_index = average_cluster_profiles(df_cluster_labels_mtx,df_all_data)
+
+df_cluster_corr_mtx, df_prevcluster_corr_mtx = correlate_cluster_profiles(cluster_profiles_mtx_norm, num_clusters_index, cluster_index)
+
+plot_cluster_profile_corrs(df_cluster_corr_mtx, df_prevcluster_corr_mtx)
+
+#plot_one_cluster_profile(cluster_profiles_mtx_norm, num_clusters_index,10,mz_columns,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,df_cluster_corr_mtx,df_prevcluster_corr_mtx)
+plot_all_cluster_tseries_BeijingDelhi(df_cluster_labels_mtx,ds_dataset_cat,title_prefix='Real space, ')
+plot_all_cluster_profiles(cluster_profiles_mtx_norm, num_clusters_index,mz_columns,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,df_cluster_corr_mtx,df_prevcluster_corr_mtx)
+count_clusters_project_time(df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat,title_prefix='Real space ',title_suffix='')
+
+#%%
+#Implementation of workflow for latent space data
 df_latent_space=pd.DataFrame(latent_space,index=df_all_data_1e6.index)
-df_cluster_labels_mtx = cluster_n_times(df_latent_space,10,min_num_clusters=1)
+df_cluster_labels_mtx = cluster_n_times(df_latent_space,10,min_num_clusters=2)
 
 c= df_cluster_labels_mtx[10]
-plot_cluster_tseries_BeijingDelhi(c,ds_dataset_cat,'Latent-space clustering, 4 clusters')
+plot_tseries_BeijingDelhi(c,ds_dataset_cat,'Latent-space clustering, 4 clusters','Cluster index')
 
 
 df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
@@ -706,8 +980,34 @@ df_cluster_corr_mtx, df_prevcluster_corr_mtx = correlate_cluster_profiles(cluste
 
 plot_cluster_profile_corrs(df_cluster_corr_mtx, df_prevcluster_corr_mtx)
 
-plot_one_cluster_profile(cluster_profiles_mtx_norm, num_clusters_index,10,mz_columns,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx )
+plot_one_cluster_profile(cluster_profiles_mtx_norm, num_clusters_index,5,mz_columns,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,df_cluster_corr_mtx,df_prevcluster_corr_mtx)
+plot_all_cluster_profiles(cluster_profiles_mtx_norm, num_clusters_index,mz_columns,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,df_cluster_corr_mtx,df_prevcluster_corr_mtx)
 
+plot_all_cluster_tseries_BeijingDelhi(df_cluster_labels_mtx,ds_dataset_cat,title_prefix='Latent space, ')
+count_clusters_project_time(df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat,title_prefix='Latent space ',title_suffix='')
+
+#%%Implementation of workflow for normalised space data
+df_cluster_labels_mtx = cluster_n_times(df_all_data_norm,10,min_num_clusters=2)
+
+c= df_cluster_labels_mtx[10]
+plot_tseries_BeijingDelhi(c,ds_dataset_cat,'Normalised-space clustering, 4 clusters','Cluster index')
+
+
+df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
+
+plot_cluster_elemental_ratios(df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,'Normalised-space data elemental ratios')
+
+cluster_profiles_mtx, cluster_profiles_mtx_norm, num_clusters_index, cluster_index = average_cluster_profiles(df_cluster_labels_mtx,df_all_data)
+
+df_cluster_corr_mtx, df_prevcluster_corr_mtx = correlate_cluster_profiles(cluster_profiles_mtx_norm, num_clusters_index, cluster_index)
+
+plot_cluster_profile_corrs(df_cluster_corr_mtx, df_prevcluster_corr_mtx)
+plot_all_cluster_tseries_BeijingDelhi(df_cluster_labels_mtx,ds_dataset_cat,title_prefix='Normalised space space, ')
+
+plot_all_cluster_profiles(cluster_profiles_mtx_norm, num_clusters_index,mz_columns,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,df_cluster_corr_mtx,df_prevcluster_corr_mtx)
+#plot_one_cluster_profile(cluster_profiles_mtx_norm, num_clusters_index,10,mz_columns,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx )
+
+count_clusters_project_time(df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat,title_prefix='Normalised space ',title_suffix='')
 
 
 #%%
@@ -738,6 +1038,70 @@ ax2.legend(reversed(handles), reversed(labels), bbox_to_anchor=(1.01, 0.65))
 plt.show()
 
 
+#%%
+#Load AQ data
+df_AQ_Beijing_winter = pd.read_csv(path+'/Beijing winter 2016/aphh_winter_filter_aggregate_merge_JT.csv',parse_dates=['date_start','date_mid','date_end'],dayfirst=True)
+#df_AQ_Beijing_winter["DateTime"] =pd.to_datetime(df_AQ_Beijing_winter["date_mid"])
+df_AQ_Beijing_winter.set_index(pd.to_datetime(df_AQ_Beijing_winter["date_mid"]),inplace=True)
+# df_AQ_Beijing_winter['date_start'] = pd.to_datetime(df_AQ_Beijing_winter['date_start'])
+# df_AQ_Beijing_winter['date_end'] = pd.to_datetime(df_AQ_Beijing_winter['date_end'])
+#df_merge_filtime['time_cat'] = pd.Categorical(delhi_calc_time_cat(df_merge_filtime),[ 'Night', 'Morning','Midday' ,'Afternoon'], ordered=True)
+df_AQ_Beijing_winter['time_cat'] = pd.Categorical(delhi_calc_time_cat(df_AQ_Beijing_winter),['Morning','Midday' ,'Afternoon','Night','24hr'], ordered=True)
+
+
+df_AQ_Beijing_summer = pd.read_csv(path+'/Beijing summer 2017/aphh_summer_filter_aggregate_merge_JT.csv',parse_dates=['date_start','date_mid','date_end'],dayfirst=True)
+#df_AQ_Beijing_summer["DateTime"] =pd.to_datetime(df_AQ_Beijing_summer["date_mid"])
+df_AQ_Beijing_summer.set_index(pd.to_datetime(df_AQ_Beijing_summer["date_mid"]),inplace=True)
+#df_AQ_Beijing_summer['date_start'] = pd.to_datetime(df_AQ_Beijing_summer['date_start'])
+#df_AQ_Beijing_summer['date_end'] = pd.to_datetime(df_AQ_Beijing_summer['date_end'])
+#df_merge_filtime['time_cat'] = pd.Categorical(delhi_calc_time_cat(df_merge_filtime),[ 'Night', 'Morning','Midday' ,'Afternoon'], ordered=True)
+df_AQ_Beijing_summer['time_cat'] = pd.Categorical(delhi_calc_time_cat(df_AQ_Beijing_summer),['Morning','Midday' ,'Afternoon','Night','24hr'], ordered=True)
+
+
+df_AQ_Delhi_summer = pd.read_csv(path+'/Delhi summer 2018/Pre_monsoon_final_merge_JT.csv',parse_dates=['date_start','date_mid','date_end'],dayfirst=True)
+#df_AQ_Beijing_winter["DateTime"] =pd.to_datetime(df_AQ_Beijing_winter["date_mid"])
+df_AQ_Delhi_summer.set_index(pd.to_datetime(df_AQ_Delhi_summer["date_mid"]),inplace=True)
+# df_AQ_Delhi_summer['date_start'] = pd.to_datetime(df_AQ_Delhi_summer['date_start'])
+# df_AQ_Delhi_summer['date_end'] = pd.to_datetime(df_AQ_Delhi_summer['date_end'])
+#df_merge_filtime['time_cat'] = pd.Categorical(delhi_calc_time_cat(df_merge_filtime),[ 'Night', 'Morning','Midday' ,'Afternoon'], ordered=True)
+df_AQ_Delhi_summer['time_cat'] = pd.Categorical(delhi_calc_time_cat(df_AQ_Delhi_summer),['Morning','Midday' ,'Afternoon','Night','24hr'], ordered=True)
+
+
+df_AQ_Delhi_autumn = pd.read_csv(path+'/Delhi autumn 2018/Delhi_Autumn_merge_JT.csv',parse_dates=['date_start','date_mid','date_end'],dayfirst=True)
+#df_AQ_Beijing_winter["DateTime"] =pd.to_datetime(df_AQ_Beijing_winter["date_mid"])
+df_AQ_Delhi_autumn.set_index(pd.to_datetime(df_AQ_Delhi_autumn["date_mid"]),inplace=True)
+# df_AQ_Delhi_autumn['date_start'] = pd.to_datetime(df_AQ_Delhi_autumn['date_start'])
+# df_AQ_Delhi_autumn['date_end'] = pd.to_datetime(df_AQ_Delhi_autumn['date_end'])
+#df_merge_filtime['time_cat'] = pd.Categorical(delhi_calc_time_cat(df_merge_filtime),[ 'Night', 'Morning','Midday' ,'Afternoon'], ordered=True)
+df_AQ_Delhi_autumn['time_cat'] = pd.Categorical(delhi_calc_time_cat(df_AQ_Delhi_autumn),['Morning','Midday' ,'Afternoon','Night','24hr'], ordered=True)
+df_AQ_Delhi_autumn['time_cat'] = delhi_calc_time_cat(df_AQ_Delhi_autumn)
+
+
+
+
+#Merge the AQ data
+df_AQ_all = pd.concat([df_AQ_Beijing_winter,df_AQ_Beijing_summer,df_AQ_Delhi_summer,df_AQ_Delhi_autumn],
+    axis=0,join="outer",)
+
+df_AQ_all['sample_time_length'] = (df_AQ_all['date_end'] - df_AQ_all['date_start']) / dt.timedelta(hours=1)
+
+
+df_AQ_all_time_cat_stats = df_AQ_all.groupby(df_AQ_all['time_cat']).describe()
+
+plt.scatter(df_AQ_all.sort_values('time_cat')['time_cat'],df_AQ_all.sort_values('time_cat')['sample_time_length'])
+
+df_AQ_all = df_AQ_all.loc[df_all_data.index]
+
+df_AQ_all['AMS_Total'] = df_AQ_all['AMS_NO3'] + df_AQ_all['AMS_SO4'] + df_AQ_all['AMS_NH4'] + df_AQ_all['AMS_Org'] + df_AQ_all['AMS_Chl']
+df_AQ_all['AMS_NO3_frac'] = df_AQ_all['AMS_NO3'] / df_AQ_all['AMS_Total']
+df_AQ_all['AMS_SO4_frac'] = df_AQ_all['AMS_SO4'] / df_AQ_all['AMS_Total']
+df_AQ_all['AMS_NH4_frac'] = df_AQ_all['AMS_NH4'] / df_AQ_all['AMS_Total']
+df_AQ_all['AMS_Org_frac'] = df_AQ_all['AMS_Org'] / df_AQ_all['AMS_Total']
+df_AQ_all['AMS_Chl_frac'] = df_AQ_all['AMS_Chl'] / df_AQ_all['AMS_Total']
+#%%Do some stats of number of data points in each time category in each dataset
+
+a = df_all_data.groupby([dataset_cat,time_cat]).size().unstack()
+I WAS WORKIG ON THIS
 #%%Attempting mean shift clustering
 
 from sklearn.cluster import MeanShift, estimate_bandwidth
@@ -848,6 +1212,19 @@ df_aug = augment_data_noise(df_all_data_norm1,50,1,0)
 ae_input = df_aug.values
 ae_input_val = df_all_data_norm1.values
 input_dim = ae_input.shape[1]
+
+
+#%%AE but with normalised data as input
+df_aug = augment_data_noise(df_all_data_norm,50,1,0)
+ae_input = df_aug.values
+ae_input_val = df_all_data_norm.values
+input_dim = ae_input.shape[1]
+print('USING NORMALISED DATA AS AE INPUT')
+
+
+
+
+
 #%%Now compare loss for different latent dimensions
 #This is NOT using kerastuner, and is using log-spaced intermediate layers
 #WARNING THIS TAKES ABOUT HALF AN HOUR
@@ -923,6 +1300,10 @@ ax[1].xaxis.set_minor_locator(plticker.MultipleLocator(base=1.0))
 
 plt.show()
 
+
+plt.figure(figsize=(8,8))
+plt.pcolormesh(df_latent_space)
+
 #%%Work out how many epochs to train for
 #Based on the above, use an AE with 2 intermediate layers and latent dim of 20
 ae_obj = AE_n_layer(input_dim=input_dim,latent_dim=21,int_layers=2)
@@ -967,33 +1348,75 @@ plt.show()
 
 
 #%%Evaluate loss per sample for AE
-# loss_per_sample = []
-# for i in range(ae_input_val.shape[0]):
-#     loss_i = ae_obj.ae.evaluate(x=ae_input_val[i:i+1],
-#                              y=ae_input_val[i:i+1],
-#                              batch_size=None,
-#                              verbose=0,
-#                              steps=1
-#                              )
-#     loss_per_sample.append(loss_i)
+loss_per_sample = []
+for i in range(ae_input_val.shape[0]):
+    loss_i = ae_obj.ae.evaluate(x=ae_input_val[i:i+1],
+                              y=ae_input_val[i:i+1],
+                              batch_size=None,
+                              verbose=0,
+                              steps=1
+                              )
+    loss_per_sample.append(loss_i)
 
 
 
 
 #%%See that one filter has higher loss in the AE, but not sure why
 ds_AE_loss_per_sample = pd.Series(AE_calc_loss_per_sample(ae_obj.ae,ae_input_val,ae_input_val), index=df_all_data.index)
+ds_AE_loss_per_sample.plot(ylabel='AE loss per sample')
 #%%
-index_top_loss= ds_AE_loss_per_sample.nlargest(1).index
+index_top_loss= ds_AE_loss_per_sample.nlargest(2).index
 print(ds_AE_loss_per_sample[index_top_loss])
 
 
-cluster_extract_peaks(df_all_data.loc[index_top_loss].mean(), df_all_raw,10,chemform_namelist_all,dp=1,printdf=False)
+a = cluster_extract_peaks(df_all_data.loc[index_top_loss[1]], df_all_raw,10,chemform_namelist_all,dp=1,printdf=False)
 
 cluster_extract_peaks(df_all_data.mean(), df_all_raw,10,chemform_namelist_all,dp=1,printdf=False)
 
-cluster_extract_peaks(df_all_data_log1p.mean(), df_all_raw,10,chemform_namelist_all,dp=1,printdf=False)
+#cluster_extract_peaks(df_all_data_norm.mean(), df_all_raw,10,chemform_namelist_all,dp=1,printdf=False)
 
 #%%Make some plots of the above
+
+
+def plot_top_ae_loss():
+    num_plots=4
+    index_top_loss= ds_AE_loss_per_sample.nlargest(num_plots).index
+    
+    fig,axes = plt.subplots(num_plots,2,figsize=(14,1.5*num_clusters),gridspec_kw={'width_ratios': [8, 4]})
+    fig.suptitle('Spectra of top AE loss samples, AE trained on real-space data')
+    for y_idx in np.arange(num_plots):
+        this_cluster_profile = df_all_data.loc[index_top_loss[y_idx]].to_numpy()
+        #top_peaks = cluster_extract_peaks(df_all_data.loc[index_top_loss[y_idx]], df_all_raw,10,chemform_namelist_all,dp=1,printdf=False)
+        ax = axes[-y_idx-1][0]
+        ax.stem(mz_columns.to_numpy(),this_cluster_profile,markerfmt=' ')
+        ax.set_xlim(left=100,right=400)
+        ax.set_xlabel('m/z')
+        ax.set_ylabel('Relative concentration')
+        #ax.set_title('Cluster' + str(y_idx))
+        ax.text(0.01, 0.95, 'Sample ' + str(y_idx), transform=ax.transAxes, fontsize=12,
+                verticalalignment='top')
+        
+        #Add in a table with the top peaks
+        #pdb.set_trace()
+        ds_this_cluster_profile = pd.Series(this_cluster_profile,index=df_all_data.columns).T
+        df_top_peaks = cluster_extract_peaks(ds_this_cluster_profile, df_all_raw,10,chemform_namelist_all,dp=1,printdf=False)
+        df_top_peaks.index = df_top_peaks.index.str.replace(' ', '')
+        ax2 = axes[-y_idx-1][1]
+        #pdb.set_trace()
+        cellText = pd.merge(df_top_peaks, Sari_peaks_list, how="left",left_index=True,right_index=True)[['peak_pct','Source']]
+        cellText['Source'] = cellText['Source'].astype(str).replace(to_replace='nan',value='')
+        cellText = cellText.reset_index().values
+        the_table = ax2.table(cellText=cellText,loc='center',cellLoc='left',colLabels=['Formula','%','Potential source'],edges='open',colWidths=[0.3,0.1,0.6])
+        the_table.auto_set_font_size(False)
+        the_table.set_fontsize(11)
+        cells = the_table.properties()["celld"]
+        for i in range(0, 11):
+            cells[i, 1].set_text_props(ha="right")
+            
+        plt.tight_layout()
+    
+    
+plot_top_ae_loss()
 
 
 #%%Top feature explorer
@@ -1189,17 +1612,17 @@ plt.show()
 
 
 
-#%%tSNE plots for latent space clusters
+#%%tSNE plots for Real space clusters
 colormap = ['k','blue','red','yellow','gray','purple','aqua','gold','orange']
 
 for num_clusters in range(2,10):
     agglom = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
-    clustering = agglom.fit(df_all_data_log1p.to_numpy())
+    clustering = agglom.fit(df_all_data_norm1.to_numpy())
     # plt.plot(clustering.labels_)
     # plt.scatter(df_beijing_filters.index,clustering.labels_,marker='.')
     
     tsne = TSNE(n_components=2, random_state=0)
-    X_tsne = tsne.fit_transform(df_all_data_log1p.to_numpy())
+    X_tsne = tsne.fit_transform(df_all_data_norm1.to_numpy())
     plt.figure(figsize=(9,5))
     plt.scatter(X_tsne[:, 0], X_tsne[:, 1],
                 c=clustering.labels_,
@@ -1210,6 +1633,46 @@ for num_clusters in range(2,10):
     plt.colorbar(boundaries=bounds,ticks=ticks,label='Cluster')
     plt.title('tSNE real space, ' + str(num_clusters) + ' clusters')
     plt.show()
+    
+for num_clusters in range(2,10):
+    agglom = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
+    clustering = agglom.fit(latent_space)
+    # plt.plot(clustering.labels_)
+    # plt.scatter(df_beijing_filters.index,clustering.labels_,marker='.')
+    
+    tsne = TSNE(n_components=2, random_state=0)
+    X_tsne = tsne.fit_transform(latent_space)
+    plt.figure(figsize=(9,5))
+    plt.scatter(X_tsne[:, 0], X_tsne[:, 1],
+                c=clustering.labels_,
+                cmap=ListedColormap(colormap[0:num_clusters]))
+
+    bounds = np.arange(0,num_clusters+1) -0.5
+    ticks = np.arange(0,num_clusters)
+    plt.colorbar(boundaries=bounds,ticks=ticks,label='Cluster')
+    plt.title('tSNE latent space, ' + str(num_clusters) + ' clusters')
+    plt.show()
+    
+for num_clusters in range(2,10):
+    agglom = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
+    clustering = agglom.fit(df_all_data_norm.to_numpy())
+    # plt.plot(clustering.labels_)
+    # plt.scatter(df_beijing_filters.index,clustering.labels_,marker='.')
+    
+    tsne = TSNE(n_components=2, random_state=0)
+    X_tsne = tsne.fit_transform(df_all_data_norm.to_numpy())
+    plt.figure(figsize=(9,5))
+    plt.scatter(X_tsne[:, 0], X_tsne[:, 1],
+                c=clustering.labels_,
+                cmap=ListedColormap(colormap[0:num_clusters]))
+
+    bounds = np.arange(0,num_clusters+1) -0.5
+    ticks = np.arange(0,num_clusters)
+    plt.colorbar(boundaries=bounds,ticks=ticks,label='Cluster')
+    plt.title('tSNE normalised space, ' + str(num_clusters) + ' clusters')
+    plt.show()
+    
+
 
 
 

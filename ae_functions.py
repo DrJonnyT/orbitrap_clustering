@@ -386,10 +386,21 @@ def delhi_calc_time_cat(df_in):
       14: "Afternoon",
       15: "Afternoon",
       16: "Afternoon",
-      17: "Afternoon",  
+      17: "Afternoon",
+      18: "Afternoon",  
+      19: "Afternoon",
+      20: "Night",
+      21: "Night",
+      22: "Night",
+      23: "Night",
     }
     
-    return pd.Categorical(df_in.index.hour.to_series().map(dict_hour_to_time_cat).values,['Morning','Midday' ,'Afternoon','Night'], ordered=True)
+    cat1 = pd.Categorical(df_in.index.hour.to_series().map(dict_hour_to_time_cat).values,categories=['Morning','Midday' ,'Afternoon','Night','24hr'], ordered=True)
+    #pdb.set_trace()
+    time_length = (df_in['date_end'] - df_in['date_start']) / dt.timedelta(hours=1)
+    cat1[time_length>22] = ['24hr']
+    
+    return cat1
 
 #Map filter times onto night/morning/midday/afternoon as per Hamilton et al 2021
 #Also 24hr filters as separate category- this requires a time length column
@@ -462,7 +473,7 @@ def orbitrap_filter(df_in):
     #Manually remove dedecanesulfonic acid as it's a huge background signal
     df_orbitrap_peaks.drop(df_orbitrap_peaks[df_orbitrap_peaks["Formula"] == "C12 H26 O3 S"].index,inplace=True)
     #Manually remove 4-nitrophenol as it is a huge peak and domnates Delhi
-    df_orbitrap_peaks.drop(df_orbitrap_peaks[df_orbitrap_peaks["Formula"] == "C6 H5 N O3"].index,inplace=True)
+    #df_orbitrap_peaks.drop(df_orbitrap_peaks[df_orbitrap_peaks["Formula"] == "C6 H5 N O3"].index,inplace=True)
 
     #Filter out peaks with strange formula
     df_orbitrap_peaks = df_orbitrap_peaks[df_orbitrap_peaks["Formula"].apply(lambda x: filter_by_chemform(x))]
