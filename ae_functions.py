@@ -1143,6 +1143,45 @@ def AE_calc_loss_per_sample(ae_model,x,y):
 
 
 
+def plot_top_ae_loss(df_all_data,ds_AE_loss_per_sample):
+    num_plots=4
+    index_top_loss= ds_AE_loss_per_sample.nlargest(num_plots).index
+    
+    fig,axes = plt.subplots(num_plots,2,figsize=(14,1.5*num_clusters),gridspec_kw={'width_ratios': [8, 4]})
+    fig.suptitle('Spectra of top AE loss samples, AE trained on real-space data')
+    for y_idx in np.arange(num_plots):
+        this_cluster_profile = df_all_data.loc[index_top_loss[y_idx]].to_numpy()
+        #top_peaks = cluster_extract_peaks(df_all_data.loc[index_top_loss[y_idx]], df_all_raw,10,chemform_namelist_all,dp=1,printdf=False)
+        ax = axes[-y_idx-1][0]
+        ax.stem(mz_columns.to_numpy(),this_cluster_profile,markerfmt=' ')
+        ax.set_xlim(left=100,right=400)
+        ax.set_xlabel('m/z')
+        ax.set_ylabel('Relative concentration')
+        #ax.set_title('Cluster' + str(y_idx))
+        ax.text(0.01, 0.95, 'Sample ' + str(y_idx), transform=ax.transAxes, fontsize=12,
+                verticalalignment='top')
+        
+        #Add in a table with the top peaks
+        #pdb.set_trace()
+        ds_this_cluster_profile = pd.Series(this_cluster_profile,index=df_all_data.columns).T
+        df_top_peaks = cluster_extract_peaks(ds_this_cluster_profile, df_all_raw,10,chemform_namelist_all,dp=1,printdf=False)
+        df_top_peaks.index = df_top_peaks.index.str.replace(' ', '')
+        ax2 = axes[-y_idx-1][1]
+        #pdb.set_trace()
+        cellText = pd.merge(df_top_peaks, Sari_peaks_list, how="left",left_index=True,right_index=True)[['peak_pct','Source']]
+        cellText['Source'] = cellText['Source'].astype(str).replace(to_replace='nan',value='')
+        cellText = cellText.reset_index().values
+        the_table = ax2.table(cellText=cellText,loc='center',cellLoc='left',colLabels=['Formula','%','Potential source'],edges='open',colWidths=[0.3,0.1,0.6])
+        the_table.auto_set_font_size(False)
+        the_table.set_fontsize(11)
+        cells = the_table.properties()["celld"]
+        for i in range(0, 11):
+            cells[i, 1].set_text_props(ha="right")
+            
+        plt.tight_layout()
+
+
+
 
 #%%
 ###############################
