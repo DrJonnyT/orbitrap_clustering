@@ -209,7 +209,7 @@ def delhi_load2(path,subtract_blank=True,output="DEFAULT"):
     
     #Filter out "bad" columns
     df_delhi_raw = orbitrap_filter(df_delhi_raw)
-    pdb.set_trace()
+    #pdb.set_trace()
     df_delhi_raw_chem = df_delhi_raw.iloc[:,np.r_[0:4]]
     df_delhi_raw_autumn = df_delhi_raw.iloc[:,np.r_[37:138]]
     df_delhi_raw_summer = df_delhi_raw.iloc[:,np.r_[4:37]]
@@ -557,12 +557,12 @@ def orbitrap_filter(df_in):
     
     #ORIGINAL
     #df_orbitrap_peaks = df_orbitrap_peaks.iloc[:,np.r_[0:4]].groupby([mz_round,RT_round]).aggregate("first").join(df_orbitrap_peaks.iloc[:,np.r_[4:len(df_orbitrap_peaks.columns)]].groupby([mz_round,RT_round]).aggregate("sum") )
-    pdb.set_trace()
+    #pdb.set_trace()
     #MERGE SAME MOLECULE AND RT <10 OR >10
     RT_round10 =  df_orbitrap_peaks["RT [min]"].apply(lambda x: above_below_10(x))
     
-    a = df_orbitrap_peaks.iloc[:,np.r_[0:4]].groupby([df_orbitrap_peaks["Formula"],RT_round10]).aggregate("first")
-    b = df_orbitrap_peaks.iloc[:,np.r_[4:len(df_orbitrap_peaks.columns)]].groupby([df_orbitrap_peaks["Formula"],RT_round10]).aggregate("sum")
+    #a = df_orbitrap_peaks.iloc[:,np.r_[0:4]].groupby([df_orbitrap_peaks["Formula"],RT_round10]).aggregate("first")
+    #b = df_orbitrap_peaks.iloc[:,np.r_[4:len(df_orbitrap_peaks.columns)]].groupby([df_orbitrap_peaks["Formula"],RT_round10]).aggregate("sum")
     
     df_orbitrap_peaks = df_orbitrap_peaks.iloc[:,np.r_[0:4]].groupby([df_orbitrap_peaks["Formula"],RT_round10]).aggregate("first").join(df_orbitrap_peaks.iloc[:,np.r_[4:len(df_orbitrap_peaks.columns)]].groupby([df_orbitrap_peaks["Formula"],RT_round10]).aggregate("sum") )
     
