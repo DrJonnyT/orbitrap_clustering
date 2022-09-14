@@ -16,7 +16,7 @@ import tensorflow.keras.optimizers as optimizers
 from tensorflow.keras.models import Model
 import tensorflow.keras.backend as K
 import tensorflow.keras as keras
-import kerastuner as kt
+import keras_tuner as kt
 
 from sklearn.preprocessing import RobustScaler, StandardScaler,FunctionTransformer,MinMaxScaler,Normalizer
 from sklearn.pipeline import Pipeline
@@ -39,7 +39,7 @@ from matplotlib.cm import ScalarMappable
 import matplotlib.ticker as plticker
 import matplotlib.dates as mdates
 
-import skfuzzy as fuzz
+#import skfuzzy as fuzz
 
 import pandas as pd
 import matplotlib.pyplot as plt

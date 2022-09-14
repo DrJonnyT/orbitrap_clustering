@@ -13,10 +13,10 @@ import pdb
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.ticker import MaxNLocator
 import re
 from sklearn.cluster import AgglomerativeClustering
 from scipy.stats import pearsonr
-
 
 #######################
 ####FILE_LOADERS#######
@@ -396,7 +396,7 @@ def Load_pre_PMF_data(filepath):
         Delhi_autumn_time = pd.to_datetime(igor_time_to_unix(pd.Series(hf['Delhi_Autumn']['noNaNs_midtime_aut'])),unit='s')
         df_Delhi_autumn_data = pd.DataFrame(hf['Delhi_Autumn']['noNaNs_dlhdata1_aut'],index=Delhi_autumn_time)
         df_Delhi_autumn_err = pd.DataFrame(hf['Delhi_Autumn']['noNaNs_dlherr1_autPropWk'],index=Delhi_autumn_time)
-                
+
         #Merge peaks of same molecule and rounded RT
         df_Beijing_winter_data = df_Beijing_winter_data.groupby([Beijing_winter_formula,Beijing_winter_RT],axis=1).aggregate("sum")
         df_Beijing_winter_err = df_Beijing_winter_err.groupby([Beijing_winter_formula,Beijing_winter_RT],axis=1).aggregate(sqrt_sum_squares)
@@ -406,7 +406,7 @@ def Load_pre_PMF_data(filepath):
         df_Delhi_summer_err = df_Delhi_summer_err.groupby([Delhi_summer_formula,Delhi_summer_RT],axis=1).aggregate(sqrt_sum_squares)
         df_Delhi_autumn_data = df_Delhi_autumn_data.groupby([Delhi_autumn_formula,Delhi_autumn_RT],axis=1).aggregate("sum")
         df_Delhi_autumn_err = df_Delhi_autumn_err.groupby([Delhi_autumn_formula,Delhi_autumn_RT],axis=1).aggregate(sqrt_sum_squares)
-    
+        
     
     #Merge the datasets
     df_all_data = pd.concat([df_Beijing_winter_data,df_Beijing_summer_data,df_Delhi_summer_data,df_Delhi_autumn_data],join='inner')
@@ -427,6 +427,10 @@ def Load_pre_PMF_data(filepath):
     ds_all_mz.sort_values(inplace=True)
     df_all_data.columns = ds_all_mz.index
     df_all_err.columns = ds_all_mz.index
+    
+    #Remove mystery sample that wasn't in my previous data
+    df_all_data.drop(pd.to_datetime('2017/06/02 23:19:28'),inplace=True)
+    df_all_err.drop(pd.to_datetime('2017/06/02 23:19:28'),inplace=True)
     
     return df_all_data, df_all_err, ds_all_mz
 
@@ -651,6 +655,7 @@ def chemform_ratios(formula):
 # %%
 #Function to extract the top n peaks from a cluster in terms of their chemical formula
 #cluster must be a data series with the column indices of the different peaks
+#You can use this with df_data.T instead of df_raw
 def cluster_extract_peaks(cluster, df_raw,num_peaks,chemform_namelist=pd.DataFrame(),dp=1,printdf=False):
     #Check they are the same length
     if(cluster.shape[0] != df_raw.shape[0]):
@@ -681,6 +686,142 @@ def cluster_extract_peaks(cluster, df_raw,num_peaks,chemform_namelist=pd.DataFra
         print(output_df)
         
     return output_df
+
+
+
+# def plot_top_ae_loss(df_all_data,ds_AE_loss_per_sample,mz_columns,Sari_peaks_list):
+#     num_plots=4
+#     index_top_loss= ds_AE_loss_per_sample.nlargest(num_plots).index
+    
+#     fig,axes = plt.subplots(num_plots,2,figsize=(14,1.5*num_plots),gridspec_kw={'width_ratios': [8, 4]})
+#     fig.suptitle('Spectra of top AE loss samples, AE trained on real-space data')
+#     for y_idx in np.arange(num_plots):
+#         this_cluster_profile = df_all_data.loc[index_top_loss[y_idx]].to_numpy()
+#         top_peaks = cluster_extract_peaks(df_all_data.loc[index_top_loss[y_idx]], df_all_raw,10,chemform_namelist_all,dp=1,printdf=False)
+#         ax = axes[-y_idx-1][0]
+#         ax.stem(mz_columns.to_numpy(),this_cluster_profile,markerfmt=' ')
+#         ax.set_xlim(left=100,right=400)
+#         ax.set_xlabel('m/z')
+#         ax.set_ylabel('Relative concentration')
+#         #ax.set_title('Cluster' + str(y_idx))
+#         ax.text(0.01, 0.95, 'Sample ' + str(y_idx), transform=ax.transAxes, fontsize=12,
+#                 verticalalignment='top')
+        
+#         #Add in a table with the top peaks
+#         #pdb.set_trace()
+#         ds_this_cluster_profile = pd.Series(this_cluster_profile,index=df_all_data.columns).T
+#         df_top_peaks = cluster_extract_peaks(ds_this_cluster_profile, df_all_raw,10,chemform_namelist_all,dp=1,printdf=False)
+#         df_top_peaks.index = df_top_peaks.index.str.replace(' ', '')
+#         ax2 = axes[-y_idx-1][1]
+#         #pdb.set_trace()
+#         cellText = pd.merge(df_top_peaks, Sari_peaks_list, how="left",left_index=True,right_index=True)[['peak_pct','Source']]
+#         cellText['Source'] = cellText['Source'].astype(str).replace(to_replace='nan',value='')
+#         cellText = cellText.reset_index().values
+#         the_table = ax2.table(cellText=cellText,loc='center',cellLoc='left',colLabels=['Formula','%','Potential source'],edges='open',colWidths=[0.3,0.1,0.6])
+#         the_table.auto_set_font_size(False)
+#         the_table.set_fontsize(11)
+#         cells = the_table.properties()["celld"]
+#         for i in range(0, 11):
+#             cells[i, 1].set_text_props(ha="right")
+            
+#         plt.tight_layout()
+
+
+#Function to extract the top n peaks from a cluster in terms of their chemical formula
+#cluster must be a data series with the column indices of the different peaks
+def plot_orbitrap_top_ae_loss(df_data,mz_columns,ds_AE_loss_per_sample,num_top_losses=1,num_peaks=10,chemform_namelist=pd.DataFrame(),Sari_peaks_list=pd.DataFrame(),dp=1,printdf=False):
+    #Check they are the same length
+    # if(cluster.shape[0] != df_raw.shape[0]):
+    #     print("cluster_extract_peaks returning null: cluster and peaks dataframe must have same number of peaks")
+    #     print("Maybe your data needs transposing, or '.mean()' -ing?")
+    #     return np.NaN
+    #     quit()
+    #     #print("WARNING: cluster_extract_peaks(): cluster and peaks dataframe do not have the same number of peaks")
+    
+    index_top_loss= ds_AE_loss_per_sample.nlargest(num_top_losses).index
+    fig,axes = plt.subplots(num_top_losses,2,figsize=(14,2.65*num_top_losses),gridspec_kw={'width_ratios': [8, 4]})
+    fig.suptitle('Spectra of top AE loss samples, AE trained on real-space data')
+    
+    for y_idx in np.arange(num_top_losses):
+        if(num_top_losses==1):
+            ax = axes[0]
+            ax2 = axes[1]
+        else:
+            ax = axes[y_idx][0]
+            ax2 = axes[y_idx][1]
+            
+        this_cluster_profile = df_data.loc[index_top_loss[y_idx]].to_numpy()
+                
+        ax.stem(mz_columns.to_numpy(),this_cluster_profile,markerfmt=' ')
+        ax.set_xlim(left=100,right=400)
+        ax.set_xlabel('m/z')
+        ax.set_ylabel('Concentration (what units?)')
+        #ax.set_title('Cluster' + str(y_idx))
+        ax.text(0.01, 0.95, 'Top loss ' + str(y_idx+1) + ' ' + str(index_top_loss[y_idx]), transform=ax.transAxes, fontsize=12,
+                verticalalignment='top')
+        
+        #Add in a table with the top peaks
+        #pdb.set_trace()
+        ds_this_cluster_profile = pd.Series(this_cluster_profile,index=df_data.columns).T
+        df_top_peaks = cluster_extract_peaks(ds_this_cluster_profile, df_data.T,10,chemform_namelist,dp=1,printdf=False)
+        #df_top_peaks.index = df_top_peaks.index.str.replace(' ', '')
+        #pdb.set_trace()
+        df_top_peaks.index = df_top_peaks.index.str.replace(" ","")
+#        SUB = str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉")
+#        SUB = str.maketranse("2":"\u2082","2":"\u2082")       
+        cellText = pd.merge(df_top_peaks, Sari_peaks_list, how="left",left_index=True,right_index=True)[['peak_pct','Source']]
+        cellText['Source'] = cellText['Source'].astype(str).replace(to_replace='nan',value='')
+        #cellText.index = cellText.index.str.translate(SUB)
+        cellText = cellText.reset_index().values
+        the_table = ax2.table(cellText=cellText,loc='center',cellLoc='left',colLabels=['Formula','%','Potential source'],edges='open',colWidths=[0.3,0.1,0.6])
+        the_table.auto_set_font_size(False)
+        the_table.set_fontsize(11)
+        cells = the_table.properties()["celld"]
+        for i in range(0, 11):
+            cells[i, 1].set_text_props(ha="right")
+            
+        plt.tight_layout()
+
+
+def format(equation):
+    parts = []
+    partial = 0
+    for char in equation+' ':
+        if char.isnumeric():
+            partial = partial * 10 + int(char)
+            continue
+
+        if partial:
+            if parts[-1] == ')':
+                parts.pop()
+                i = -1
+                while parts[i] != '(':
+                    parts[i][1] *= partial
+                    i -= 1
+            else:
+                parts[-1][1] = partial
+            partial = 0
+
+        if char.isupper():
+            parts.append( [char, 1] )
+        elif char.islower():
+            parts[-1][0] += char
+        elif char == '(':
+            parts.append('(')
+        elif char == ')':
+            parts.append(')')
+    build = []
+    for part in parts:
+        print(part)
+        if part == '(':
+            continue
+        if part[1] == 1:
+            build.append( part[0] )
+        else:
+            build.append( part[0] + str(part[1]))
+    return ''.join(build)
+
+
 
 #Extract the top n peaks in terms of their R correlation
 def top_corr_peaks(df_corr,chemform_namelist,num_peaks,dp=2):
@@ -770,41 +911,52 @@ def cluster_n_times(df_data,max_num_clusters,min_num_clusters=1):
         
     df_cluster_labels_mtx = pd.DataFrame(cluster_labels_mtx,index=num_clusters_array).T
     df_cluster_labels_mtx.index=df_data.index
-    return df_cluster_labels_mtx  
+    return df_cluster_labels_mtx
+
+
+#Count the number of samples in each cluster, for each number of clusters
+def count_cluster_labels_from_mtx(df_cluster_labels_mtx):
+    df_cluster_counts_mtx = pd.DataFrame(columns=np.arange(0,df_cluster_labels_mtx.max().max()+1))
+    for n_clusters in df_cluster_labels_mtx.columns:
+        c =  df_cluster_labels_mtx[n_clusters]
+        c.reset_index(inplace=True,drop=True)
+        df_cluster_counts_mtx.loc[n_clusters] = c.value_counts()
+    
+    return df_cluster_counts_mtx
 
 
 #%% Plot the time series divided into 4 projects
 #c is the time series of cluster index
 #ds_dataset_cat is the categorical data series of which dataset there is
 #suptitle is the title to go at the top of the plot
-def plot_tseries_BeijingDelhi(c,df_all_data,ds_dataset_cat,suptitle,ylabel):
+def plot_tseries_BeijingDelhi(c,ds_dataset_cat,suptitle,ylabel,integer_labels=False):
     fig,ax = plt.subplots(2,2,figsize=(9,9))
     ax=ax.ravel()
     ax0=ax[0]
-    ax0.plot(df_all_data.index,c)
+    ax0.plot(ds_dataset_cat.index,c)
     ax0.set_xlim(ds_dataset_cat[ds_dataset_cat == "Beijing_winter"].index.min(),ds_dataset_cat[ds_dataset_cat == "Beijing_winter"].index.max())
     ax0.set_title('Beijing winter')
     ax0.set_ylabel(ylabel)
 
     ax1=ax[1]
-    ax1.plot(df_all_data.index,c)
+    ax1.plot(ds_dataset_cat.index,c)
     ax1.set_xlim(ds_dataset_cat[ds_dataset_cat == "Beijing_summer"].index.min(),ds_dataset_cat[ds_dataset_cat == "Beijing_summer"].index.max())
     ax1.set_title('Beijing summer')
     ax1.set_ylabel(ylabel)
 
     ax2=ax[2]
-    ax2.plot(df_all_data.index,c)
+    ax2.plot(ds_dataset_cat.index,c)
     ax2.set_xlim(ds_dataset_cat[ds_dataset_cat == "Delhi_summer"].index.min(),ds_dataset_cat[ds_dataset_cat == "Delhi_summer"].index.max())
     ax2.set_title('Delhi summer')
     ax2.set_ylabel(ylabel)
 
     ax3=ax[3]
-    ax3.plot(df_all_data.index,c)
+    ax3.plot(ds_dataset_cat.index,c)
     ax3.set_xlim(ds_dataset_cat[ds_dataset_cat == "Delhi_autumn"].index.min(),ds_dataset_cat[ds_dataset_cat == "Delhi_autumn"].index.max())
     ax3.set_title('Delhi autumn')
     ax3.set_ylabel(ylabel)
 
-
+    #x ticks
     myFmt = mdates.DateFormatter('%d/%m')
     ax0.xaxis.set_major_formatter(myFmt)
     ax1.xaxis.set_major_formatter(myFmt)
@@ -814,6 +966,13 @@ def plot_tseries_BeijingDelhi(c,df_all_data,ds_dataset_cat,suptitle,ylabel):
     ax1.tick_params(axis='x', labelrotation=45)
     ax2.tick_params(axis='x', labelrotation=45)
     ax3.tick_params(axis='x', labelrotation=45)
+    
+    #y ticks
+    if(integer_labels == True):
+        ax0.yaxis.set_major_locator(MaxNLocator(integer=True))
+        ax1.yaxis.set_major_locator(MaxNLocator(integer=True))
+        ax2.yaxis.set_major_locator(MaxNLocator(integer=True))
+        ax3.yaxis.set_major_locator(MaxNLocator(integer=True))
 
     fig.suptitle(suptitle)
     fig.subplots_adjust(top=0.88)
@@ -900,6 +1059,7 @@ def calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_r
     #columns is the cluster in question
     for num_clusters in df_cluster_labels_mtx.columns:
         c = df_cluster_labels_mtx[num_clusters]
+        c.index = df_cluster_labels_mtx.index
         for this_cluster in np.arange(num_clusters):
             cluster_sum = df_all_data[c==this_cluster].sum().values
             df_clusters_HC_mtx.loc[num_clusters,this_cluster] = (cluster_sum * df_element_ratios['H/C']).sum() / cluster_sum.sum()
@@ -1008,7 +1168,7 @@ def plot_cluster_elemental_ratios(df_clusters_HC_mtx,df_clusters_NC_mtx,df_clust
     fig.tight_layout()
     plt.show()
     
-    return X,Y
+    return
 
 #%%Plot cluster AMS Means
 def plot_cluster_AMS_means(df_clusters_AMS_NO3_mtx,df_clusters_AMS_SO4_mtx,df_clusters_AMS_NH4_mtx,df_clusters_AMS_Org_mtx,df_clusters_AMS_Chl_mtx,df_clusters_AMS_Total_mtx,suptitle):
@@ -1107,7 +1267,7 @@ def correlate_cluster_profiles(cluster_profiles_mtx_norm, num_clusters_index, cl
     #columns is the cluster in question
     for x_idx in np.arange(cluster_profiles_mtx_norm.shape[0]):
         num_clusters = num_clusters_index[x_idx]
-        print(num_clusters)
+        #print(num_clusters)
         if(num_clusters>1):
             for this_cluster in np.arange(num_clusters):
                 #Find correlations with other clusters from the same num_clusters
@@ -1142,7 +1302,7 @@ def plot_cluster_profile_corrs(df_cluster_corr_mtx, df_prevcluster_corr_mtx):
     Y = np.arange(df_cluster_corr_mtx.columns.min(),df_cluster_corr_mtx.columns.max()+2) - 0.5
     cmap = Make_EOS11_cmap()
     
-    fig,ax = plt.subplots(1,2,figsize=(10,5))
+    fig,ax = plt.subplots(1,2,figsize=(12,5))
     ax = ax.ravel()
     plot0 = ax[0].pcolor(X,Y,df_cluster_corr_mtx.T,cmap=cmap)
     ax[0].set_xlabel('Num clusters')
@@ -1158,16 +1318,21 @@ def plot_cluster_profile_corrs(df_cluster_corr_mtx, df_prevcluster_corr_mtx):
 
 
 #%%Plot cluster profiles
-def plot_all_cluster_profiles(df_all_data,cluster_profiles_mtx_norm, num_clusters_index,mz_columns,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,df_cluster_corr_mtx,df_prevcluster_corr_mtx):
+def plot_all_cluster_profiles(df_all_data,cluster_profiles_mtx_norm, num_clusters_index,mz_columns,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,df_cluster_corr_mtx,df_prevcluster_corr_mtx,df_cluster_counts_mtx=pd.DataFrame(),peaks_list=pd.DataFrame(columns=['Source']),title_prefix=''):
     for num_clusters in num_clusters_index:
-        plot_one_cluster_profile(cluster_profiles_mtx_norm, num_clusters_index,num_clusters, mz_columns,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,df_cluster_corr_mtx,df_prevcluster_corr_mtx)
+        suptitle = title_prefix + str(int(num_clusters)) + ' clusters'
+        plot_one_cluster_profile(df_all_data,cluster_profiles_mtx_norm, num_clusters_index,num_clusters, mz_columns,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,df_cluster_corr_mtx,df_prevcluster_corr_mtx,df_cluster_counts_mtx,peaks_list,suptitle)
     
             
 def plot_one_cluster_profile(df_all_data,cluster_profiles_mtx_norm, num_clusters_index, num_clusters, mz_columns,
                              df_clusters_HC_mtx=pd.DataFrame(),df_clusters_NC_mtx=pd.DataFrame(),
                              df_clusters_OC_mtx=pd.DataFrame(),df_clusters_SC_mtx=pd.DataFrame(),
-                             df_cluster_corr_mtx=pd.DataFrame(),df_prevcluster_corr_mtx=pd.DataFrame()):
-    if(len(num_clusters_index)==1):
+                             df_cluster_corr_mtx=pd.DataFrame(),df_prevcluster_corr_mtx=pd.DataFrame(),
+                             df_cluster_counts_mtx=pd.DataFrame(),peaks_list=pd.DataFrame(columns=['Source']),suptitle=''):
+    
+    num_clusters_index = np.atleast_1d(num_clusters_index)
+    
+    if((num_clusters_index.shape[0])==1):    #Check if min number of clusters is 1
         if(num_clusters_index[0] == num_clusters):
             x_idx=0
         else:
@@ -1178,7 +1343,8 @@ def plot_one_cluster_profile(df_all_data,cluster_profiles_mtx_norm, num_clusters
             print("plot_cluster_profiles() error: nclusters is " + str(num_clusters) + " which is not in num_clusters_index")
             return 0
     
-    fig,axes = plt.subplots(num_clusters,2,figsize=(14,2.65*num_clusters),gridspec_kw={'width_ratios': [8, 4]})
+    fig,axes = plt.subplots(num_clusters,2,figsize=(14,2.9*num_clusters),gridspec_kw={'width_ratios': [8, 4]},constrained_layout=True)
+    fig.suptitle(suptitle)
     #cluster_profiles_2D = cluster_profiles_mtx_norm[x_idx,:,:]
     for y_idx in np.arange(num_clusters):
         this_cluster_profile = cluster_profiles_mtx_norm[x_idx,y_idx,:]
@@ -1204,30 +1370,42 @@ def plot_one_cluster_profile(df_all_data,cluster_profiles_mtx_norm, num_clusters
         if(df_clusters_SC_mtx.empty == False ):
             ax.text(0.84, 0.85, 'S/C = ' + str(round(df_clusters_SC_mtx.loc[num_clusters][y_idx],3) ), transform=ax.transAxes, fontsize=12,
                     verticalalignment='top')
+        
+        #Add in number of data points for this cluster
+        if(df_cluster_counts_mtx.empty == False):
+            #Find num samples in this cluster
+            num_samples_this_cluster = df_cluster_counts_mtx.loc[num_clusters][y_idx]
+            if(num_samples_this_cluster==1):
+                ax.text(0.69, 0.75, str(int(num_samples_this_cluster)) + ' sample', transform=ax.transAxes, fontsize=12,
+                verticalalignment='top')
+            else:
+                ax.text(0.69, 0.75, str(int(num_samples_this_cluster)) + ' samples', transform=ax.transAxes, fontsize=12,
+                verticalalignment='top')
             
         #Add in best correlation
         if(df_cluster_corr_mtx.empty == False ):
             #Find best cluster correlation
             best_R = df_cluster_corr_mtx.loc[num_clusters][y_idx]
-            ax.text(0.69, 0.75, 'Highest R = ' + str(round(best_R,2) ), transform=ax.transAxes, fontsize=12,
+            ax.text(0.69, 0.65, 'Highest R = ' + str(round(best_R,2) ), transform=ax.transAxes, fontsize=12,
                     verticalalignment='top')
         if(df_prevcluster_corr_mtx.empty == False):
             #Find best cluster correlation
             best_R_prev = df_prevcluster_corr_mtx.loc[num_clusters][y_idx]
             if(best_R_prev < 0.9999999):
-                ax.text(0.69, 0.65, 'Highest R_prev = ' + str(round(best_R_prev,2) ), transform=ax.transAxes, fontsize=12,
+                ax.text(0.69, 0.55, 'Highest R_prev = ' + str(round(best_R_prev,2) ), transform=ax.transAxes, fontsize=12,
                     verticalalignment='top')
+        
         
         
     
         #Add in a table with the top peaks
-        #pdb.set_trace()
         ds_this_cluster_profile = pd.Series(this_cluster_profile,index=df_all_data.columns).T
-        df_top_peaks = cluster_extract_peaks(ds_this_cluster_profile, df_all_raw,10,chemform_namelist_all,dp=1,printdf=False)
+        df_top_peaks = cluster_extract_peaks(ds_this_cluster_profile, df_all_data.T,10,dp=1,printdf=False)
         df_top_peaks.index = df_top_peaks.index.str.replace(' ', '')
         ax2 = axes[-y_idx-1][1]
         #pdb.set_trace()
-        cellText = pd.merge(df_top_peaks, Sari_peaks_list, how="left",left_index=True,right_index=True)[['peak_pct','Source']]
+        cellText = pd.merge(df_top_peaks, peaks_list, how="left",left_index=True,right_index=True)[['peak_pct','Source']]
+        cellText.sort_values('peak_pct',inplace=True,ascending=False)
         cellText['Source'] = cellText['Source'].astype(str).replace(to_replace='nan',value='')
         cellText = cellText.reset_index().values
         the_table = ax2.table(cellText=cellText,loc='center',cellLoc='left',colLabels=['Formula','%','Potential source'],edges='open',colWidths=[0.3,0.1,0.6])
@@ -1237,9 +1415,10 @@ def plot_one_cluster_profile(df_all_data,cluster_profiles_mtx_norm, num_clusters
         for i in range(0, 11):
             cells[i, 1].set_text_props(ha="right")
         
-        #the_table.scale(1, 1.5)  # may help
         
-        plt.tight_layout()
+        #the_table.scale(1, 1.5)  # may help
+        #plt.tight_layout()
+        
     
     plt.show()
 
@@ -1250,7 +1429,7 @@ def plot_all_cluster_tseries_BeijingDelhi(df_cluster_labels_mtx,ds_dataset_cat, 
     for num_clusters in df_cluster_labels_mtx.columns:
         c = df_cluster_labels_mtx[num_clusters]
         title = title_prefix + str(num_clusters) + ' clusters' + title_suffix
-        plot_tseries_BeijingDelhi(c,ds_dataset_cat,title,'Cluster index')
+        plot_tseries_BeijingDelhi(c,ds_dataset_cat,title,'Cluster index',integer_labels=True)
         
         
 #%%Count clusters by project and time
@@ -1262,10 +1441,10 @@ def count_clusters_project_time(df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat
         #b = df_dataset_cat
 
         #IF THIS FAILS ITS BECAUSE IT NEEDS DF NOT DS
-        df_clust_cat_counts = a.groupby(ds_dataset_cat['dataset_cat'])['clust'].value_counts(normalize=True).unstack()
-        df_cat_clust_counts = ds_dataset_cat.groupby(a['clust'])['dataset_cat'].value_counts(normalize=True).unstack()
-        df_clust_time_cat_counts = a1.groupby(ds_time_cat['time_cat'])['clust'].value_counts(normalize=True).unstack()
-        df_time_cat_clust_counts = ds_time_cat.groupby(a1['clust'])['time_cat'].value_counts(normalize=True).unstack()
+        df_clust_cat_counts = a.groupby(ds_dataset_cat)['clust'].value_counts(normalize=True).unstack()
+        df_cat_clust_counts = ds_dataset_cat.groupby(a['clust']).value_counts(normalize=True).unstack()
+        df_clust_time_cat_counts = a1.groupby(ds_time_cat)['clust'].value_counts(normalize=True).unstack()
+        df_time_cat_clust_counts = ds_time_cat.groupby(a1['clust']).value_counts(normalize=True).unstack()
 
 
         fig,ax = plt.subplots(2,2,figsize=(9,10))
@@ -1290,16 +1469,18 @@ def count_clusters_project_time(df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat
         #ax[0].legend(title='Cluster number',bbox_to_anchor=(0.5, -0.2))
         #ax[1].legend(bbox_to_anchor=(1.25, 0.7))
         handles, labels = ax[0].get_legend_handles_labels()
-        ax[0].legend(reversed(handles), reversed(labels),title='Cluster number', bbox_to_anchor=(0.7, -0.2))
+        ax[0].legend(reversed(handles), reversed(labels),title='Cluster number', bbox_to_anchor=(1.0, -0.2),ncol=5)
         handles, labels = ax[1].get_legend_handles_labels()
-        ax[1].legend(reversed(handles), reversed(labels), bbox_to_anchor=(0.6, -0.1))
+        ax[1].legend(reversed(handles), reversed(labels), bbox_to_anchor=(1.0, -0.2),ncol=2)
         handles, labels = ax[3].get_legend_handles_labels()
-        ax[3].legend(reversed(handles), reversed(labels), bbox_to_anchor=(0.6, -0.1))
+        ax[3].legend(reversed(handles), reversed(labels), bbox_to_anchor=(1.0, -0.1),ncol=3)
         #ax[0].set_xticks(ax[0].get_xticks(), ax[0].get_xticklabels(), rotation=60)
-        ax[0].tick_params(axis='x', labelrotation=30)
+        ax[0].tick_params(axis='x', labelrotation=25)
+        ax[2].tick_params(axis='x', labelrotation=25)
         plt.tight_layout()
         plt.show()
 
+    return df_clust_cat_counts, df_cat_clust_counts, df_clust_time_cat_counts, df_time_cat_clust_counts
 
 
 #%%Top feature explorer

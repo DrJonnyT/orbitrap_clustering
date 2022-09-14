@@ -170,6 +170,7 @@ class My_KL_Layer(layers.Layer):
         self.add_loss(kl_mean_batch, inputs=inputs)
         # We add the loss information to the metrics displayed during training 
         self.add_metric(kl_mean_batch, name='kl', aggregation='mean')
+        #self.add_metric(beta, name='beta3', aggregation='mean')
         return inputs
 
 
@@ -212,8 +213,10 @@ class VAE_n_layer():
         self.mu = None
         self.log_var = None
         self.z_mean = None
-        self.beta=tf.Variable(0.)
-        self.beta_schedule=beta_schedule        
+        self.beta=tf.Variable(10.)
+        self.beta_schedule=beta_schedule       
+        # self.alpha5=K.variable(1.)
+        # self.beta5=K.variable(0.001)        
         
         self.ae = None
         self.encoder = None
@@ -221,7 +224,7 @@ class VAE_n_layer():
         self.build_model()
         
     def build_model(self):
-
+        print("Look at commented code in ae_functions for vae_beta_scheduler, custom function is required for each VAE object")
         # Preparation: We later need a function to calculate the z-points in the latent space 
         # this function will be used by an eventual Lambda layer of the Encoder 
         def z_point_sampling(args):
@@ -284,7 +287,9 @@ class VAE_n_layer():
         
         self.ae = Model(inputs=encoder_input_layer, outputs=outputs, name="vae")
         optimizer = optimizers.Adam(learning_rate=self.learning_rate)
-        self.ae.compile(optimizer, loss='mse',metrics=[tf.keras.metrics.MeanSquaredError(name='mse')])
+
+        self.ae.compile(optimizer, loss='mse',metrics=[tf.keras.metrics.MeanSquaredError(name='msemetric')])
+        #self.ae.add_metric(tf.Variable(0.),name='betametric',aggregation='mean')
     
     def fit_model(self, x_train,x_test=None,batch_size=100,epochs=30,verbose='auto',callbacks=[]):
         if(x_test is None):
@@ -309,6 +314,8 @@ class VAE_n_layer():
     def decode(self, data,batch_size=100):
         return self.decoder.predict(data, batch_size=batch_size)
     
+
+
 
 # #Callback for VAE to make beta change with training epoch
 # class vae_beta_scheduler(keras.callbacks.Callback):
