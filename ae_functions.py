@@ -243,18 +243,23 @@ class VAE_n_layer():
         #Create the encoder layers
         #The dimensions of the intermediate layers are stored in self.int_layer_dims
         #The number of intermediate layers is stored in self.int_layers
+        activation = 'relu'
+        initializer = tf.keras.initializers.HeNormal()
+        
+        
         if(self.int_layers>0):
             layer1_dim_mid = self.int_layer_dims[0]
-            encoder_layer = layers.Dense(layer1_dim_mid, activation="relu",name='intermediate_layer_1')(encoder_input_layer)
+            encoder_layer = layers.Dense(layer1_dim_mid,activation=activation,kernel_initializer=initializer,name='intermediate_layer_1')(encoder_input_layer)
             if(self.int_layers>1):
                 for int_layer in range(2,self.int_layers+1):
                     thislayer_dim = self.int_layer_dims[int_layer-1]
-                    encoder_layer = layers.Dense(thislayer_dim, activation="relu",name='intermediate_layer_'+str(int_layer))(encoder_layer)
+                    encoder_layer = layers.Dense(thislayer_dim, activation=activation,kernel_initializer=initializer,name='intermediate_layer_'+str(int_layer))(encoder_layer)
 
         
         # "Variational" part - create 2 Dense layers for a statistical distribution of z-points  
         self.mu      = layers.Dense(self.latent_dim, name='mu')(encoder_layer)
-        self.log_var = layers.Dense(self.latent_dim, name='log_var')(encoder_layer)
+        #Initializing the log_var layer with zeros is REALLY important! Otherwise the initial loss can end up incredibly large
+        self.log_var = layers.Dense(self.latent_dim, kernel_initializer=tf.keras.initializers.Zeros(), name='log_var')(encoder_layer)
         
         self.mu, self.log_var = My_KL_Layer()([self.mu, self.log_var], beta=self.beta)
         self.z_mean = layers.Lambda(z_point_sampling, name='encoder_output')([self.mu, self.log_var])        
@@ -277,7 +282,7 @@ class VAE_n_layer():
             if(self.int_layers>1):
                 for this_int_layer in range(2,self.int_layers+1):
                     thislayer_dim_mid = self.int_layer_dims[-this_int_layer]
-                    decoder_layer = layers.Dense(round(thislayer_dim_mid), activation="relu",name='decoder_layer_'+str(this_int_layer))(decoder_layer)
+                    decoder_layer = layers.Dense(round(thislayer_dim_mid), activation=activation,kernel_initializer=initializer,name='decoder_layer_'+str(this_int_layer))(decoder_layer)
            
         decoder_output_layer = layers.Dense(self.input_dim, activation=self.decoder_output_activation,name='decoder_output_layer')(decoder_layer)
         self.decoder = Model(inputs=decoder_input_layer, outputs=decoder_output_layer, name="decoder_vae")
@@ -286,9 +291,10 @@ class VAE_n_layer():
         
         
         self.ae = Model(inputs=encoder_input_layer, outputs=outputs, name="vae")
-        optimizer = optimizers.Adam(learning_rate=self.learning_rate)
+        #optimizer = optimizers.Adam(learning_rate=self.learning_rate)
+        optimizer = optimizers.RMSprop(learning_rate=self.learning_rate)
 
-        self.ae.compile(optimizer, loss='mse',metrics=[tf.keras.metrics.MeanSquaredError(name='msemetric')])
+        self.ae.compile(optimizer, loss='mse',metrics=[tf.keras.metrics.MeanSquaredError(name='mse')])
         #self.ae.add_metric(tf.Variable(0.),name='betametric',aggregation='mean')
     
     def fit_model(self, x_train,x_test=None,batch_size=100,epochs=30,verbose='auto',callbacks=[]):
