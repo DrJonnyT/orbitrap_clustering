@@ -1365,16 +1365,16 @@ def plot_one_cluster_profile(df_all_data,cluster_profiles_mtx_norm, num_clusters
         
         #Add in elemental ratios
         if(df_clusters_HC_mtx.empty == False ):
-            ax.text(0.69, 0.95, 'H/C = ' + str(round(df_clusters_HC_mtx.loc[num_clusters][y_idx],2) ), transform=ax.transAxes, fontsize=12,
+            ax.text(0.69, 0.95, 'H/C = ' + "{:.2f}".format(df_clusters_HC_mtx.loc[num_clusters][y_idx]), transform=ax.transAxes, fontsize=12,
                     verticalalignment='top')
         if(df_clusters_NC_mtx.empty == False ):
-            ax.text(0.84, 0.95, 'N/C = ' + str(round(df_clusters_NC_mtx.loc[num_clusters][y_idx],3) ), transform=ax.transAxes, fontsize=12,
+            ax.text(0.84, 0.95, 'N/C = ' + "{:.3f}".format(df_clusters_NC_mtx.loc[num_clusters][y_idx]), transform=ax.transAxes, fontsize=12,
                     verticalalignment='top')
         if(df_clusters_OC_mtx.empty == False ):
-            ax.text(0.69, 0.85, 'O/C = ' + str(round(df_clusters_OC_mtx.loc[num_clusters][y_idx],2) ), transform=ax.transAxes, fontsize=12,
+            ax.text(0.69, 0.85, 'O/C = ' + "{:.2f}".format(df_clusters_OC_mtx.loc[num_clusters][y_idx]), transform=ax.transAxes, fontsize=12,
                     verticalalignment='top')
         if(df_clusters_SC_mtx.empty == False ):
-            ax.text(0.84, 0.85, 'S/C = ' + str(round(df_clusters_SC_mtx.loc[num_clusters][y_idx],3) ), transform=ax.transAxes, fontsize=12,
+            ax.text(0.84, 0.85, 'S/C = ' + "{:.3f}".format(df_clusters_SC_mtx.loc[num_clusters][y_idx]), transform=ax.transAxes, fontsize=12,
                     verticalalignment='top')
         
         #Add in number of data points for this cluster
@@ -1452,12 +1452,29 @@ def count_clusters_project_time(df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat
         df_clust_time_cat_counts = a1.groupby(ds_time_cat)['clust'].value_counts(normalize=True).unstack()
         df_time_cat_clust_counts = ds_time_cat.groupby(a1['clust']).value_counts(normalize=True).unstack()
 
-
+        #Previous version, area plot and bar plot
+        # fig,ax = plt.subplots(2,2,figsize=(9,10))
+        # ax = ax.ravel()
+        # plt0 = df_clust_cat_counts.plot.area(ax=ax[0],colormap='tab20')
+        # df_cat_clust_counts.plot.bar(ax=ax[1],stacked=True,colormap='RdBu',width=0.8)
+        # df_clust_time_cat_counts.plot.area(ax=ax[2],colormap='tab20',legend=False)
+        # df_time_cat_clust_counts.plot.bar(ax=ax[3],stacked=True,colormap='PuOr',width=0.8)
+        # suptitle = title_prefix + str(num_clusters) + ' clusters' + title_suffix
+        # plt.suptitle(suptitle)
+        # ax[0].set_ylabel('Fraction')
+        # ax[1].set_ylabel('Fraction')
+        # ax[0].set_xlabel('')
+        # ax[2].set_ylabel('Fraction')
+        # ax[2].set_xlabel('')
+        # ax[3].set_xlabel('Cluster number')
+        # ax[3].set_ylabel('Fraction')
+        # ax[1].set_xlabel('Cluster number')
+        
         fig,ax = plt.subplots(2,2,figsize=(9,10))
         ax = ax.ravel()
-        plt0 = df_clust_cat_counts.plot.area(ax=ax[0],colormap='tab20')
+        plt0 = df_clust_cat_counts.plot.bar(ax=ax[0],colormap='tab20',stacked=True)
         df_cat_clust_counts.plot.bar(ax=ax[1],stacked=True,colormap='RdBu',width=0.8)
-        df_clust_time_cat_counts.plot.area(ax=ax[2],colormap='tab20',legend=False)
+        df_clust_time_cat_counts.plot.bar(ax=ax[2],colormap='tab20',legend=False,stacked=True)
         df_time_cat_clust_counts.plot.bar(ax=ax[3],stacked=True,colormap='PuOr',width=0.8)
         suptitle = title_prefix + str(num_clusters) + ' clusters' + title_suffix
         plt.suptitle(suptitle)
@@ -1469,17 +1486,14 @@ def count_clusters_project_time(df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat
         ax[3].set_xlabel('Cluster number')
         ax[3].set_ylabel('Fraction')
         ax[1].set_xlabel('Cluster number')
-        #plt0.xticks(rotation=90)
-        #ax[2].set_xticklabels(rotation=90)
-        
-        #ax[0].legend(title='Cluster number',bbox_to_anchor=(0.5, -0.2))
-        #ax[1].legend(bbox_to_anchor=(1.25, 0.7))
+
+
         handles, labels = ax[0].get_legend_handles_labels()
-        ax[0].legend(reversed(handles), reversed(labels),title='Cluster number', bbox_to_anchor=(1.0, -0.2),ncol=5)
+        ax[0].legend(reversed(handles), reversed(labels),title='Cluster number', bbox_to_anchor=(0.5, -0.43),loc='lower center',ncol=5)
         handles, labels = ax[1].get_legend_handles_labels()
-        ax[1].legend(reversed(handles), reversed(labels), bbox_to_anchor=(1.0, -0.2),ncol=2)
+        ax[1].legend(reversed(handles), reversed(labels), bbox_to_anchor=(0.5, -0.3),loc='lower center',ncol=2)
         handles, labels = ax[3].get_legend_handles_labels()
-        ax[3].legend(reversed(handles), reversed(labels), bbox_to_anchor=(1.0, -0.1),ncol=3)
+        ax[3].legend(reversed(handles), reversed(labels), bbox_to_anchor=(0.5, -0.27),loc='lower center',ncol=3)
         #ax[0].set_xticks(ax[0].get_xticks(), ax[0].get_xticklabels(), rotation=60)
         ax[0].tick_params(axis='x', labelrotation=25)
         ax[2].tick_params(axis='x', labelrotation=25)
