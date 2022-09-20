@@ -15,7 +15,7 @@ import matplotlib.dates as mdates
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.ticker import MaxNLocator
 import re
-from sklearn.cluster import AgglomerativeClustering
+from sklearn.cluster import AgglomerativeClustering, KMeans
 from scipy.stats import pearsonr
 
 #######################
@@ -898,14 +898,17 @@ def combine_chemform_namelists(namelist1,namelist2):
 #############################################################
 #############################################################
 #%%Run Clustering a set number of times
-def cluster_n_times(df_data,max_num_clusters,min_num_clusters=1):
+def cluster_n_times(df_data,max_num_clusters,min_num_clusters=1,cluster_type='agglom'):
     num_clusters_array = np.arange(min_num_clusters,max_num_clusters+1)
     cluster_labels_mtx = []
     
     for num_clusters in num_clusters_array:
         #First run the clustering
-        agglom = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
-        clustering = agglom.fit(df_data.values)
+        if(cluster_type=='agglom'):
+            cluster_obj = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
+        elif(cluster_type=='kmeans' or cluster_type=='Kmeans' or cluster_type=='KMeans'):
+            cluster_obj = KMeans(n_clusters = num_clusters)
+        clustering = cluster_obj.fit(df_data.values)
         #c = relabel_clusters_most_freq(clustering.labels_)
         cluster_labels_mtx.append(clustering.labels_)
         
