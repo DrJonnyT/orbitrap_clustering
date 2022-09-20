@@ -16,6 +16,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.ticker import MaxNLocator
 import re
 from sklearn.cluster import AgglomerativeClustering, KMeans
+from sklearn_extra.cluster import KMedoids
 from scipy.stats import pearsonr
 
 #######################
@@ -908,6 +909,8 @@ def cluster_n_times(df_data,max_num_clusters,min_num_clusters=1,cluster_type='ag
             cluster_obj = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
         elif(cluster_type=='kmeans' or cluster_type=='Kmeans' or cluster_type=='KMeans'):
             cluster_obj = KMeans(n_clusters = num_clusters)
+        elif(cluster_type=='kmedoids' or cluster_type == 'Kmedoids' or cluster_type=='KMedoids'):
+            cluster_obj = KMedoids(n_clusters = num_clusters)
         clustering = cluster_obj.fit(df_data.values)
         #c = relabel_clusters_most_freq(clustering.labels_)
         cluster_labels_mtx.append(clustering.labels_)
