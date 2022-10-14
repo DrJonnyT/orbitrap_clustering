@@ -17,7 +17,10 @@ from matplotlib.ticker import MaxNLocator
 import re
 from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn_extra.cluster import KMedoids
+from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score,silhouette_score
 from scipy.stats import pearsonr
+
+
 
 #######################
 ####FILE_LOADERS#######
@@ -361,7 +364,7 @@ def sqrt_sum_squares(x):
 def igor_time_to_unix(igortime):
     return igortime - 2082844800
 
-def Load_pre_PMF_data(filepath):
+def Load_pre_PMF_data(filepath,join='inner'):
     
     with h5py.File(filepath, 'r') as hf:
         Beijing_winter_mz = np.array(hf['Beijing_Winter']['noNaNs_mz']).astype(float).round(3)
@@ -409,16 +412,17 @@ def Load_pre_PMF_data(filepath):
         df_Delhi_autumn_err = df_Delhi_autumn_err.groupby([Delhi_autumn_formula,Delhi_autumn_RT],axis=1).aggregate(sqrt_sum_squares)
         
     
-    #Merge the datasets
-    df_all_data = pd.concat([df_Beijing_winter_data,df_Beijing_summer_data,df_Delhi_summer_data,df_Delhi_autumn_data],join='inner')
-    df_all_err = pd.concat([df_Beijing_winter_err,df_Beijing_summer_err,df_Delhi_summer_err,df_Delhi_autumn_err],join='inner')
-    
     #Make mz lookup
     df_Beijing_winter_mz = pd.DataFrame(Beijing_winter_mz).T.groupby([Beijing_winter_formula,Beijing_winter_RT],axis=1).aggregate("first")
     df_Beijing_summer_mz = pd.DataFrame(Beijing_summer_mz).T.groupby([Beijing_summer_formula,Beijing_summer_RT],axis=1).aggregate("first")
     df_Delhi_summer_mz = pd.DataFrame(Delhi_summer_mz).T.groupby([Delhi_summer_formula,Delhi_summer_RT],axis=1).aggregate("first")
     df_Delhi_autumn_mz = pd.DataFrame(Delhi_autumn_mz).T.groupby([Delhi_autumn_formula,Delhi_autumn_RT],axis=1).aggregate("first")
-    ds_all_mz = pd.concat([df_Beijing_winter_mz,df_Beijing_summer_mz,df_Delhi_summer_mz,df_Delhi_autumn_mz],join='inner').iloc[0]
+    
+    #Merge the datasets
+    df_all_data = pd.concat([df_Beijing_winter_data,df_Beijing_summer_data,df_Delhi_summer_data,df_Delhi_autumn_data],join=join)
+    df_all_err = pd.concat([df_Beijing_winter_err,df_Beijing_summer_err,df_Delhi_summer_err,df_Delhi_autumn_err],join=join)  
+    ds_all_mz = pd.concat([df_Beijing_winter_mz,df_Beijing_summer_mz,df_Delhi_summer_mz,df_Delhi_autumn_mz],join=join).mean()
+    
     
     #Sort by mz
     df_all_data.columns = ds_all_mz
@@ -432,6 +436,7 @@ def Load_pre_PMF_data(filepath):
     #Remove mystery sample that wasn't in my previous data
     df_all_data.drop(pd.to_datetime('2017/06/02 23:19:28'),inplace=True)
     df_all_err.drop(pd.to_datetime('2017/06/02 23:19:28'),inplace=True)
+    pdb.set_trace()
     
     return df_all_data, df_all_err, ds_all_mz
 
@@ -657,7 +662,7 @@ def chemform_ratios(formula):
 #Function to extract the top n peaks from a cluster in terms of their chemical formula
 #cluster must be a data series with the column indices of the different peaks
 #You can use this with df_data.T instead of df_raw
-def cluster_extract_peaks(cluster, df_raw,num_peaks,chemform_namelist=pd.DataFrame(),dp=1,printdf=False):
+def cluster_extract_peaks(cluster, df_raw,num_peaks,chemform_namelist=pd.DataFrame(),dp=1,dropRT=True,printdf=False):
     #Check they are the same length
     if(cluster.shape[0] != df_raw.shape[0]):
         print("cluster_extract_peaks returning null: cluster and peaks dataframe must have same number of peaks")
@@ -672,6 +677,8 @@ def cluster_extract_peaks(cluster, df_raw,num_peaks,chemform_namelist=pd.DataFra
     output_df = pd.DataFrame()
     nlargest.index = pd.MultiIndex.from_tuples(nlargest.index, names=["first", "second"]) #Make the index multiindex again
     output_df["Formula"] = nlargest.index.get_level_values(0)
+    if(dropRT is False):
+        output_df["RT"] = nlargest.index.get_level_values(1)
     output_df.set_index(output_df['Formula'],inplace=True)
     output_df["peak_pct"] = nlargest_pct.round(dp).values
     
@@ -929,6 +936,70 @@ def count_cluster_labels_from_mtx(df_cluster_labels_mtx):
         df_cluster_counts_mtx.loc[n_clusters] = c.value_counts()
     
     return df_cluster_counts_mtx
+
+
+#%%Compare clustering metrics for a given dataset
+def compare_cluster_metrics(df_data,min_clusters,max_clusters,cluster_type='agglom',suptitle_prefix='', suptitle_suffix=''):
+    num_clusters_index = range(min_clusters,(max_clusters+1),1)
+    ch_score = np.empty(len(num_clusters_index))
+    db_score = np.empty(len(num_clusters_index))
+    silhouette_scores = np.empty(len(num_clusters_index))
+    
+    for num_clusters in num_clusters_index:
+        if(cluster_type=='agglom'):
+            cluster_obj = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
+            suptitle_cluster_type = 'hierarchical clustering'
+        elif(cluster_type=='kmeans' or cluster_type=='Kmeans' or cluster_type=='KMeans'):
+            cluster_obj = KMeans(n_clusters = num_clusters)
+            suptitle_cluster_type = 'KMeans'
+        elif(cluster_type=='kmedoids' or cluster_type == 'Kmedoids' or cluster_type=='KMedoids'):
+            cluster_obj = KMedoids(n_clusters = num_clusters)
+            suptitle_cluster_type = 'KMedoids'
+        else:
+            raise Exception("Incorrect cluster_type")
+        
+        clustering = cluster_obj.fit(df_data.values)
+        ch_score[num_clusters-min_clusters] = calinski_harabasz_score(df_data.values, clustering.labels_)
+        db_score[num_clusters-min_clusters] = davies_bouldin_score(df_data.values, clustering.labels_)
+        silhouette_scores[num_clusters-min_clusters] = silhouette_score(df_data.values, clustering.labels_)
+        
+    #Plot results
+    fig,ax1 = plt.subplots(figsize=(10,6))
+    ax2=ax1.twinx()
+    ax3=ax1.twinx()
+    ax3.spines.right.set_position(("axes", 1.1))
+    p1, = ax1.plot(num_clusters_index,ch_score,label="CH score")
+    p2, = ax2.plot(num_clusters_index,db_score,c='red',label="DB score")
+    p3, = ax3.plot(num_clusters_index,silhouette_scores,c='black',label="Silhouette score")
+    ax1.set_xlabel("Num clusters")
+    ax1.set_ylabel("CH score")
+    ax2.set_ylabel("DB score")
+    ax3.set_ylabel('Silhouette score')
+    
+    ax1.yaxis.label.set_color(p1.get_color())
+    ax2.yaxis.label.set_color(p2.get_color())
+    ax3.yaxis.label.set_color(p3.get_color())
+    #pdb.set_trace()
+    
+    ax1.spines['left'].set_color(p1.get_color())
+    ax1.spines.right.set_visible(False)
+    ax1.tick_params(axis='y', colors=p1.get_color())
+    
+    ax2.spines['right'].set_color(p2.get_color())
+    ax2.tick_params(axis='y', colors=p2.get_color())
+    ax2.spines.left.set_visible(False)
+    
+    ax3.spines['right'].set_color(p3.get_color())
+    ax3.tick_params(axis='y', colors=p3.get_color())
+    ax3.spines.left.set_visible(False)
+    
+    ax1.legend(handles=[p1, p2, p3])
+    
+    #ax1.xaxis.set_major_locator(plticker.MultipleLocator(base=5.0))
+    #ax1.xaxis.set_minor_locator(plticker.MultipleLocator(base=1.0))
+    ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.suptitle(suptitle_prefix + suptitle_cluster_type + suptitle_suffix)
+    plt.show()
 
 
 #%% Plot the time series divided into 4 projects
@@ -1301,7 +1372,7 @@ def correlate_cluster_profiles(cluster_profiles_mtx_norm, num_clusters_index, cl
 
 
 #%%Plot cluster profile correlations
-def plot_cluster_profile_corrs(df_cluster_corr_mtx, df_prevcluster_corr_mtx):
+def plot_cluster_profile_corrs(df_cluster_corr_mtx, df_prevcluster_corr_mtx,suptitle=''):
     #Make X and Y for plotting
         
     X = np.arange(df_cluster_corr_mtx.index.min(),df_cluster_corr_mtx.index.max()+2) - 0.5
@@ -1321,6 +1392,7 @@ def plot_cluster_profile_corrs(df_cluster_corr_mtx, df_prevcluster_corr_mtx):
     ax[1].set_ylabel('Cluster index')
     ax[1].set_title('Highest R with other clusters from previous num clusters')
     plt.colorbar(plot1, label='Pearson\'s R',ax=ax[1])
+    fig.suptitle(suptitle)
 
 
 #%%Plot cluster profiles
@@ -1472,9 +1544,9 @@ def count_clusters_project_time(df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat
         
         fig,ax = plt.subplots(2,2,figsize=(9,10))
         ax = ax.ravel()
-        plt0 = df_clust_cat_counts.plot.bar(ax=ax[0],colormap='tab20',stacked=True)
+        plt0 = df_clust_cat_counts.plot.bar(ax=ax[0],colormap='viridis',stacked=True)
         df_cat_clust_counts.plot.bar(ax=ax[1],stacked=True,colormap='RdBu',width=0.8)
-        df_clust_time_cat_counts.plot.bar(ax=ax[2],colormap='tab20',legend=False,stacked=True)
+        df_clust_time_cat_counts.plot.bar(ax=ax[2],colormap='viridis',legend=False,stacked=True)
         df_time_cat_clust_counts.plot.bar(ax=ax[3],stacked=True,colormap='PuOr',width=0.8)
         suptitle = title_prefix + str(num_clusters) + ' clusters' + title_suffix
         plt.suptitle(suptitle)
