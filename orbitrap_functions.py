@@ -436,7 +436,6 @@ def Load_pre_PMF_data(filepath,join='inner'):
     #Remove mystery sample that wasn't in my previous data
     df_all_data.drop(pd.to_datetime('2017/06/02 23:19:28'),inplace=True)
     df_all_err.drop(pd.to_datetime('2017/06/02 23:19:28'),inplace=True)
-    pdb.set_trace()
     
     return df_all_data, df_all_err, ds_all_mz
 
