@@ -82,4 +82,4 @@ df_element_ratios['S/C'] = df_all_data.columns.get_level_values(0).to_series().a
 #%%Transform data to regular mz grid
 mz_spacing = 1
 mz_grid = np.arange(round(ds_all_mz.min()),round(ds_all_mz.max())+mz_spacing,mz_spacing)
-df_all_data_grid = df_all_data.groupby(np.round(ds_all_mz), axis=1).sum()df_all_data.sum()
+df_all_data_grid = df_all_data.groupby(np.round(ds_all_mz), axis=1).sum().reindex(mz_grid,axis=1,fill_value=0)
