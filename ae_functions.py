@@ -10,9 +10,9 @@ Created on Wed Sep 15 14:18:43 2021
 #####################################
 #Set random seed for repeatability
 from numpy.random import seed
-seed(1337)
+#seed(1337)
 import tensorflow as tf
-tf.random.set_seed(1338)
+#tf.random.set_seed(1338)
 
 import pandas as pd
 import math
@@ -31,6 +31,7 @@ import tensorflow_probability as tfp
 from tensorflow.keras import metrics
 import kerastuner as kt
 from sklearn.preprocessing import RobustScaler, StandardScaler,FunctionTransformer,MinMaxScaler
+from tensorflow.keras.callbacks import Callback, TerminateOnNaN
 from sklearn.pipeline import Pipeline
 
 
@@ -173,9 +174,43 @@ class My_KL_Layer(layers.Layer):
         #self.add_metric(beta, name='beta3', aggregation='mean')
         return inputs
 
+class vae_beta_scheduler(keras.callbacks.Callback):
+    """Callback for VAE to make beta change with training epoch
+
+  Arguments:
+      model_obj: this is your VAE model object made by VAE_n_layer
+      You need to tailor this to your vae_n_layer object, for example here it's called vae_obj'
+  Example usage:
+      vae_obj.fit_model(ae_input, x_test=ae_input_val,epochs=20,
+                        callbacks=[vae_beta_scheduler(vae_obj),TerminateOnNaN()])
+  """
+
+    def __init__(self,model_obj):
+        super(vae_beta_scheduler, self).__init__()
+        self.model_obj=model_obj
+
+    def on_epoch_begin(self,  epoch, logs=None):
+        beta_schedule=self.model_obj.beta_schedule
+        if(epoch >= beta_schedule.shape[0]):
+            new_beta = beta_schedule[-1]
+        else:
+            new_beta = beta_schedule[epoch]
+        tf.keras.backend.set_value(self.model_obj.beta, new_beta)         
+        print("\nEpoch %05d: beta is %6.4f." % (epoch, new_beta))
+
 
 class VAE_n_layer():
-    def __init__(self,hp='DEFAULT',input_dim=964,latent_dim=2,int_layers=2,beta_schedule=np.array([0,0.1]),int_layer_dims='DEFAULT',
+    """VAE object. Compatible with vae_beta_scheduler 
+
+  Arguments:
+      model_obj: this is your VAE model object made by VAE_n_layer
+      You need to tailor this to your vae_n_layer object, for example here it's called vae_obj'
+  Example usage:
+      vae_obj.fit_model(ae_input, x_test=ae_input_val,epochs=20,
+                        callbacks=[vae_beta_scheduler(vae_obj),TerminateOnNaN()])
+  """
+
+    def __init__(self,hp='DEFAULT',input_dim=964,latent_dim=2,int_layers=2,beta_schedule=np.array([1]),int_layer_dims='DEFAULT',
                  learning_rate=1e-3,latent_activation='linear',decoder_output_activation='linear'):
         if(hp=='DEFAULT'):#Use parameters from the list
             self.input_dim = input_dim
@@ -190,11 +225,12 @@ class VAE_n_layer():
             if(int_layer_dims=='DEFAULT'):
                 self.int_layer_dims = []
                 if(self.int_layers>0):
-                    layer1_dim_mid = (self.input_dim**self.int_layers *self.latent_dim)**(1/(self.int_layers+1))
+                    #pdb.set_trace()
+                    layer1_dim_mid = round((float(self.input_dim)**self.int_layers *self.latent_dim)**(1/(self.int_layers+1)))
                     self.int_layer_dims.append(round(layer1_dim_mid))
                     if(self.int_layers>1):
                         for int_layer in range(2,self.int_layers+1):
-                            thislayer_dim_mid = round(layer1_dim_mid**(int_layer) / (self.input_dim**(int_layer-1)))
+                            thislayer_dim_mid = round(float(layer1_dim_mid)**(int_layer) / (self.input_dim**(int_layer-1)))
                             self.int_layer_dims.append(thislayer_dim_mid)
                             
             else:
@@ -216,7 +252,8 @@ class VAE_n_layer():
         self.beta=tf.Variable(10.)
         self.beta_schedule=beta_schedule       
         # self.alpha5=K.variable(1.)
-        # self.beta5=K.variable(0.001)        
+        # self.beta5=K.variable(0.001)
+        self.conv #Flag for convolution on input
         
         self.ae = None
         self.encoder = None
@@ -224,7 +261,6 @@ class VAE_n_layer():
         self.build_model()
         
     def build_model(self):
-        print("Look at commented code in ae_functions for vae_beta_scheduler, custom function is required for each VAE object")
         # Preparation: We later need a function to calculate the z-points in the latent space 
         # this function will be used by an eventual Lambda layer of the Encoder 
         def z_point_sampling(args):
@@ -239,13 +275,14 @@ class VAE_n_layer():
 
         #Define encoder model
         encoder_input_layer = keras.Input(shape=(self.input_dim,), name="encoder_input_layer")
+
         
         #Create the encoder layers
         #The dimensions of the intermediate layers are stored in self.int_layer_dims
         #The number of intermediate layers is stored in self.int_layers
         activation = 'relu'
-        initializer = tf.keras.initializers.HeNormal()
-        
+        #initializer = tf.keras.initializers.HeNormal()
+        initializer = tf.keras.initializers.HeUniform()
         
         if(self.int_layers>0):
             layer1_dim_mid = self.int_layer_dims[0]
@@ -298,6 +335,8 @@ class VAE_n_layer():
         #self.ae.add_metric(tf.Variable(0.),name='betametric',aggregation='mean')
     
     def fit_model(self, x_train,x_test=None,batch_size=100,epochs=30,verbose='auto',callbacks=[]):
+        #pdb.set_trace()
+        callbacks = [callbacks,[vae_beta_scheduler(self)]]
         if(x_test is None):
             _history = self.ae.fit(x_train,x_train,
                          shuffle=True,
@@ -321,6 +360,179 @@ class VAE_n_layer():
         return self.decoder.predict(data, batch_size=batch_size)
     
 
+
+
+class CVAE_n_layer():
+    """Convolutional VAE object. Compatible with vae_beta_scheduler
+
+  Arguments:
+      model_obj: this is your VAE model object made by VAE_n_layer
+      You need to tailor this to your vae_n_layer object, for example here it's called vae_obj'
+  Example usage:
+      vae_obj.fit_model(ae_input, x_test=ae_input_val,epochs=20,
+                        callbacks=[vae_beta_scheduler(vae_obj),TerminateOnNaN()])
+  """
+
+    def __init__(self,hp='DEFAULT',input_dim=964,latent_dim=2,int_layers=2,beta_schedule=np.array([1]),int_layer_dims='DEFAULT',
+                 learning_rate=1e-3,conv_spacing=14,latent_activation='linear',decoder_output_activation='linear'):
+        if(hp=='DEFAULT'):#Use parameters from the list
+            self.input_dim = input_dim
+            self.latent_dim = latent_dim
+            self.int_layers = int_layers
+            self.decoder_output_activation = decoder_output_activation
+            self.latent_activation = latent_activation
+            self.learning_rate = learning_rate 
+            
+            
+            #Make logspace int layer dims if required
+            if(int_layer_dims=='DEFAULT'):
+                self.int_layer_dims = []
+                if(self.int_layers>0):
+                    #pdb.set_trace()
+                    layer1_dim_mid = round((float(self.input_dim)**self.int_layers *self.latent_dim)**(1/(self.int_layers+1)))
+                    self.int_layer_dims.append(round(layer1_dim_mid))
+                    if(self.int_layers>1):
+                        for int_layer in range(2,self.int_layers+1):
+                            thislayer_dim_mid = round(float(layer1_dim_mid)**(int_layer) / (self.input_dim**(int_layer-1)))
+                            self.int_layer_dims.append(thislayer_dim_mid)
+                            
+            else:
+                self.int_layer_dims = int_layer_dims
+   
+        else:   #Use kerastuner hyperparameters
+            quit("VAE_n_layer implementation with kerastuner hyperparameters not currently implemented")
+            # self.input_dim = hp.get('input_dim')
+            # self.latent_dim = hp.get('latent_dim')
+            # self.int_layers = hp.get('intermediate_layers')
+            # self.int_layer_dims = [val.value for key, val in hp._space.items() if 'intermediate_dim' in key]
+            # self.learning_rate = hp.get('learning_rate')
+            # self.decoder_output_activation = hp.get('decoder_output_activation')
+            # self.latent_activation = hp.get('decoder_output_activation')
+        
+        self.mu = None
+        self.log_var = None
+        self.z_mean = None
+        self.beta=tf.Variable(10.)
+        self.beta_schedule=beta_schedule       
+        # self.alpha5=K.variable(1.)
+        # self.beta5=K.variable(0.001)
+        self.conv_spacing = conv_spacing #Spacing between input columns for convolution spikes
+        
+        self.ae = None
+        self.encoder = None
+        self.decoder = None
+        self.build_model()
+        
+    def build_model(self):
+        # Preparation: We later need a function to calculate the z-points in the latent space 
+        # this function will be used by an eventual Lambda layer of the Encoder 
+        def z_point_sampling(args):
+            '''
+            A point in the latent space is calculated statistically 
+            around an optimized mu for each sample 
+            '''
+            mu, log_var = args # Note: These are 1D tensors !
+            epsilon = K.random_normal(shape=K.shape(mu), mean=0., stddev=1.)
+            return mu + K.exp(log_var / 2) * epsilon        
+
+
+        #Define encoder model
+              
+        #Add convolution layer onto input
+        encoder_input_layer = layers.Input(shape=(self.input_dim,1), name="encoder_input_layer")
+        #pdb.set_trace()
+        input_conv_layer = layers.Conv1D(filters=1, kernel_size=self.conv_spacing+1,data_format = 'channels_last',name='input_conv1D',activation='relu')(encoder_input_layer)
+        input_maxpool_layer = layers.MaxPooling1D(pool_size=4)(input_conv_layer)
+        flatten_layer = layers.Flatten()(input_maxpool_layer)
+        
+        #Create the encoder layers
+        #The dimensions of the intermediate layers are stored in self.int_layer_dims
+        #The number of intermediate layers is stored in self.int_layers
+        activation = 'relu'
+        initializer = tf.keras.initializers.HeNormal()
+        #initializer = tf.keras.initializers.HeUniform()
+        
+        if(self.int_layers>0):
+            layer1_dim_mid = self.int_layer_dims[0]
+            #pdb.set_trace()
+            #encoder_layer = layers.Dense(layer1_dim_mid,activation=activation,kernel_initializer=initializer,name='intermediate_layer_1')(tf.transpose(input_conv_layer,perm=[0,2,1]))
+            encoder_layer = layers.Dense(layer1_dim_mid,activation=activation,kernel_initializer=initializer,name='intermediate_layer_1')(flatten_layer)
+            if(self.int_layers>1):
+                for int_layer in range(2,self.int_layers+1):
+                    thislayer_dim = self.int_layer_dims[int_layer-1]
+                    encoder_layer = layers.Dense(thislayer_dim, activation=activation,kernel_initializer=initializer,name='intermediate_layer_'+str(int_layer))(encoder_layer)
+
+        
+        # "Variational" part - create 2 Dense layers for a statistical distribution of z-points  
+        self.mu      = layers.Dense(self.latent_dim, name='mu')(encoder_layer)
+        #Initializing the log_var layer with zeros is REALLY important! Otherwise the initial loss can end up incredibly large
+        self.log_var = layers.Dense(self.latent_dim, kernel_initializer=tf.keras.initializers.Zeros(), name='log_var')(encoder_layer)
+        
+        self.mu, self.log_var = My_KL_Layer()([self.mu, self.log_var], beta=self.beta)
+        self.z_mean = layers.Lambda(z_point_sampling, name='encoder_output')([self.mu, self.log_var])        
+        self.encoder = Model(inputs=encoder_input_layer, outputs=self.z_mean, name="encoder_cvae")
+        
+        # #Fix input convolution kernel
+        w =  self.encoder.layers[1].get_weights()
+        w[0]=np.asarray([[np.concatenate([[1],np.zeros(self.conv_spacing-1),[1]])]]).T
+        self.encoder.layers[1].set_weights(w)
+        
+        #This is the reparameterization trick
+        def sampling(args):
+            z_mean, z_log_var = args
+            batch = K.shape(z_mean)[0]
+            dim = K.int_shape(z_mean)[1]
+            epsilon = K.random_normal(shape=(batch, dim))
+            return z_mean + K.exp(0.5 * z_log_var) * epsilon
+
+
+        # Define decoder model.
+        decoder_input_layer = keras.Input(shape=(self.latent_dim,), name="decoder_input_layer")
+        if(self.int_layers>0):
+            layer1_dim_mid = self.int_layer_dims[-1]
+            decoder_layer = layers.Dense(layer1_dim_mid, activation="relu",name='decoder_layer_1')(decoder_input_layer)
+            if(self.int_layers>1):
+                for this_int_layer in range(2,self.int_layers+1):
+                    thislayer_dim_mid = self.int_layer_dims[-this_int_layer]
+                    decoder_layer = layers.Dense(round(thislayer_dim_mid), activation=activation,kernel_initializer=initializer,name='decoder_layer_'+str(this_int_layer))(decoder_layer)
+           
+        decoder_output_layer = layers.Dense(self.input_dim, activation=self.decoder_output_activation,name='decoder_output_layer')(decoder_layer)
+        self.decoder = Model(inputs=decoder_input_layer, outputs=decoder_output_layer, name="decoder_cvae")
+        
+        outputs = self.decoder(self.z_mean)
+        
+        
+        self.ae = Model(inputs=encoder_input_layer, outputs=outputs, name="cvae")
+        #optimizer = optimizers.Adam(learning_rate=self.learning_rate)
+        optimizer = optimizers.RMSprop(learning_rate=self.learning_rate)
+
+        self.ae.compile(optimizer, loss='mse',metrics=[tf.keras.metrics.MeanSquaredError(name='mse')])
+        #self.ae.add_metric(tf.Variable(0.),name='betametric',aggregation='mean')
+    
+    def fit_model(self, x_train,x_test=None,batch_size=100,epochs=30,verbose='auto',callbacks=[]):
+        #pdb.set_trace()
+        callbacks = [callbacks,[vae_beta_scheduler(self)]]
+        if(x_test is None):
+            _history = self.ae.fit(x_train,x_train,
+                         shuffle=True,
+                         epochs=epochs,
+                         batch_size=batch_size,
+                         validation_data=(x_train,x_train),callbacks=callbacks,verbose=verbose)
+        else:
+            _history = self.ae.fit(x_train,x_train,
+                        shuffle=True,
+                        epochs=epochs,
+                        batch_size=batch_size,
+                        validation_data=(x_test,x_test),callbacks=callbacks,verbose=verbose)
+            
+        return _history
+
+
+    def encode(self, data,batch_size=100):
+        return self.encoder.predict(data, batch_size=batch_size)
+    
+    def decode(self, data,batch_size=100):
+        return self.decoder.predict(data, batch_size=batch_size)
 
 
 # #Callback for VAE to make beta change with training epoch
