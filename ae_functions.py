@@ -253,7 +253,7 @@ class VAE_n_layer():
         self.beta_schedule=beta_schedule       
         # self.alpha5=K.variable(1.)
         # self.beta5=K.variable(0.001)
-        self.conv #Flag for convolution on input
+        #self.conv #Flag for convolution on input
         
         self.ae = None
         self.encoder = None
