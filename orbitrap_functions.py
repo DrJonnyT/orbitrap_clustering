@@ -419,10 +419,10 @@ def Load_pre_PMF_data(filepath,join='inner'):
     df_Delhi_autumn_mz = pd.DataFrame(Delhi_autumn_mz).T.groupby([Delhi_autumn_formula,Delhi_autumn_RT],axis=1).aggregate("first")
     
     #Merge the datasets
-    df_all_data = pd.concat([df_Beijing_winter_data,df_Beijing_summer_data,df_Delhi_summer_data,df_Delhi_autumn_data],join=join)
-    df_all_err = pd.concat([df_Beijing_winter_err,df_Beijing_summer_err,df_Delhi_summer_err,df_Delhi_autumn_err],join=join)  
+    df_all_data = pd.concat([df_Beijing_winter_data,df_Beijing_summer_data,df_Delhi_summer_data,df_Delhi_autumn_data],join=join).fillna(0)
+    df_all_err = pd.concat([df_Beijing_winter_err,df_Beijing_summer_err,df_Delhi_summer_err,df_Delhi_autumn_err],join=join).fillna(0)  
     ds_all_mz = pd.concat([df_Beijing_winter_mz,df_Beijing_summer_mz,df_Delhi_summer_mz,df_Delhi_autumn_mz],join=join).mean()
-    
+
     
     #Sort by mz
     df_all_data.columns = ds_all_mz
@@ -1392,6 +1392,20 @@ def plot_cluster_profile_corrs(df_cluster_corr_mtx, df_prevcluster_corr_mtx,supt
     ax[1].set_title('Highest R with other clusters from previous num clusters')
     plt.colorbar(plot1, label='Pearson\'s R',ax=ax[1])
     fig.suptitle(suptitle)
+    
+    
+#Correlate each row with every other row
+#My version that is slow but actually works for matrices of different number of rows
+def corr_coeff_rowwise_loops(A,B):
+    corr_mtx = np.empty([A.shape[0],B.shape[0]])
+    for i in range(A.shape[0]):
+       #pdb.set_trace()
+        Arow = A[i,:]
+        for j in range(B.shape[0]):
+            Brow = B[j,:]
+            #pdb.set_trace()
+            corr_mtx[i,j] = pearsonr(Arow,Brow)[0]
+    return corr_mtx
 
 
 #%%Plot cluster profiles
