@@ -382,22 +382,6 @@ class CVAE_n_layer():
             self.decoder_output_activation = decoder_output_activation
             self.latent_activation = latent_activation
             self.learning_rate = learning_rate 
-            
-            
-            #Make logspace int layer dims if required
-            if(int_layer_dims=='DEFAULT'):
-                self.int_layer_dims = []
-                if(self.int_layers>0):
-                    #pdb.set_trace()
-                    layer1_dim_mid = round((float(self.input_dim)**self.int_layers *self.latent_dim)**(1/(self.int_layers+1)))
-                    self.int_layer_dims.append(round(layer1_dim_mid))
-                    if(self.int_layers>1):
-                        for int_layer in range(2,self.int_layers+1):
-                            thislayer_dim_mid = round(float(layer1_dim_mid)**(int_layer) / (self.input_dim**(int_layer-1)))
-                            self.int_layer_dims.append(thislayer_dim_mid)
-                            
-            else:
-                self.int_layer_dims = int_layer_dims
    
         else:   #Use kerastuner hyperparameters
             quit("VAE_n_layer implementation with kerastuner hyperparameters not currently implemented")
@@ -413,10 +397,14 @@ class CVAE_n_layer():
         self.log_var = None
         self.z_mean = None
         self.beta=tf.Variable(10.)
-        self.beta_schedule=beta_schedule       
+        self.beta_schedule=beta_schedule
         # self.alpha5=K.variable(1.)
         # self.beta5=K.variable(0.001)
         self.conv_spacing = conv_spacing #Spacing between input columns for convolution spikes
+        
+        self.int_layer_dims = None
+        
+        self.dummy = None
         
         self.ae = None
         self.encoder = None
@@ -437,13 +425,29 @@ class CVAE_n_layer():
 
 
         #Define encoder model
-              
         #Add convolution layer onto input
         encoder_input_layer = layers.Input(shape=(self.input_dim,1), name="encoder_input_layer")
         #pdb.set_trace()
-        input_conv_layer = layers.Conv1D(filters=1, kernel_size=self.conv_spacing+1,data_format = 'channels_last',name='input_conv1D',activation='relu')(encoder_input_layer)
+#        input_conv_layer = layers.Conv1D(filters=1, kernel_size=self.conv_spacing+1,data_format = 'channels_last',name='input_conv1D',activation='relu')(encoder_input_layer)
+        input_conv_layer = layers.Conv1D(filters=1, kernel_size=self.conv_spacing+1,data_format = 'channels_last',name='input_conv1D',use_bias=False,trainable=True)(encoder_input_layer)
         input_maxpool_layer = layers.MaxPooling1D(pool_size=4)(input_conv_layer)
         flatten_layer = layers.Flatten()(input_maxpool_layer)
+        
+        self.dummy = Model(inputs=encoder_input_layer, outputs=flatten_layer, name="input_conv_dummy")
+        
+        
+        #Make logspace int layer dims if required
+
+        self.int_layer_dims = []
+        if(self.int_layers>0):
+            #pdb.set_trace()
+            layer1_dim_mid = round((float(flatten_layer.shape[1])**self.int_layers *self.latent_dim)**(1/(self.int_layers+1)))
+            self.int_layer_dims.append(round(layer1_dim_mid))
+            if(self.int_layers>1):
+                for int_layer in range(2,self.int_layers+1):
+                    thislayer_dim_mid = round(float(layer1_dim_mid)**(int_layer) / (flatten_layer.shape[1]**(int_layer-1)))
+                    self.int_layer_dims.append(thislayer_dim_mid)
+                    
         
         #Create the encoder layers
         #The dimensions of the intermediate layers are stored in self.int_layer_dims
