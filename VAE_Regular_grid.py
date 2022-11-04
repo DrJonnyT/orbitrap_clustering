@@ -136,18 +136,7 @@ df_all_data_grid_norm1 = pd.DataFrame(pipe_norm1_mtx.fit_transform(df_all_data_g
 # #Let's make some factors that vary with time
 #First find the least correlated filters from the various datasets
 
-#Correlate each row with every other row
-#My version that is slow but actually works for matrices of different number of rows
-def corr_coeff_rowwise_loops(A,B):
-    corr_mtx = np.empty([A.shape[0],B.shape[0]])
-    for i in range(A.shape[0]):
-       #pdb.set_trace()
-        Arow = A[i,:]
-        for j in range(B.shape[0]):
-            Brow = B[j,:]
-            #pdb.set_trace()
-            corr_mtx[i,j] = pearsonr(Arow,Brow)[0]
-    return corr_mtx
+
             
 
 Beijing_rows_corr = corr_coeff_rowwise_loops(df_all_data_grid_norm1[ds_dataset_cat=='Beijing_winter'].values,df_all_data_grid_norm1[ds_dataset_cat=='Beijing_summer'].values)
@@ -162,6 +151,12 @@ factor_B = df_all_data_grid_norm1[ds_dataset_cat=='Beijing_summer'].iloc[Beijing
 factor_C = df_all_data_grid_norm1[ds_dataset_cat=='Delhi_summer'].iloc[Delhi_rows_corr_min_index[0]].values
 factor_D = df_all_data_grid_norm1[ds_dataset_cat=='Delhi_autumn'].iloc[Delhi_rows_corr_min_index[1]].values
 
+#Clip all so min is zero
+factor_A = factor_A.clip(min=0)
+factor_B = factor_B.clip(min=0)
+factor_C = factor_C.clip(min=0)
+factor_D = factor_D.clip(min=0)
+
 #Normalise all to 1
 factor_A = 1 * factor_A / factor_A.sum()
 factor_B = 1 * factor_B / factor_B.sum()
@@ -170,11 +165,11 @@ factor_D = 1 * factor_D / factor_D.sum()
 
 
 
-# #Try completely separate factors
-# factor_A = np.tile([1,0,0,0],160)/160
-# factor_B = np.tile([0,1,0,0],160)/160
-# factor_C = np.tile([0,0,1,0],160)/160
-# factor_D = np.tile([0,0,0,1],160)/160
+#Try completely separate factors
+#factor_A = np.tile([1,0,0,0],160)/160
+#factor_B = np.tile([0,1,0,0],160)/160
+#factor_C = np.tile([0,0,1,0],160)/160
+#factor_D = np.tile([0,0,0,1],160)/160
 
 
 
@@ -193,6 +188,12 @@ amp_A = np.concatenate((np.sin(np.arange(0,math.pi,math.pi/50))*1.5,np.zeros(150
 amp_B = np.concatenate((np.zeros(50),np.sin(np.arange(0,math.pi,math.pi/50))*1.5,np.zeros(100))) * 2.5
 amp_C = np.concatenate((np.zeros(100),np.sin(np.arange(0,math.pi,math.pi/50))*1.5,np.zeros(50))) * 2.5
 amp_D = np.concatenate((np.zeros(150),np.sin(np.arange(0,math.pi,math.pi/50))*1.5)) * 2.5
+
+#Hard mode amplitudes
+# amp_A = np.append(np.arange(1.5,0.5,-0.01),np.arange(0.5,0,-0.5/100)) * 2.5
+# amp_B = np.abs(np.sin(np.arange(0,2*math.pi,math.pi/100))*2.5) + np.abs(-np.sin(np.arange(0,2*math.pi,math.pi/100))*2.5)
+# amp_C = np.abs(-np.sin(np.arange(0,3*math.pi,math.pi/66.66))*2 + 1)
+# amp_D = np.append(np.arange(0.1,0.6,0.5/100),np.arange(0.6,1.6,0.01)) * 2.5
 
 
 #num_cols = df_all_data_grid_norm1.shape[1]
@@ -223,30 +224,64 @@ dataset_index_4factor_mtx = pd.DataFrame(np.ones(df_4factor.shape)).multiply(dat
 
 
 #%%Trying my FVAE, factorisation VAE
-df_4factor_aug = augment_data_noise(df_4factor,50,1,0)
+df_4factor_aug = augment_data_noise(df_4factor,50,3,0)
 df_4factor_01 = df_4factor.clip(lower=0) / df_4factor.max().max()
 df_4factor_aug_01 = df_4factor_aug.clip(lower=0) / df_4factor_aug.max().max()
 
 
-#%%VAE testing
+#Do something here like normalise every sample between 0 and 1???
+
+
 #%%TRAIN 4-FACTOR VAE
-ae_input = df_4factor_aug.to_numpy()
-ae_input_val = df_4factor.to_numpy()
+ae_input = df_4factor_aug_01.to_numpy()
+ae_input_val = df_4factor_01.to_numpy()
+
+
+
+#%%Check how beta affects the final MSE
+##MSE 1e-5 is good, 1e-4 is bad
+
+beta_final = np.logspace(-6,2,num=25,endpoint=True)
+mse_20_epochs = np.ones(len(beta_final))
+mse_20_epochs.fill(np.nan)
+
+for i in range(len(beta_final)):
+    beta = beta_final[i]
+    beta_schedule = np.logspace(np.log10(beta/1e5),np.log10(beta),num=15,endpoint=True)
+    cvae_obj = CVAE_n_layer(input_dim=input_dim,latent_dim=6,int_layers=3,conv_spacing=16,decoder_output_activation='sigmoid',beta_schedule=beta_schedule)
+    history_cvae = cvae_obj.fit_model(ae_input, x_test=ae_input_val,epochs=20,verbose=1,callbacks=[TerminateOnNaN()])
+    mse_20_epochs[i] = history_cvae.history['val_mse'][-1]
+
+
+
+
+
+fig,ax=plt.subplots(1)
+ax.plot(beta_final,mse_20_epochs)
+ax.set_xscale('log')
+ax.set_yscale('log')
+ax.set_xlabel('Final beta')
+ax.set_ylabel('Final MSE loss')
+plt.show()
+
+
+
+
 
 
 #%%Build and train CVAE
-#beta_schedule = np.array([1e-5,1e-4,1e-3,1e-2,1e-1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0])
-beta_schedule = np.array([1e-5,1e-4,1e-3,1e-2,1e-1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,1.0,1.25])*1e-4
+#Based on the above, try beta = 1e-4
+beta=1e-4
+beta_schedule = np.logspace(np.log10(beta/1e5),np.log10(beta),num=15,endpoint=True)
+beta_schedule = np.array([0,0,0,beta])
 
-# beta_schedule = np.concatenate([np.zeros(5),np.arange(0.1,1.1,0.1),np.ones(10,),np.arange(0.9,0.45,-0.05)])
 
-# beta_schedule = np.abs(np.sin(np.arange(0,201)*0.45/math.pi))
-
-#beta_schedule = 1 - np.cos(np.arange(0,50)*0.45/math.pi)
 input_dim = ae_input.shape[1]
-cvae_obj = CVAE_n_layer(input_dim=input_dim,latent_dim=2,int_layers=3,conv_spacing=14,latent_activation='linear',beta_schedule=beta_schedule)
+#cvae_obj = CVAE_n_layer(input_dim=input_dim,latent_dim=6,int_layers=3,conv_spacing=16,decoder_output_activation='softsign',beta_schedule=beta_schedule)
+#cvae_obj = CVAE_n_layer(input_dim=input_dim,latent_dim=2,int_layers=3,latent_activation='linear',decoder_output_activation='sigmoid',beta_schedule=beta_schedule)
+cvae_obj = VAE_n_layer(input_dim=input_dim,latent_dim=2,int_layers=3,decoder_output_activation='softsign',beta_schedule=beta_schedule)
 
-history_cvae = cvae_obj.fit_model(ae_input, x_test=ae_input_val,epochs=20,verbose=1,callbacks=[TerminateOnNaN()])
+history_cvae = cvae_obj.fit_model(ae_input, x_test=ae_input_val,epochs=50,verbose=1,callbacks=[TerminateOnNaN()])
 
 latent_space = cvae_obj.encoder(ae_input_val).numpy()
 #df_latent_space = pd.DataFrame(latent_space,index=df_all_data.index)
@@ -264,7 +299,7 @@ plt.show()
 
 
 fig,ax = plt.subplots(1)
-scatter = ax.scatter(ae_input_val,vae_obj.ae(ae_input_val),c=dataset_index_4factor_mtx)
+scatter = ax.scatter(ae_input_val,cvae_obj.ae.predict(ae_input_val),c=dataset_index_4factor_mtx)
 legend1 = ax.legend(*scatter.legend_elements(),
                     loc="upper left", title="Factors",ncol=4)
 ax.add_artist(legend1)
@@ -274,12 +309,93 @@ ax.set_ylabel('AE output')
 #ax.legend([['A','B','C','D'])
 plt.show()
 
+
+
+
+
+
+
 # norm = tfp.distributions.Normal(0, 1)
 
 # grid_x = norm.quantile(np.linspace(0.05, 0.95, 5))
 # grid_y = norm.quantile(np.linspace(0.05, 0.95, 5))
 
+#%%Recreate plot from Burgess paper
+#Figure 2 from https://arxiv.org/pdf/1804.03599.pdf
 
+#1 Initialise z from seed image
+#Seed image is the average mass spectrum
+seed_image = ae_input_val.mean(axis=0)
+z_init = cvae_obj.encoder.predict(np.expand_dims(seed_image,0))
+z_init = np.zeros(z_init.shape)
+
+#Make dummy latent space with one dimension as -3 to 3
+num_steps = 7
+dummy_z_dim = np.linspace(-3,3,num=num_steps)
+
+
+
+latent_space_aug = cvae_obj.encoder(ae_input).numpy()
+
+
+
+#Loop through each latent dimension
+for i in range(z_init.shape[1]):
+    dummy_z_mtx = np.repeat(z_init,num_steps,axis=0)
+    dummy_axis = i
+    dummy_z_mtx[:,dummy_axis] = dummy_z_dim
+    
+    #Decode dummy latent space
+    dummy_latent_decoded = cvae_obj.decoder.predict(dummy_z_mtx)
+    
+    #Find correlation with the input factors
+    # latent_grid_decoded_corr = corr_coeff_rowwise_loops(dummy_latent_decoded,df_4factor_factors.to_numpy())
+    # latent_grid_decoded_corr = np.around(latent_grid_decoded_corr,3)
+    #pdb.set_trace()
+    
+    #Plot each one of these
+    fig,ax = plt.subplots(num_steps,1,figsize=(6,12))
+    ax = ax.ravel()
+    fig.suptitle('Latent dimension ' + str(dummy_axis))
+    for j in range(num_steps):
+        #difference_spectrum = dummy_latent_decoded[j,:] - dummy_latent_decoded.mean(axis=0)
+        difference_spectrum = dummy_latent_decoded[j,:]
+        ax[j].stem(mz_grid,difference_spectrum,markerfmt=' ')
+        
+        compare_R = corr_coeff_rowwise_loops(np.expand_dims(difference_spectrum,0),df_4factor_factors.to_numpy())
+        compare_R = np.around(compare_R,3)
+        #pdb.set_trace()
+        ax[j].text(0.95,0.5,compare_R,horizontalalignment='right', verticalalignment='top',transform=ax[j].transAxes)
+        
+    plt.tight_layout()
+    plt.show()
+
+
+
+
+#%%Try the average mass spectrum one mz at a time
+num_mz = ae_input_val.shape[1]
+heatmap_input = np.zeros([num_mz,num_mz])
+indices = np.expand_dims(np.arange(num_mz),1)
+values = np.expand_dims(ae_input_val.mean(axis=0),1)
+np.put_along_axis(heatmap_input,indices,values,axis=1)
+
+latent_heatmap = cvae_obj.encoder.predict(heatmap_input)
+
+#latent_heatmap[(values==0).ravel(),:] = np.nan
+
+# plt.scatter(mz_grid,latent_heatmap[:,0])
+# plt.show()
+
+latent_heatmap_dim_mean = np.nanmean(latent_heatmap,axis=0)
+latent_heatmap_dim_std = np.nanstd(latent_heatmap,axis=0)
+plt.scatter(latent_heatmap_dim_mean,latent_heatmap_dim_std)
+plt.show()
+
+# latent_space_dim_mean = np.nanmean(latent_space,axis=0)
+# latent_space_dim_std = np.nanstd(latent_space,axis=0)
+# plt.scatter(latent_space_dim_mean,latent_space_dim_std)
+# plt.show()
 
 
 #%%Check Pearson's R correlation between input and output factors
@@ -288,17 +404,19 @@ latent0_max = latent_space[:,0].max()
 latent1_min = latent_space[:,1].min()
 latent1_max = latent_space[:,1].max()
 
-latent_grid = np.mgrid[latent0_min:latent0_max:3j, latent1_min:latent1_max:3j].reshape(2, -1).T
+latent_grid_size = 3
+
+latent_grid = np.mgrid[latent0_min:latent0_max:latent_grid_size*1j, latent1_min:latent1_max:latent_grid_size*1j].reshape(2, -1).T
 
 df_latent_grid_decoded = pd.DataFrame(cvae_obj.decoder.predict(latent_grid),columns=df_all_data_grid_norm1.columns)
 latent_grid_decoded_corr = corr_coeff_rowwise_loops(df_latent_grid_decoded.to_numpy(),df_4factor_factors.to_numpy())
 latent_grid_decoded_corr = np.around(latent_grid_decoded_corr,3)
 
 #ds_all_mz = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
-fig,ax = plt.subplots(3,3,figsize=(20,10))
+fig,ax = plt.subplots(latent_grid_size,latent_grid_size,figsize=(20,10))
 axs = ax.ravel()
     
-for i in range(9):   
+for i in range(latent_grid_size**2):   
     axs[i].stem(mz_grid,df_latent_grid_decoded.iloc[i],markerfmt=' ')
     best_R = latent_grid_decoded_corr[i]
     axs[i].text(0.95,0.5,latent_grid_decoded_corr[i].max(),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes)
