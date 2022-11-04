@@ -12,9 +12,9 @@ import tensorflow.keras.backend as K
 import tensorflow.keras as keras
 import kerastuner as kt
 
-#Need this because otherwise the custom losses don't work
-from tensorflow.python.framework.ops import disable_eager_execution
-disable_eager_execution()
+# #Need this because otherwise the custom losses don't work
+# from tensorflow.python.framework.ops import disable_eager_execution
+# disable_eager_execution()
 
 
 from sklearn.preprocessing import RobustScaler, StandardScaler,FunctionTransformer,MinMaxScaler,Normalizer,QuantileTransformer
@@ -37,7 +37,7 @@ from matplotlib.colors import BoundaryNorm, ListedColormap
 from matplotlib.cm import ScalarMappable
 import matplotlib.ticker as plticker
 
-import skfuzzy as fuzz
+#import skfuzzy as fuzz
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -50,84 +50,130 @@ import time
 import os
 os.chdir('C:/Work/Python/Github/Orbitrap_clustering')
 from ae_functions import *
+from orbitrap_functions import *
 
-# %%Load data
+# # %%Load data
 
-path='C:/Users/mbcx5jt5/Google Drive/Shared_York_Man2/'
-df_beijing_data, df_beijing_err, df_beijing_metadata, df_beijing_raw = beijing_load(
-    path + 'BJ_UnAmbNeg9.1.1_20210505-Times_Fixed.xlsx',path + 'BJ_UnAmbNeg9.1.1_20210505-Times_Fixed.xlsx',
-    peaks_sheetname="Compounds",metadata_sheetname="massloading_Beijing")
+# path='C:/Users/mbcx5jt5/Google Drive/Shared_York_Man2/'
+# df_beijing_data, df_beijing_err, df_beijing_metadata, df_beijing_raw = beijing_load(
+#     path + 'BJ_UnAmbNeg9.1.1_20210505-Times_Fixed.xlsx',path + 'BJ_UnAmbNeg9.1.1_20210505-Times_Fixed.xlsx',
+#     peaks_sheetname="Compounds",metadata_sheetname="massloading_Beijing")
 
-df_delhi_data, df_delhi_err, df_delhi_metadata, df_delhi_raw = delhi_load2(path + '/Delhi/Orbitrap/')
+# df_delhi_data, df_delhi_err, df_delhi_metadata, df_delhi_raw = delhi_load2(path + '/Delhi/Orbitrap/')
 
-df_all_data = pd.concat([df_beijing_data, df_delhi_data], axis=0, join="inner")
-df_all_err = pd.concat([df_beijing_err, df_delhi_err], axis=0, join="inner")
-df_all_raw = pd.concat([df_beijing_raw, df_delhi_raw], axis=1, join="inner")
-df_all_raw = df_all_raw.loc[:,~df_all_raw.columns.duplicated()] #Remove duplicate columns: m/z, RT, molecular weight, formula
+# df_all_data = pd.concat([df_beijing_data, df_delhi_data], axis=0, join="inner")
+# df_all_err = pd.concat([df_beijing_err, df_delhi_err], axis=0, join="inner")
+# df_all_raw = pd.concat([df_beijing_raw, df_delhi_raw], axis=1, join="inner")
+# df_all_raw = df_all_raw.loc[:,~df_all_raw.columns.duplicated()] #Remove duplicate columns: m/z, RT, molecular weight, formula
+
+# dataset_cat = delhi_beijing_datetime_cat(df_all_data)
+# df_dataset_cat = pd.DataFrame(delhi_beijing_datetime_cat(df_all_data),columns=['dataset_cat'],index=df_all_data.index)
+# ds_dataset_cat = df_dataset_cat['dataset_cat']
+
+# time_cat = delhi_calc_time_cat(df_all_data)
+# df_time_cat = pd.DataFrame(delhi_calc_time_cat(df_all_data),columns=['time_cat'],index=df_all_data.index)
+# ds_time_cat = df_time_cat['time_cat']
+
+# ds_all_mz = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
+
+
+# #Sort columns by m/z
+# ds_all_mz_sorted = ds_all_mz.sort_values("Molecular Weight",axis=0)
+# df_all_data.columns= ds_all_mz['Molecular Weight']
+# df_all_data.sort_index(axis=1,inplace=True)
+# df_all_data.columns = ds_all_mz_sorted.index
+# df_all_err.columns= ds_all_mz['Molecular Weight']
+# df_all_err.sort_index(axis=1,inplace=True)
+# df_all_err.columns = ds_all_mz_sorted.index
+# ds_all_mz = ds_all_mz_sorted
+
+# #%%Compare inner vs outer join
+# df_all_data_outer = pd.concat([df_beijing_data, df_delhi_data], axis=0, join="outer")
+# df_all_data_outer_sum = df_all_data_outer.sum(axis=1)
+# df_all_data_inner_sum = df_all_data.sum(axis=1)
+# m, b = np.polyfit(x=df_all_data_outer_sum, y=df_all_data_inner_sum,deg=1)
+
+# sns.scatterplot(df_all_data_outer_sum,df_all_data_inner_sum,marker='o',hue=dataset_cat)
+# plt.plot(df_all_data_outer_sum, m*df_all_data_outer_sum + b,c='k')
+# plt.xlabel('Outer join total concentration (µg/m3)')
+# plt.ylabel('Inner join total concentration (µg/m3)')
+# plt.text(700,50,"y = " + str(round(m,3)) + " + " + str(round(b,2)),horizontalalignment='right', verticalalignment='bottom')
+
+
+# #%%Work out O:C, H:C, S:C, N:C ratios for all peaks
+# df_element_ratios = ds_all_mz.index.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[0])
+# df_element_ratios = pd.DataFrame()
+# df_element_ratios['H/C'] = ds_all_mz.index.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[0])
+# df_element_ratios['O/C'] = ds_all_mz.index.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[1])
+# df_element_ratios['N/C'] = ds_all_mz.index.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[2])
+# df_element_ratios['S/C'] = ds_all_mz.index.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[3])
+
+
+
+# #%%Load chemform namelists
+# chemform_namelist_beijing = load_chemform_namelist(path + 'Beijing_Amb3.1_MZ.xlsx')
+# chemform_namelist_delhi = load_chemform_namelist(path + 'Delhi_Amb3.1_MZ.xlsx')
+# chemform_namelist_all = combine_chemform_namelists(chemform_namelist_beijing,chemform_namelist_delhi)
+
+
+#%%Load data from HDF
+filepath = r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\ORBITRAP_Data_Pre_PMF.h5"
+df_all_data, df_all_err, ds_all_mz = Load_pre_PMF_data(filepath)
+
+#Save data to CSV
+df_all_data.to_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\df_all_data.csv")
+df_all_err.to_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\df_all_err.csv")
+ds_all_mz.to_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\ds_all_mz.csv",index=False,header=False)
+
+pd.DataFrame(df_all_data.columns.get_level_values(0),df_all_data.columns.get_level_values(1)).to_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\RT_formula.csv",header=False)
+
+#Load all time data, ie start/mid/end
+df_all_times = pd.read_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\Times_all.csv")
+df_all_times['date_start'] = pd.to_datetime(df_all_times['date_start'],dayfirst=True)
+df_all_times['date_mid'] = pd.to_datetime(df_all_times['date_mid'],dayfirst=True)
+df_all_times['date_end'] = pd.to_datetime(df_all_times['date_end'],dayfirst=True)
+
+df_all_times.set_index(df_all_times['date_mid'],inplace=True)
+fuzzy_index = pd.merge_asof(pd.DataFrame(index=df_all_data.index),df_all_times,left_index=True,right_index=True,direction='nearest',tolerance=pd.Timedelta(hours=1.25))
+df_all_times = df_all_times.loc[fuzzy_index['date_mid']]
 
 dataset_cat = delhi_beijing_datetime_cat(df_all_data)
 df_dataset_cat = pd.DataFrame(delhi_beijing_datetime_cat(df_all_data),columns=['dataset_cat'],index=df_all_data.index)
 ds_dataset_cat = df_dataset_cat['dataset_cat']
 
-time_cat = delhi_calc_time_cat(df_all_data)
-df_time_cat = pd.DataFrame(delhi_calc_time_cat(df_all_data),columns=['time_cat'],index=df_all_data.index)
+time_cat = delhi_calc_time_cat(df_all_times)
+df_time_cat = pd.DataFrame(delhi_calc_time_cat(df_all_times),columns=['time_cat'],index=df_all_times.index)
 ds_time_cat = df_time_cat['time_cat']
 
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
-
-
-#Sort columns by m/z
-mz_columns_sorted = mz_columns.sort_values("Molecular Weight",axis=0)
-df_all_data.columns= mz_columns['Molecular Weight']
-df_all_data.sort_index(axis=1,inplace=True)
-df_all_data.columns = mz_columns_sorted.index
-df_all_err.columns= mz_columns['Molecular Weight']
-df_all_err.sort_index(axis=1,inplace=True)
-df_all_err.columns = mz_columns_sorted.index
-mz_columns = mz_columns_sorted
-
-#%%Compare inner vs outer join
-df_all_data_outer = pd.concat([df_beijing_data, df_delhi_data], axis=0, join="outer")
-df_all_data_outer_sum = df_all_data_outer.sum(axis=1)
-df_all_data_inner_sum = df_all_data.sum(axis=1)
-m, b = np.polyfit(x=df_all_data_outer_sum, y=df_all_data_inner_sum,deg=1)
-
-sns.scatterplot(df_all_data_outer_sum,df_all_data_inner_sum,marker='o',hue=dataset_cat)
-plt.plot(df_all_data_outer_sum, m*df_all_data_outer_sum + b,c='k')
-plt.xlabel('Outer join total concentration (µg/m3)')
-plt.ylabel('Inner join total concentration (µg/m3)')
-plt.text(700,50,"y = " + str(round(m,3)) + " + " + str(round(b,2)),horizontalalignment='right', verticalalignment='bottom')
+#This is a list of peaks with Sari's description from her PMF
+Sari_peaks_list = pd.read_csv(r'C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\Sari_Peaks_Sources.csv',index_col='Formula',na_filter=False)
+Sari_peaks_list = Sari_peaks_list[~Sari_peaks_list.index.duplicated(keep='first')]
 
 
 #%%Work out O:C, H:C, S:C, N:C ratios for all peaks
-df_element_ratios = mz_columns.index.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[0])
+#df_element_ratios = df_all_data.columns.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[0])
 df_element_ratios = pd.DataFrame()
-df_element_ratios['H/C'] = mz_columns.index.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[0])
-df_element_ratios['O/C'] = mz_columns.index.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[1])
-df_element_ratios['N/C'] = mz_columns.index.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[2])
-df_element_ratios['S/C'] = mz_columns.index.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[3])
+df_element_ratios['H/C'] = df_all_data.columns.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[0])
+df_element_ratios['O/C'] = df_all_data.columns.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[1])
+df_element_ratios['N/C'] = df_all_data.columns.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[2])
+df_element_ratios['S/C'] = df_all_data.columns.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[3])
 
 
-
-#%%Load chemform namelists
-chemform_namelist_beijing = load_chemform_namelist(path + 'Beijing_Amb3.1_MZ.xlsx')
-chemform_namelist_delhi = load_chemform_namelist(path + 'Delhi_Amb3.1_MZ.xlsx')
-chemform_namelist_all = combine_chemform_namelists(chemform_namelist_beijing,chemform_namelist_delhi)
 
 
 #%%Prescale datasets
-#Divide whole thing by 1e6
-scalefactor = 1e6
-pipe_1e6 = FunctionTransformer(lambda x: np.divide(x,scalefactor),inverse_func = lambda x: np.multiply(x,scalefactor))
-pipe_1e6.fit(df_all_data)
-
-df_all_data_1e6 = pd.DataFrame(pipe_1e6.transform(df_all_data),columns=df_all_data.columns)
-ds_all_filters_total_1e6 = df_all_data_1e6.sum(axis=1)
+# #Divide whole thing by 1e6
+# scalefactor = 1e6
+# pipe_1e6 = FunctionTransformer(lambda x: np.divide(x,scalefactor),inverse_func = lambda x: np.multiply(x,scalefactor))
+# pipe_1e6.fit(df_all_data)
+#
+#df_all_data_1e6 = pd.DataFrame(pipe_1e6.transform(df_all_data),columns=df_all_data.columns)
+#ds_all_filters_total_1e6 = df_all_data_1e6.sum(axis=1)
 
 #Normalise so the mean of the whole matrix is 1
 orig_mean = df_all_data.mean().mean()
 pipe_norm1_mtx = FunctionTransformer(lambda x: np.divide(x,orig_mean),inverse_func = lambda x: np.multiply(x,orig_mean))
-pipe_norm1_mtx.fit(df_all_data)
+pipe_norm1_mtx.fit(df_all_data.to_numpy())
 df_all_data_norm1 = pd.DataFrame(pipe_norm1_mtx.transform(df_all_data),columns=df_all_data.columns)
 
 #Minmax scaling
@@ -154,13 +200,13 @@ df_all_data_log1p = pd.DataFrame(pipe_log1p.fit_transform(df_all_data.to_numpy()
 
 
 #%%Try autoencoder
-df_all_data_aug = augment_data_noise(df_all_data_norm1,25,1,0)
-ae_input = df_aug.values
+df_all_data_aug = augment_data_noise(df_all_data_norm1,50,1,0)
+ae_input = df_all_data_aug.values
 ae_input_val = df_all_data_norm1.values
 input_dim = ae_input.shape[1]
 
-ae_input = ae_input.clip(min=0)
-ae_input_val = ae_input_val.clip(min=0)
+#ae_input = ae_input.clip(min=0)
+#ae_input_val = ae_input_val.clip(min=0)
 
 
 
@@ -349,7 +395,7 @@ factor_C = 1 * factor_C / factor_C.sum()
 factor_D = 1 * factor_D / factor_D.sum()
 #Make factor E so all columns between mz 350 -- 400 are...dataful...
 factor_E  = np.ones(df_all_data.shape[1])
-factor_E[np.ravel(np.logical_and(mz_columns.to_numpy() > 350, mz_columns.to_numpy() < 400))] = 50
+factor_E[np.ravel(np.logical_and(ds_all_mz.to_numpy() > 350, ds_all_mz.to_numpy() < 400))] = 50
 factor_E = factor_E * np.random.normal(1, 0.3, [df_all_data.shape[1]]).clip(min=0)
 factor_E = 1 * factor_E / factor_E.sum()
 
@@ -829,11 +875,11 @@ plt.plot(factor3_sum,c='y')
 #%%Plot 4-factor PMF fit to real space testdata
 
 fig,ax = plt.subplots(5,1,figsize=(6.66,10))
-ax[0].stem(mz_columns.to_numpy(),Factor0_mtx.mean(axis=0),markerfmt=' ')
-ax[1].stem(mz_columns.to_numpy(),Factor1_mtx.mean(axis=0),markerfmt=' ')
-ax[2].stem(mz_columns.to_numpy(),Factor2_mtx.mean(axis=0),markerfmt=' ')
-ax[3].stem(mz_columns.to_numpy(),Factor3_mtx.mean(axis=0),markerfmt=' ')
-ax[4].stem(mz_columns.to_numpy(),Factor4_mtx.mean(axis=0),markerfmt=' ')
+ax[0].stem(ds_all_mz.to_numpy(),Factor0_mtx.mean(axis=0),markerfmt=' ')
+ax[1].stem(ds_all_mz.to_numpy(),Factor1_mtx.mean(axis=0),markerfmt=' ')
+ax[2].stem(ds_all_mz.to_numpy(),Factor2_mtx.mean(axis=0),markerfmt=' ')
+ax[3].stem(ds_all_mz.to_numpy(),Factor3_mtx.mean(axis=0),markerfmt=' ')
+ax[4].stem(ds_all_mz.to_numpy(),Factor4_mtx.mean(axis=0),markerfmt=' ')
 plt.setp(ax, xlim=(100,500))
 ax[0].set_title('PMF factors')
 ax[4].set_xlabel('m/z')
@@ -842,10 +888,10 @@ plt.show()
 #%%Plot 4-factor PMF fit to real space testdata, un MinMax
 
 fig,ax = plt.subplots(4,1,figsize=(6.66,10))
-ax[0].stem(mz_columns.to_numpy(),MM_4factor.inverse_transform(Factor0_mtx.mean(axis=0).reshape(-1,1).T).T,markerfmt=' ')
-ax[1].stem(mz_columns.to_numpy(),MM_4factor.inverse_transform(Factor1_mtx.mean(axis=0).reshape(-1,1).T).T,markerfmt=' ')
-ax[2].stem(mz_columns.to_numpy(),MM_4factor.inverse_transform(Factor2_mtx.mean(axis=0).reshape(-1,1).T).T,markerfmt=' ')
-ax[3].stem(mz_columns.to_numpy(),MM_4factor.inverse_transform(Factor3_mtx.mean(axis=0).reshape(-1,1).T).T,markerfmt=' ')
+ax[0].stem(ds_all_mz.to_numpy(),MM_4factor.inverse_transform(Factor0_mtx.mean(axis=0).reshape(-1,1).T).T,markerfmt=' ')
+ax[1].stem(ds_all_mz.to_numpy(),MM_4factor.inverse_transform(Factor1_mtx.mean(axis=0).reshape(-1,1).T).T,markerfmt=' ')
+ax[2].stem(ds_all_mz.to_numpy(),MM_4factor.inverse_transform(Factor2_mtx.mean(axis=0).reshape(-1,1).T).T,markerfmt=' ')
+ax[3].stem(ds_all_mz.to_numpy(),MM_4factor.inverse_transform(Factor3_mtx.mean(axis=0).reshape(-1,1).T).T,markerfmt=' ')
 plt.setp(ax, xlim=(100,400))
 ax[0].set_title('PMF factors')
 ax[3].set_xlabel('m/z')
@@ -859,43 +905,111 @@ plt.show()
 
 
 
-#%%TRAIN 2-FACTOR VAE
-#Based on the above, use an AE with 1 intermediate layers and latent dim of 4
-ae_obj = FVAE_n_layer(input_dim=input_dim,latent_dim=1,int_layers=1,latent_activation='softsign',decoder_output_activation='relu')
-history = ae_obj.fit_model(df_2factor_aug.to_numpy(),x_test=df_2factor_01.to_numpy(),epochs=100,verbose=True)
-val_acc_per_epoch = history.history['val_loss']
-kl_loss = history.history['kl_loss']
-mse_loss = history.history['mse_loss']
-# fig,ax = plt.subplots(1,figsize=(8,6))
-# ax.plot(val_acc_per_epoch)
-# plt.show()
-# #Now retrain model based on best epoch
-# best_epoch = val_acc_per_epoch.index(min(val_acc_per_epoch)) + 1
-# ae_obj = FVAE_n_layer(input_dim=input_dim,latent_dim=4,int_layers=1,latent_activation='linear',decoder_output_activation='relu')
-# ae_obj.fit_model(df_3factor_01.to_numpy(),epochs=best_epoch,verbose=True)
-# print('Best epoch: %d' % (best_epoch,))
+#%%TRAIN 4-FACTOR VAE
+ae_input = df_4factor_aug.to_numpy()
+ae_input_val = df_4factor.to_numpy()
 
 
-fig,ax=plt.subplots(2,1,figsize=(12,8))
-ax[0].set_title('Finding optimum epochs- simple relu AE, relu latent space')
-ax[0].plot(history.epoch,val_acc_per_epoch,label='loss',c='r')
-ax[0].plot(history.epoch,kl_loss,c='k',label='kl_loss')
-ax[0].plot(history.epoch,mse_loss,c='b',label='mse')
-ax[0].set_xlabel('Number of epochs')
-ax[0].set_ylabel('MSE')
-ax[1].plot(history.epoch,val_acc_per_epoch,c='r')
-ax[1].plot(history.epoch,kl_loss,c='k')
-ax[1].plot(history.epoch,mse_loss,c='b')
-ax[1].set_xlabel('Number of epochs')
-ax[1].set_ylabel('MSE')
-ax[1].set_yscale('log')
-#loc = plticker.MultipleLocator(base=10.0) # this locator puts ticks at regular intervals
-#ax[0].xaxis.set_major_locator(plticker.MultipleLocator(base=10.0))
-#ax[0].xaxis.set_minor_locator(plticker.MultipleLocator(base=1.0))
-#ax[1].xaxis.set_major_locator(plticker.MultipleLocator(base=10.0))
-#ax[1].xaxis.set_minor_locator(plticker.MultipleLocator(base=1.0))
-ax[0].legend()
+#%%Build and trainVAE
+#beta_schedule = np.array([1e-5,1e-4,1e-3,1e-2,1e-1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0])
+beta_schedule = np.array([1e-5,1e-4,1e-3,1e-2,1e-1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,1.0,1.25])*0.001
+
+# beta_schedule = np.concatenate([np.zeros(5),np.arange(0.1,1.1,0.1),np.ones(10,),np.arange(0.9,0.45,-0.05)])
+
+# beta_schedule = np.abs(np.sin(np.arange(0,201)*0.45/math.pi))
+
+#beta_schedule = 1 - np.cos(np.arange(0,50)*0.45/math.pi)
+input_dim = ae_input.shape[1]
+vae_obj = VAE_n_layer(input_dim=input_dim,latent_dim=2,int_layers=3,latent_activation='softsign',beta_schedule=beta_schedule)
+
+history_vae = vae_obj.fit_model(ae_input, x_test=ae_input_val,epochs=20,verbose=1,callbacks=[TerminateOnNaN()])
+
+latent_space = vae_obj.encoder(ae_input_val).numpy()
+#df_latent_space = pd.DataFrame(latent_space,index=df_all_data.index)
+plt.scatter(latent_space[:,0],latent_space[:,1])
+
+
+fig,ax = plt.subplots(1)
+plt.scatter(ae_input_val,vae_obj.ae(ae_input_val))
+plt.title('AE input vs output')
+plt.xlabel('AE input')
+plt.ylabel('AE output')
 plt.show()
+
+norm = tfp.distributions.Normal(0, 1)
+
+grid_x = norm.quantile(np.linspace(0.05, 0.95, 5))
+grid_y = norm.quantile(np.linspace(0.05, 0.95, 5))
+
+
+
+
+#%%Check Pearson's R correlation between input and output factors
+latent0_min = latent_space[:,0].min()
+latent0_max = latent_space[:,0].max()
+latent1_min = latent_space[:,1].min()
+latent1_max = latent_space[:,1].max()
+
+latent_grid1 = np.mgrid[latent0_min:latent0_max:3j, latent1_min:latent1_max:3j].reshape(2, -1).T
+
+df_latent_grid_decoded = pd.DataFrame(vae_obj.decoder.predict(latent_grid),columns=df_all_data.columns)
+latent_grid_decoded_corr = corr_coeff_rowwise_loops(df_latent_grid_decoded.to_numpy(),df_4factor_factors.to_numpy())
+latent_grid_decoded_corr = np.around(latent_grid_decoded_corr,3)
+
+#ds_all_mz = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
+fig,ax = plt.subplots(3,3,figsize=(20,10))
+axs = ax.ravel()
+    
+for i in range(9):   
+    axs[i].stem(ds_all_mz.to_numpy(),df_latent_grid_decoded.iloc[i],markerfmt=' ')
+    best_R = latent_grid_decoded_corr[i]
+    axs[i].text(0.95,0.5,latent_grid_decoded_corr[i].max(),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes)
+    axs[i].text(0.95,0.4,latent_grid_decoded_corr[i].argmax(),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes)
+    
+
+plt.setp(ax, xlim=(100,400))
+plt.tight_layout()
+plt.show()
+
+
+
+
+
+# ae_obj = VAE_n_layer(input_dim=input_dim,latent_dim=3,int_layers=3,latent_activation='tanh',decoder_output_activation='linear')
+# history = ae_obj.fit_model(ae_input,x_test=ae_input_val,epochs=10,verbose=True)
+# val_acc_per_epoch = history.history['val_loss']
+# kl_loss = history.history['kl_loss']
+# mse_loss = history.history['mse_loss']
+# # fig,ax = plt.subplots(1,figsize=(8,6))
+# # ax.plot(val_acc_per_epoch)
+# # plt.show()
+# # #Now retrain model based on best epoch
+# # best_epoch = val_acc_per_epoch.index(min(val_acc_per_epoch)) + 1
+# # ae_obj = FVAE_n_layer(input_dim=input_dim,latent_dim=4,int_layers=1,latent_activation='linear',decoder_output_activation='relu')
+# # ae_obj.fit_model(df_3factor_01.to_numpy(),epochs=best_epoch,verbose=True)
+# # print('Best epoch: %d' % (best_epoch,))
+
+
+# fig,ax=plt.subplots(2,1,figsize=(12,8))
+# ax[0].set_title('Finding optimum epochs- simple relu AE, relu latent space')
+# ax[0].plot(history.epoch,val_acc_per_epoch,label='loss',c='r')
+# ax[0].plot(history.epoch,kl_loss,c='k',label='kl_loss')
+# ax[0].plot(history.epoch,mse_loss,c='b',label='mse')
+# ax[0].set_xlabel('Number of epochs')
+# ax[0].set_ylabel('MSE')
+# ax[1].plot(history.epoch,val_acc_per_epoch,c='r')
+# ax[1].plot(history.epoch,kl_loss,c='k')
+# ax[1].plot(history.epoch,mse_loss,c='b')
+# ax[1].set_xlabel('Number of epochs')
+# ax[1].set_ylabel('MSE')
+# ax[1].set_yscale('log')
+# #loc = plticker.MultipleLocator(base=10.0) # this locator puts ticks at regular intervals
+# #ax[0].xaxis.set_major_locator(plticker.MultipleLocator(base=10.0))
+# #ax[0].xaxis.set_minor_locator(plticker.MultipleLocator(base=1.0))
+# #ax[1].xaxis.set_major_locator(plticker.MultipleLocator(base=10.0))
+# #ax[1].xaxis.set_minor_locator(plticker.MultipleLocator(base=1.0))
+# ax[0].legend()
+# plt.show()
 
 #%%Plot input vs output
 latent_space = ae_obj.encoder.predict(df_2factor_01.to_numpy())
@@ -912,12 +1026,12 @@ plt.show()
 latent_decoded_min1 = ae_obj.decoder.predict([-1]).T
 latent_decoded_plus1 = ae_obj.decoder.predict([1]).T
 
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
+ds_all_mz = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
 fig,ax = plt.subplots(4,1,figsize=(10,10))
-ax[0].stem(mz_columns.to_numpy(),factor_A,markerfmt=' ')
-ax[1].stem(mz_columns.to_numpy(),factor_C,markerfmt=' ')
-ax[2].stem(mz_columns.to_numpy(),latent_decoded_min1,markerfmt=' ')
-ax[3].stem(mz_columns.to_numpy(),latent_decoded_plus1,markerfmt=' ')
+ax[0].stem(ds_all_mz.to_numpy(),factor_A,markerfmt=' ')
+ax[1].stem(ds_all_mz.to_numpy(),factor_C,markerfmt=' ')
+ax[2].stem(ds_all_mz.to_numpy(),latent_decoded_min1,markerfmt=' ')
+ax[3].stem(ds_all_mz.to_numpy(),latent_decoded_plus1,markerfmt=' ')
 ax[0].set_xlim(right=400)
 ax[1].set_xlim(right=400)
 ax[2].set_xlim(right=400)
@@ -992,16 +1106,16 @@ plt.show()
 
 #%%Check Pearson's R correlation between input and output factors
 latent_grid = np.mgrid[-1:2:1, -1:2:1].reshape(2, -1).T
-df_latent_grid_decoded = pd.DataFrame(ae_obj.decoder.predict(latent_grid),columns=df_all_data.columns)
+df_latent_grid_decoded = pd.DataFrame(vae_obj.decoder.predict(latent_grid),columns=df_all_data.columns)
 latent_grid_decoded_corr = corr_coeff_rowwise_loops(df_latent_grid_decoded.to_numpy(),df_4factor_factors.to_numpy())
 latent_grid_decoded_corr = np.around(latent_grid_decoded_corr,3)
 
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
+ds_all_mz = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
 fig,ax = plt.subplots(3,3,figsize=(20,10))
 axs = ax.ravel()
     
 for i in range(9):   
-    axs[i].stem(mz_columns.to_numpy(),df_latent_grid_decoded.iloc[i],markerfmt=' ')
+    axs[i].stem(ds_all_mz.to_numpy(),df_latent_grid_decoded.iloc[i],markerfmt=' ')
     best_R = latent_grid_decoded_corr[i]
     axs[i].text(0.95,0.5,latent_grid_decoded_corr[i].max(),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes)
     axs[i].text(0.95,0.4,latent_grid_decoded_corr[i].argmax(),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes)
@@ -1022,16 +1136,16 @@ latent0_decoded_plus1 = ae_obj.decoder.predict(np.array([[1,0]])).T
 latent1_decoded_min1 = ae_obj.decoder.predict(np.array([[0,-1]])).T
 latent1_decoded_plus1 = ae_obj.decoder.predict(np.array([[0,1]])).T
 
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
+ds_all_mz = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
 fig,ax = plt.subplots(8,1,figsize=(10,10))
-ax[0].stem(mz_columns.to_numpy(),factor_A,markerfmt=' ')
-ax[1].stem(mz_columns.to_numpy(),factor_B,markerfmt=' ')
-ax[2].stem(mz_columns.to_numpy(),factor_C,markerfmt=' ')
-ax[3].stem(mz_columns.to_numpy(),factor_D,markerfmt=' ')
-ax[4].stem(mz_columns.to_numpy(),latent0_decoded_min1,markerfmt=' ')
-ax[5].stem(mz_columns.to_numpy(),latent0_decoded_plus1,markerfmt=' ')
-ax[6].stem(mz_columns.to_numpy(),latent1_decoded_min1,markerfmt=' ')
-ax[7].stem(mz_columns.to_numpy(),latent1_decoded_plus1,markerfmt=' ')
+ax[0].stem(ds_all_mz.to_numpy(),factor_A,markerfmt=' ')
+ax[1].stem(ds_all_mz.to_numpy(),factor_B,markerfmt=' ')
+ax[2].stem(ds_all_mz.to_numpy(),factor_C,markerfmt=' ')
+ax[3].stem(ds_all_mz.to_numpy(),factor_D,markerfmt=' ')
+ax[4].stem(ds_all_mz.to_numpy(),latent0_decoded_min1,markerfmt=' ')
+ax[5].stem(ds_all_mz.to_numpy(),latent0_decoded_plus1,markerfmt=' ')
+ax[6].stem(ds_all_mz.to_numpy(),latent1_decoded_min1,markerfmt=' ')
+ax[7].stem(ds_all_mz.to_numpy(),latent1_decoded_plus1,markerfmt=' ')
 ax[0].set_xlim(right=400)
 ax[1].set_xlim(right=400)
 ax[2].set_xlim(right=400)
@@ -1050,17 +1164,17 @@ latent_pm_decoded = ae_obj.decoder.predict(np.array([[1,-1]])).T
 latent_pp_decoded = ae_obj.decoder.predict(np.array([[1,1]])).T
 latent_00_decoded = ae_obj.decoder.predict(np.array([[0,0]])).T
 
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
+ds_all_mz = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
 fig,ax = plt.subplots(9,1,figsize=(10,10))
-ax[0].stem(mz_columns.to_numpy(),factor_A,markerfmt=' ')
-ax[1].stem(mz_columns.to_numpy(),factor_B,markerfmt=' ')
-ax[2].stem(mz_columns.to_numpy(),factor_C,markerfmt=' ')
-ax[3].stem(mz_columns.to_numpy(),factor_D,markerfmt=' ')
-ax[4].stem(mz_columns.to_numpy(),latent_mm_decoded,markerfmt=' ')
-ax[5].stem(mz_columns.to_numpy(),latent_mp_decoded,markerfmt=' ')
-ax[6].stem(mz_columns.to_numpy(),latent_pm_decoded,markerfmt=' ')
-ax[7].stem(mz_columns.to_numpy(),latent_pp_decoded,markerfmt=' ')
-ax[8].stem(mz_columns.to_numpy(),latent_00_decoded,markerfmt=' ')
+ax[0].stem(ds_all_mz.to_numpy(),factor_A,markerfmt=' ')
+ax[1].stem(ds_all_mz.to_numpy(),factor_B,markerfmt=' ')
+ax[2].stem(ds_all_mz.to_numpy(),factor_C,markerfmt=' ')
+ax[3].stem(ds_all_mz.to_numpy(),factor_D,markerfmt=' ')
+ax[4].stem(ds_all_mz.to_numpy(),latent_mm_decoded,markerfmt=' ')
+ax[5].stem(ds_all_mz.to_numpy(),latent_mp_decoded,markerfmt=' ')
+ax[6].stem(ds_all_mz.to_numpy(),latent_pm_decoded,markerfmt=' ')
+ax[7].stem(ds_all_mz.to_numpy(),latent_pp_decoded,markerfmt=' ')
+ax[8].stem(ds_all_mz.to_numpy(),latent_00_decoded,markerfmt=' ')
 ax[0].set_xlim(right=400)
 ax[1].set_xlim(right=400)
 ax[2].set_xlim(right=400)
@@ -1224,12 +1338,12 @@ df_latent_grid_decoded = pd.DataFrame(ae_obj.decoder.predict(latent_grid),column
 latent_grid_decoded_corr = corr_coeff_rowwise_loops(df_latent_grid_decoded.to_numpy(),df_4factor_factors.to_numpy())
 latent_grid_decoded_corr = np.around(latent_grid_decoded_corr,3)
 
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
+ds_all_mz = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
 fig,ax = plt.subplots(3,3,figsize=(20,10))
 axs = ax.ravel()
     
 for i in range(9):   
-    axs[i].stem(mz_columns.to_numpy(),df_latent_grid_decoded.iloc[i],markerfmt=' ')
+    axs[i].stem(ds_all_mz.to_numpy(),df_latent_grid_decoded.iloc[i],markerfmt=' ')
     best_R = latent_grid_decoded_corr[i]
     axs[i].text(0.95,0.5,'R = ' + str(latent_grid_decoded_corr[i].max()),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes,fontsize=14)
     axs[i].text(0.95,0.4,'Factor ' + str(latent_grid_decoded_corr[i].argmax()),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes,fontsize=14)
@@ -1263,12 +1377,12 @@ df_latent_grid_decoded = pd.DataFrame(ae_obj.decoder.predict(latent_grid),column
 latent_grid_decoded_corr = corr_coeff_rowwise_loops(df_latent_grid_decoded.to_numpy(),df_4factor_factors.to_numpy())
 latent_grid_decoded_corr = np.around(latent_grid_decoded_corr,3)
 
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
+ds_all_mz = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
 fig,ax = plt.subplots(4,4,figsize=(20,10))
 axs = ax.ravel()
     
 for i in range(16):   
-    axs[i].stem(mz_columns.to_numpy(),df_latent_grid_decoded.iloc[i],markerfmt=' ')
+    axs[i].stem(ds_all_mz.to_numpy(),df_latent_grid_decoded.iloc[i],markerfmt=' ')
     best_R = latent_grid_decoded_corr[i]
     axs[i].text(0.95,0.5,latent_grid_decoded_corr[i].max(),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes)
     axs[i].text(0.95,0.4,latent_grid_decoded_corr[i].argmax(),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes)
@@ -1290,12 +1404,12 @@ df_latent_grid_decoded = pd.DataFrame(ae_obj.decoder.predict(latent_grid),column
 latent_grid_decoded_corr = corr_coeff_rowwise_loops(df_latent_grid_decoded.to_numpy(),df_4factor_factors.to_numpy())
 latent_grid_decoded_corr = np.around(latent_grid_decoded_corr,3)
 
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
+ds_all_mz = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
 fig,ax = plt.subplots(10,10,figsize=(20,10))
 axs = ax.ravel()
     
 for i in range(100):   
-    axs[i].stem(mz_columns.to_numpy(),df_latent_grid_decoded.iloc[i],markerfmt=' ')
+    axs[i].stem(ds_all_mz.to_numpy(),df_latent_grid_decoded.iloc[i],markerfmt=' ')
     best_R = latent_grid_decoded_corr[i]
     axs[i].text(0.95,0.5,latent_grid_decoded_corr[i].max(),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes)
     axs[i].text(0.95,0.4,latent_grid_decoded_corr[i].argmax(),horizontalalignment='right', verticalalignment='top',transform=axs[i].transAxes)
@@ -1306,14 +1420,14 @@ plt.tight_layout()
 plt.show()
 
 #%%Plot input factors
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
+ds_all_mz = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
 #fig,ax = plt.subplots(4,1,figsize=(6.66,10))
 fig,ax = plt.subplots(2,2,figsize=(10,6))
 ax = ax.ravel()
-ax[0].stem(mz_columns.to_numpy(),factor_A,markerfmt=' ')
-ax[1].stem(mz_columns.to_numpy(),factor_B,markerfmt=' ')
-ax[2].stem(mz_columns.to_numpy(),factor_C,markerfmt=' ')
-ax[3].stem(mz_columns.to_numpy(),factor_D,markerfmt=' ')
+ax[0].stem(ds_all_mz.to_numpy(),factor_A,markerfmt=' ')
+ax[1].stem(ds_all_mz.to_numpy(),factor_B,markerfmt=' ')
+ax[2].stem(ds_all_mz.to_numpy(),factor_C,markerfmt=' ')
+ax[3].stem(ds_all_mz.to_numpy(),factor_D,markerfmt=' ')
 ax[0].text(0.95,0.95,'Factor 0',horizontalalignment='right', verticalalignment='top',transform=ax[0].transAxes)
 ax[1].text(0.95,0.95,'Factor 1',horizontalalignment='right', verticalalignment='top',transform=ax[1].transAxes)
 ax[2].text(0.95,0.95,'Factor 2',horizontalalignment='right', verticalalignment='top',transform=ax[2].transAxes)
