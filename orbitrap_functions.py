@@ -667,18 +667,17 @@ def cluster_extract_peaks(cluster, df_raw,num_peaks,chemform_namelist=pd.DataFra
         print("cluster_extract_peaks returning null: cluster and peaks dataframe must have same number of peaks")
         print("Maybe your data needs transposing, or '.mean()' -ing?")
         return np.NaN
-        quit()
-        #print("WARNING: cluster_extract_peaks(): cluster and peaks dataframe do not have the same number of peaks")
+        quit()#surely this is redundnt??
     
     nlargest = cluster.nlargest(num_peaks)
     nlargest_pct = nlargest / cluster.sum() * 100
     #pdb.set_trace()
-    output_df = pd.DataFrame()
-    nlargest.index = pd.MultiIndex.from_tuples(nlargest.index, names=["first", "second"]) #Make the index multiindex again
+    output_df = pd.DataFrame(index=nlargest.index)
+   # nlargest.index = pd.MultiIndex.from_tuples(nlargest.index, names=["first", "second"]) #Make the index multiindex again
     output_df["Formula"] = nlargest.index.get_level_values(0)
     if(dropRT is False):
         output_df["RT"] = nlargest.index.get_level_values(1)
-    output_df.set_index(output_df['Formula'],inplace=True)
+    #output_df.set_index(output_df['Formula'],inplace=True)
     output_df["peak_pct"] = nlargest_pct.round(dp).values
     
     if(chemform_namelist.empty == True):
@@ -1589,9 +1588,15 @@ def count_clusters_project_time(df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat
 
 
 #%%Top feature explorer
-def top_features_hist(input_data,num_features,figsize='DEFAULT',num_bins=25,logx=False):
+#kwargs: logx, suptitle, supxlabel, supylabel, feature_labels
+def top_features_hist(input_data,num_features,figsize='DEFAULT',num_bins=25,**kwargs):
     if str(figsize) == 'DEFAULT':
         figsize=(12,10)
+        
+    if "logx" in kwargs:
+        logx = True
+    else:
+        logx = False
     
     if(logx==True):
         df_input = pd.DataFrame(input_data).clip(lower=0.01)
@@ -1618,6 +1623,7 @@ def top_features_hist(input_data,num_features,figsize='DEFAULT',num_bins=25,logx
         fig.suptitle('Histograms of top ' + str(num_features) + ' features',size=14)
     ax_arr = ax_arr.reshape(-1)
     
+    
     for i in range(len(ax_arr)):
         if i >= num_features:
             ax_arr[i].axis('off')
@@ -1629,8 +1635,18 @@ def top_features_hist(input_data,num_features,figsize='DEFAULT',num_bins=25,logx
                 ax_arr[i].set_xscale('log')
             else:
                 ax_arr[i].hist(data,bins=num_bins)
-            
-            
+                
+            if "feature_labels" in kwargs:
+                feature_labels = kwargs['feature_labels']
+                label = feature_labels[index_top_features[i]]
+                ax_arr[i].set_title(label)
+    
+    if "suptitle" in kwargs:
+        fig.suptitle(kwargs['suptitle'])
+    if "supxlabel" in kwargs:
+        fig.supxlabel(kwargs['supxlabel'])   
+    if "supylabel" in kwargs:
+        fig.supylabel(kwargs['supylabel'])           
     plt.tight_layout()
     plt.show()
 
