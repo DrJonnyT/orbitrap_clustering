@@ -39,7 +39,7 @@ from orbitrap_functions import *
 filepath = r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\ORBITRAP_Data_Pre_PMF.h5"
 df_all_data, df_all_err, ds_all_mz = Load_pre_PMF_data(filepath,join='inner')
 
-df_all_sig_noise = (df_all_data / df_all_err).fillna(0)
+df_all_sig_noise = (df_all_data / df_all_err).abs().fillna(0)
 
 #Save data to CSV
 #df_all_data.to_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\df_all_data.csv")
