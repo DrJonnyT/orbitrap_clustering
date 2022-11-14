@@ -1491,9 +1491,9 @@ def plot_one_cluster_profile(df_all_data,cluster_profiles_mtx_norm, num_clusters
         #Add in a table with the top peaks
         ds_this_cluster_profile = pd.Series(this_cluster_profile,index=df_all_data.columns).T
         df_top_peaks = cluster_extract_peaks(ds_this_cluster_profile, df_all_data.T,10,dp=1,printdf=False)
-        df_top_peaks.index = df_top_peaks.index.str.replace(' ', '')
-        ax2 = axes[-y_idx-1][1]
         #pdb.set_trace()
+        df_top_peaks.index = df_top_peaks.index.get_level_values(0).str.replace(' ', '')
+        ax2 = axes[-y_idx-1][1]
         cellText = pd.merge(df_top_peaks, peaks_list, how="left",left_index=True,right_index=True)[['peak_pct','Source']]
         cellText.sort_values('peak_pct',inplace=True,ascending=False)
         cellText['Source'] = cellText['Source'].astype(str).replace(to_replace='nan',value='')
