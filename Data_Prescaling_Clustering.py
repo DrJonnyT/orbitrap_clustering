@@ -109,15 +109,6 @@ df_top10_sig_noise = df_all_sig_noise[top_peaks_sig_noise.index[0:10]]
 df_top10_sig_noise.columns = df_top10_sig_noise.columns.get_level_values(0) + ", " +  df_top10_sig_noise.columns.get_level_values(1).astype(str)
 sns.pairplot(df_top10_sig_noise).fig.suptitle("Sig/noise data", y=1.01)
 
-#%% Now apply standardscaler and see what happens
-#We don't really want to do this as the features are all the same scale and so we want the big features to dominate
-df_top10_ss = pd.DataFrame(StandardScaler().fit_transform(df_top10.to_numpy()),columns=df_top10.columns)
-#df_top10_ss = pd.DataFrame(prescale_whole_matrix(df_top10.to_numpy(),StandardScaler())[0],columns=df_top10.columns)
-sns.pairplot(df_top10_ss).fig.suptitle("Unscaled data, StandardScaler", y=1.01)
-
-df_top10_sig_noise_ss = pd.DataFrame(StandardScaler().fit_transform(df_top10_sig_noise.to_numpy()),columns=df_top10_sig_noise.columns)
-#df_top10_sig_noise_ss = pd.DataFrame(prescale_whole_matrix(df_top10_sig_noise.to_numpy(),StandardScaler())[0],columns=df_top10_sig_noise.columns)
-sns.pairplot(df_top10_sig_noise_ss).fig.suptitle("Sig/noise, StandardScaler", y=1.01)
 
 #%%Try a power transformation of the data
 df_top10_yj = pd.DataFrame(PowerTransformer(method="yeo-johnson").fit_transform(df_top10.to_numpy()),columns=df_top10.columns)
@@ -138,15 +129,3 @@ sns.pairplot(df_top10_qt).fig.suptitle("Unscaled data, quantile transform", y=1.
 df_top10_sig_noise_qt = pd.DataFrame(qt.fit_transform(df_top10_sig_noise.to_numpy()),columns=df_top10_sig_noise.columns)
 #df_top10_sig_noise_qt = pd.DataFrame(prescale_whole_matrix(df_top10_sig_noise.to_numpy(),qt)[0],columns=df_top10_sig_noise.columns)
 sns.pairplot(df_top10_sig_noise_qt).fig.suptitle("Sig/noise, quantile transform", y=1.01,fontsize=20)
-
-# df_top10_means = df_top10.mean()
-# df_top10_stdevs = df_top10.std()
-# df_top10_medians = df_top10.median()
-# df_top10_iqr = pd.Series(np.quantile(df_top10,0.75,axis=0) - np.quantile(df_top10,0.25,axis=0), index=df_top10_means.index)
-# #Inverse z score
-# df_top10_qt_scaled = df_top10_qt * (df_top10_stdevs / df_top10_qt.std() ) + df_top10_means
-# sns.pairplot(df_top10_qt_scaled).fig.suptitle("Unscaled data, quantile transform, inverse z score", y=1.01,fontsize=20)
-# #Inverse z score, but median and iqr instead of mean and stdev. Spoiler: they are all 1.34897947
-# df_top10_qt_iqr = pd.Series(np.quantile(df_top10_iqr,0.75,axis=0) - np.quantile(df_top10_iqr,0.25,axis=0), index=df_top10_means.index)
-# df_top10_qt_scaled = df_top10_qt * (df_top10_iqr / df_top10_qt_iqr ) + df_top10_medians
-# sns.pairplot(df_top10_qt_scaled).fig.suptitle("Unscaled data, quantile transform, inverse 'quantile z score'", y=1.01,fontsize=26)
