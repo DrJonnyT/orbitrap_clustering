@@ -139,15 +139,14 @@ df_top10_sig_noise_qt = pd.DataFrame(qt.fit_transform(df_top10_sig_noise.to_nump
 #df_top10_sig_noise_qt = pd.DataFrame(prescale_whole_matrix(df_top10_sig_noise.to_numpy(),qt)[0],columns=df_top10_sig_noise.columns)
 sns.pairplot(df_top10_sig_noise_qt).fig.suptitle("Sig/noise, quantile transform", y=1.01,fontsize=20)
 
-df_top10_means = df_top10.mean()
-df_top10_stdevs = df_top10.std()
-df_top10_medians = df_top10.median()
-df_top10_iqr = pd.Series(np.quantile(df_top10,0.75,axis=0) - np.quantile(df_top10,0.25,axis=0), index=df_top10_means.index)
-
-#Inverse z score
-df_top10_qt_scaled = df_top10_qt * (df_top10_stdevs / df_top10_qt.std() ) + df_top10_means
-sns.pairplot(df_top10_qt_scaled).fig.suptitle("Unscaled data, quantile transform, inverse z score", y=1.01,fontsize=20)
-#Inverse z score, but median and iqr instead of mean and stdev. Spoiler: they are all 1.34897947
-df_top10_qt_iqr = pd.Series(np.quantile(df_top10_iqr,0.75,axis=0) - np.quantile(df_top10_iqr,0.25,axis=0), index=df_top10_means.index)
-df_top10_qt_scaled = df_top10_qt * (df_top10_iqr / df_top10_qt_iqr ) + df_top10_medians
-sns.pairplot(df_top10_qt_scaled).fig.suptitle("Unscaled data, quantile transform, inverse 'quantile z score'", y=1.01,fontsize=26)
+# df_top10_means = df_top10.mean()
+# df_top10_stdevs = df_top10.std()
+# df_top10_medians = df_top10.median()
+# df_top10_iqr = pd.Series(np.quantile(df_top10,0.75,axis=0) - np.quantile(df_top10,0.25,axis=0), index=df_top10_means.index)
+# #Inverse z score
+# df_top10_qt_scaled = df_top10_qt * (df_top10_stdevs / df_top10_qt.std() ) + df_top10_means
+# sns.pairplot(df_top10_qt_scaled).fig.suptitle("Unscaled data, quantile transform, inverse z score", y=1.01,fontsize=20)
+# #Inverse z score, but median and iqr instead of mean and stdev. Spoiler: they are all 1.34897947
+# df_top10_qt_iqr = pd.Series(np.quantile(df_top10_iqr,0.75,axis=0) - np.quantile(df_top10_iqr,0.25,axis=0), index=df_top10_means.index)
+# df_top10_qt_scaled = df_top10_qt * (df_top10_iqr / df_top10_qt_iqr ) + df_top10_medians
+# sns.pairplot(df_top10_qt_scaled).fig.suptitle("Unscaled data, quantile transform, inverse 'quantile z score'", y=1.01,fontsize=26)
