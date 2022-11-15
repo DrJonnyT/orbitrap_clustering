@@ -1490,20 +1490,30 @@ def plot_one_cluster_profile(df_all_data,cluster_profiles_mtx_norm, num_clusters
     
         #Add in a table with the top peaks
         ds_this_cluster_profile = pd.Series(this_cluster_profile,index=df_all_data.columns).T
-        df_top_peaks = cluster_extract_peaks(ds_this_cluster_profile, df_all_data.T,10,dp=1,printdf=False)
+        df_top_peaks = cluster_extract_peaks(ds_this_cluster_profile, df_all_data.T,10,dp=1,dropRT=False)
         #pdb.set_trace()
         df_top_peaks.index = df_top_peaks.index.get_level_values(0).str.replace(' ', '')
         ax2 = axes[-y_idx-1][1]
-        cellText = pd.merge(df_top_peaks, peaks_list, how="left",left_index=True,right_index=True)[['peak_pct','Source']]
+        cellText = pd.merge(df_top_peaks, peaks_list, how="left",left_index=True,right_index=True)[['RT','peak_pct','Source']]
         cellText.sort_values('peak_pct',inplace=True,ascending=False)
         cellText['Source'] = cellText['Source'].astype(str).replace(to_replace='nan',value='')
         cellText = cellText.reset_index().values
-        the_table = ax2.table(cellText=cellText,loc='center',cellLoc='left',colLabels=['Formula','%','Potential source'],edges='open',colWidths=[0.3,0.1,0.6])
+        the_table = ax2.table(cellText=cellText,loc='center',
+                              colLabels=['Formula','RT','%','Potential source'],
+                              cellLoc = 'left',
+                              colLoc = 'left',
+                              edges='open',colWidths=[0.3,0.1,0.1,0.5])
         the_table.auto_set_font_size(False)
         the_table.set_fontsize(11)
         cells = the_table.properties()["celld"]
-        for i in range(0, 11):
+        #pdb.set_trace()
+        #Set alignment of column headers
+        cells[0,1].set_text_props(ha="right")
+        cells[0,2].set_text_props(ha="right")
+        #Set alignment of cells
+        for i in range(1, 11):
             cells[i, 1].set_text_props(ha="right")
+            cells[i, 2].set_text_props(ha="right")
         
         
         #the_table.scale(1, 1.5)  # may help
@@ -1789,8 +1799,4 @@ def extract_top_npercent(df,pct,plot=False):
     index_top70 = peaks_sum.nlargest(numpeaks_top70).index
     df_top70 = df[index_top70]
     return df_top70
-
-
-
-
 
