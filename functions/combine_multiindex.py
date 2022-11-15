@@ -17,9 +17,11 @@ def combine_multiindex(pd_index, sep=", "):
     new_index = pd_index.get_level_values(0).astype(str)
     level = 1
     
-    while True:
+    while level < 100:
         try:
             new_index = new_index + sep + pd_index.get_level_values(level).astype(str)
             level += 1
         except:
             return new_index
+    
+    raise Exception("This error is only raised if there is an error in the while loop") 
