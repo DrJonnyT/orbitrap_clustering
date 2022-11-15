@@ -16,20 +16,23 @@ import tensorflow.keras.backend as K
 from tensorflow.keras.callbacks import Callback, TerminateOnNaN
 import tensorflow as tf
 
-from sklearn.preprocessing import StandardScaler, FunctionTransformer, RobustScaler, PowerTransformer, QuantileTransformer
+from sklearn.preprocessing import StandardScaler, FunctionTransformer, MinMaxScaler, PowerTransformer, QuantileTransformer
 from sklearn.cluster import AgglomerativeClustering, DBSCAN, KMeans
 from sklearn.decomposition import PCA
 from sklearn_extra.cluster import KMedoids
 from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score,silhouette_score,adjusted_rand_score
 from sklearn.manifold import TSNE
 
-import math
+import seaborn as sns
 
 
 import os
 os.chdir('C:/Work/Python/Github/Orbitrap_clustering')
 from ae_functions import *
 from orbitrap_functions import *
+
+from functions.combine_multiindex import combine_multiindex
+from functions.prescale_whole_matrix import prescale_whole_matrix
 
 
 
@@ -81,51 +84,138 @@ df_element_ratios['S/C'] = df_all_data.columns.get_level_values(0).to_series().a
 
 
 
-#%%Function to apply sklearn preprocessing to a matrix as a whole, rather than each feature independently
-#data_mtx would be a numpy matrix that you would input into the prescaler
-#prescaler would be an sklearn prescaler, like StandardScaler() for example
-def prescale_whole_matrix(data_mtx,prescaler):
-    return prescaler.fit_transform(data_mtx.ravel().reshape(-1, 1)).reshape(data_mtx.shape), prescaler
-
-#%%Make distributions plots of the top X peaks
-feature_labels = df_all_data.columns.get_level_values(0)
-top_features_hist(df_all_data.to_numpy(),25,logx=True,feature_labels=feature_labels,suptitle="Unscaled data log x scale",supxlabel='µgm3',supylabel='counts')
-top_features_hist(df_all_data.to_numpy(),25,feature_labels=feature_labels,suptitle="Unscaled data linear x scale",supxlabel='µgm3',supylabel='counts')
-
-top_features_hist(df_all_sig_noise.to_numpy(),25,logx=True,feature_labels=feature_labels,suptitle="Sig/noise log x scale",supylabel='counts')
-top_features_hist(df_all_sig_noise.to_numpy(),25,feature_labels=feature_labels,suptitle="Sig/noise linear x scale",supylabel='counts')
-
-top_peaks = cluster_extract_peaks(df_all_data.sum(axis=0), df_all_data.T,25,dropRT=False)[['peak_pct','Formula']]
-top_peaks_sig_noise = cluster_extract_peaks(df_all_sig_noise.sum(axis=0), df_all_data.T,25,dropRT=False)[['peak_pct','Formula']]
-
-#Do a pair plot for the top 10 features
-import seaborn as sns
-df_top10 = df_all_data[top_peaks.index[0:10]]
-df_top10.columns = df_top10.columns.get_level_values(0) + ", " +  df_top10.columns.get_level_values(1).astype(str)
-sns.pairplot(df_top10).fig.suptitle("Unscaled data", y=1.01)
 
 
-df_top10_sig_noise = df_all_sig_noise[top_peaks_sig_noise.index[0:10]]
-df_top10_sig_noise.columns = df_top10_sig_noise.columns.get_level_values(0) + ", " +  df_top10_sig_noise.columns.get_level_values(1).astype(str)
-sns.pairplot(df_top10_sig_noise).fig.suptitle("Sig/noise data", y=1.01)
 
 
-#%%Try a power transformation of the data
-df_top10_yj = pd.DataFrame(PowerTransformer(method="yeo-johnson").fit_transform(df_top10.to_numpy()),columns=df_top10.columns)
-#df_top10_yj = pd.DataFrame(prescale_whole_matrix(df_top10.to_numpy(),PowerTransformer(method="yeo-johnson"))[0],columns=df_top10.columns)
-sns.pairplot(df_top10_yj).fig.suptitle("Unscaled data, yeo-johnson", y=1.01,fontsize=20)
+#%%Prescale data
 
-df_top10_sig_noise_yj = pd.DataFrame(PowerTransformer(method="yeo-johnson").fit_transform(df_top10_sig_noise.to_numpy()),columns=df_top10_sig_noise.columns)
-#df_top10_sig_noise_yj = pd.DataFrame(prescale_whole_matrix(df_top10_sig_noise.to_numpy(),PowerTransformer(method="yeo-johnson"))[0],columns=df_top10_sig_noise.columns)
-sns.pairplot(df_top10_sig_noise_yj).fig.suptitle("Sig/noise, yeo-johnson", y=1.01,fontsize=20)
+#quantile transformer
+qt = QuantileTransformer(output_distribution="normal",n_quantiles=df_all_data.shape[0])
+df_all_qt = pd.DataFrame(qt.fit_transform(df_all_data.to_numpy()),index=df_all_data.index,columns=df_all_data.columns)
 
-#%%Try a quantile transformation of the data
-qt = QuantileTransformer(output_distribution="normal")
+#MinMax transformer
+minmax = MinMaxScaler()
+df_all_minmax = pd.DataFrame(minmax.fit_transform(df_all_data.to_numpy()),index=df_all_data.index,columns=df_all_data.columns)
 
-df_top10_qt = pd.DataFrame(qt.fit_transform(df_top10.to_numpy()),columns=df_top10.columns)
-#df_top10_qt = pd.DataFrame(prescale_whole_matrix(df_top10.to_numpy(),qt)[0],columns=df_top10.columns)
-sns.pairplot(df_top10_qt).fig.suptitle("Unscaled data, quantile transform", y=1.01,fontsize=20)
+# compare_cluster_metrics(df_all_data,2,12,cluster_type='agglom',suptitle_prefix='Unscaled data', suptitle_suffix='')
 
-df_top10_sig_noise_qt = pd.DataFrame(qt.fit_transform(df_top10_sig_noise.to_numpy()),columns=df_top10_sig_noise.columns)
-#df_top10_sig_noise_qt = pd.DataFrame(prescale_whole_matrix(df_top10_sig_noise.to_numpy(),qt)[0],columns=df_top10_sig_noise.columns)
-sns.pairplot(df_top10_sig_noise_qt).fig.suptitle("Sig/noise, quantile transform", y=1.01,fontsize=20)
+# compare_cluster_metrics(df_qt,2,12,cluster_type='agglom',suptitle_prefix='Quantile transformed data', suptitle_suffix='')
+
+# compare_cluster_metrics(df_minmax,2,12,cluster_type='agglom',suptitle_prefix='MinMax scaled data', suptitle_suffix='')
+
+# compare_cluster_metrics(df_all_sig_noise,2,12,cluster_type='agglom',suptitle_prefix='Sig/noise data', suptitle_suffix='')
+
+
+#%%Extract the n biggest peaks from the original data and corresponding compounds from the prescaled data
+n_peaks = 8
+df_top_peaks_list = cluster_extract_peaks(df_all_data.mean(), df_all_data.T,n_peaks,dp=1,dropRT=False)
+df_top_peaks_unscaled = df_all_data[df_top_peaks_list.index]
+df_top_peaks_qt = df_all_qt[df_top_peaks_list.index]
+df_top_peaks_minmax = df_all_minmax[df_top_peaks_list.index]
+df_top_peaks_sig_noise = df_all_sig_noise[df_top_peaks_list.index]
+
+#df_top_peaks_unscaled.columns = df_top_peaks_unscaled.columns.get_level_values(0) + ", " +  df_top_peaks_unscaled.columns.get_level_values(1).astype(str)
+
+
+df_top_peaks_unscaled.columns = combine_multiindex(df_top_peaks_unscaled.columns)
+df_top_peaks_qt.columns = combine_multiindex(df_top_peaks_qt.columns)
+df_top_peaks_minmax.columns = combine_multiindex(df_top_peaks_minmax.columns)
+df_top_peaks_sig_noise.columns = combine_multiindex(df_top_peaks_sig_noise.columns)
+    
+
+
+
+#%%Pairplots distributions of these n biggest peaks
+sns.pairplot(df_top_peaks_unscaled,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("Unscaled data", y=1.01,fontsize=20)
+sns.pairplot(df_top_peaks_qt,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("QT data data", y=1.01,fontsize=20)
+sns.pairplot(df_top_peaks_minmax,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("MinMax data", y=1.01,fontsize=20)
+sns.pairplot(df_top_peaks_sig_noise,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("Sig/noise data", y=1.01,fontsize=20)
+
+
+
+#%%Clustering workflow - unscaled data
+df_cluster_labels_mtx = cluster_n_times(df_all_data,12,min_num_clusters=2,cluster_type='agglom')
+df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
+
+df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
+plot_cluster_elemental_ratios(df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,'Unscaled data HCA elemental ratios')
+
+cluster_profiles_mtx, cluster_profiles_mtx_norm, num_clusters_index, cluster_index = average_cluster_profiles(df_cluster_labels_mtx,df_all_data)
+df_cluster_corr_mtx, df_prevcluster_corr_mtx = correlate_cluster_profiles(cluster_profiles_mtx_norm, num_clusters_index, cluster_index)
+plot_cluster_profile_corrs(df_cluster_corr_mtx, df_prevcluster_corr_mtx,suptitle='Unscaled data HCA')
+
+plot_all_cluster_tseries_BeijingDelhi(df_cluster_labels_mtx,ds_dataset_cat,title_prefix='Unscaled data HCA, ')
+
+plot_all_cluster_profiles(df_all_data,cluster_profiles_mtx_norm,num_clusters_index,ds_all_mz,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,
+                          df_cluster_corr_mtx,df_prevcluster_corr_mtx,df_cluster_counts_mtx,Sari_peaks_list,title_prefix='Unscaled data HCA, ')
+                        
+df_clust_cat_counts, df_cat_clust_counts, df_clust_time_cat_counts,df_time_cat_clust_counts = count_clusters_project_time(
+    df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat,title_prefix='Unscaled data HCA, ',title_suffix='')
+    
+compare_cluster_metrics(df_all_data,2,12,'agglom','Unscaled data ',' metrics')
+
+
+#%%Clustering workflow - MinMax data
+df_cluster_labels_mtx = cluster_n_times(df_all_minmax,12,min_num_clusters=2,cluster_type='agglom')
+df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
+
+df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
+plot_cluster_elemental_ratios(df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,'MinMax data HCA elemental ratios')
+
+cluster_profiles_mtx, cluster_profiles_mtx_norm, num_clusters_index, cluster_index = average_cluster_profiles(df_cluster_labels_mtx,df_all_data)
+df_cluster_corr_mtx, df_prevcluster_corr_mtx = correlate_cluster_profiles(cluster_profiles_mtx_norm, num_clusters_index, cluster_index)
+plot_cluster_profile_corrs(df_cluster_corr_mtx, df_prevcluster_corr_mtx,suptitle='MinMax data HCA')
+
+plot_all_cluster_tseries_BeijingDelhi(df_cluster_labels_mtx,ds_dataset_cat,title_prefix='MinMaxdata HCA, ')
+
+plot_all_cluster_profiles(df_all_data,cluster_profiles_mtx_norm,num_clusters_index,ds_all_mz,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,
+                          df_cluster_corr_mtx,df_prevcluster_corr_mtx,df_cluster_counts_mtx,Sari_peaks_list,title_prefix='MinMax data HCA, ')
+                        
+df_clust_cat_counts, df_cat_clust_counts, df_clust_time_cat_counts,df_time_cat_clust_counts = count_clusters_project_time(
+    df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat,title_prefix='MinMax data HCA, ',title_suffix='')
+    
+compare_cluster_metrics(df_all_minmax,2,12,'agglom','MinMax data ',' metrics')
+
+#%%Clustering workflow - Quantile transformed data
+df_cluster_labels_mtx = cluster_n_times(df_all_qt,12,min_num_clusters=2,cluster_type='agglom')
+df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
+
+df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
+plot_cluster_elemental_ratios(df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,'QT data HCA elemental ratios')
+
+cluster_profiles_mtx, cluster_profiles_mtx_norm, num_clusters_index, cluster_index = average_cluster_profiles(df_cluster_labels_mtx,df_all_data)
+df_cluster_corr_mtx, df_prevcluster_corr_mtx = correlate_cluster_profiles(cluster_profiles_mtx_norm, num_clusters_index, cluster_index)
+plot_cluster_profile_corrs(df_cluster_corr_mtx, df_prevcluster_corr_mtx,suptitle='QT data HCA')
+
+plot_all_cluster_tseries_BeijingDelhi(df_cluster_labels_mtx,ds_dataset_cat,title_prefix='QT data HCA, ')
+
+plot_all_cluster_profiles(df_all_data,cluster_profiles_mtx_norm,num_clusters_index,ds_all_mz,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,
+                          df_cluster_corr_mtx,df_prevcluster_corr_mtx,df_cluster_counts_mtx,Sari_peaks_list,title_prefix='QT data HCA, ')
+                        
+df_clust_cat_counts, df_cat_clust_counts, df_clust_time_cat_counts,df_time_cat_clust_counts = count_clusters_project_time(
+    df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat,title_prefix='QT data HCA, ',title_suffix='')
+    
+compare_cluster_metrics(df_all_qt,2,12,'agglom','QT data ',' metrics')
+
+#%%Clustering workflow - Sig/noise transformed data
+df_cluster_labels_mtx = cluster_n_times(df_all_sig_noise,12,min_num_clusters=2,cluster_type='agglom')
+df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
+
+df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
+plot_cluster_elemental_ratios(df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,'Sig/noise data HCA elemental ratios')
+
+cluster_profiles_mtx, cluster_profiles_mtx_norm, num_clusters_index, cluster_index = average_cluster_profiles(df_cluster_labels_mtx,df_all_data)
+df_cluster_corr_mtx, df_prevcluster_corr_mtx = correlate_cluster_profiles(cluster_profiles_mtx_norm, num_clusters_index, cluster_index)
+plot_cluster_profile_corrs(df_cluster_corr_mtx, df_prevcluster_corr_mtx,suptitle='Sig/noise data HCA')
+
+plot_all_cluster_tseries_BeijingDelhi(df_cluster_labels_mtx,ds_dataset_cat,title_prefix='Sig/noise data HCA, ')
+
+plot_all_cluster_profiles(df_all_data,cluster_profiles_mtx_norm,num_clusters_index,ds_all_mz,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,
+                          df_cluster_corr_mtx,df_prevcluster_corr_mtx,df_cluster_counts_mtx,Sari_peaks_list,title_prefix='Sig/noise data HCA, ')
+                        
+df_clust_cat_counts, df_cat_clust_counts, df_clust_time_cat_counts,df_time_cat_clust_counts = count_clusters_project_time(
+    df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat,title_prefix='Sig/noise data HCA, ',title_suffix='')
+    
+compare_cluster_metrics(df_all_sig_noise,2,12,'agglom','Sig/noise data ',' metrics')
+
