@@ -124,43 +124,73 @@ df_top_peaks_sig_noise.columns = combine_multiindex(df_top_peaks_sig_noise.colum
 
 #%%Pairplots distributions of these n biggest peaks
 sns.set_context("paper", rc={"axes.labelsize":18})
+sns.set_context("talk", font_scale=1)
+
 #Unscaled data
 #g = sns.pairplot(df_top_peaks_unscaled,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("Unscaled data", y=1.01,fontsize=20)
-g = sns.PairGrid(df_top_peaks_unscaled)
-g.fig.suptitle("Unscaled data", y=1.01,fontsize=26)
-g.map_upper(sns.scatterplot, color='navy')
-g.map_lower(sns.scatterplot, color='navy')
+g = sns.PairGrid(df_top_peaks_unscaled,corner=True)
+g.fig.suptitle("Unscaled data", y=0.95,fontsize=26)
+g.map_lower(sns.scatterplot, hue=ds_dataset_cat.cat.codes,palette = 'RdBu',linewidth=0.5,s=50)
 g.map_diag(plt.hist, color='grey',edgecolor='black', linewidth=1.2)
+g.add_legend(fontsize=26)
+g.legend.get_texts()[0].set_text('Beijing Winter') # You can also change the legend title
+g.legend.get_texts()[1].set_text('Beijing Summer')
+g.legend.get_texts()[2].set_text('Delhi Summer')
+g.legend.get_texts()[3].set_text('Delhi Autumn')
+sns.move_legend(g, "center right", bbox_to_anchor=(0.8, 0.55), title='Dataset')
+plt.setp(g.legend.get_title(), fontsize='24')
+plt.setp(g.legend.get_texts(), fontsize='24')
 plt.show()
 
 
 #MinMax data
 #sns.pairplot(df_top_peaks_minmax,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("MinMax data", y=1.01,fontsize=20)
-g = sns.PairGrid(df_top_peaks_minmax)
-g.fig.suptitle("MinMax data", y=1.01,fontsize=26)
-g.map_upper(sns.scatterplot, color='navy')
-g.map_lower(sns.scatterplot, color='navy')
+g = sns.PairGrid(df_top_peaks_minmax,corner=True)
+g.fig.suptitle("MinMax data", y=0.95,fontsize=26)
+g.map_lower(sns.scatterplot, hue=ds_dataset_cat.cat.codes,palette = 'RdBu',linewidth=0.5,s=50)
 g.map_diag(plt.hist, color='grey',edgecolor='black', linewidth=1.2)
+g.add_legend(fontsize=26)
+g.legend.get_texts()[0].set_text('Beijing Winter') # You can also change the legend title
+g.legend.get_texts()[1].set_text('Beijing Summer')
+g.legend.get_texts()[2].set_text('Delhi Summer')
+g.legend.get_texts()[3].set_text('Delhi Autumn')
+sns.move_legend(g, "center right", bbox_to_anchor=(0.8, 0.55), title='Dataset')
+plt.setp(g.legend.get_title(), fontsize='24')
+plt.setp(g.legend.get_texts(), fontsize='24')
 plt.show()
 
 
 #QT data
-#sns.pairplot(df_top_peaks_qt,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("QT data data", y=1.01,fontsize=20)
-g = sns.PairGrid(df_top_peaks_qt)
-g.fig.suptitle("QuantileTransformer data", y=1.01,fontsize=26)
-g.map_upper(sns.scatterplot, color='navy')
-g.map_lower(sns.scatterplot, color='navy')
+#sns.pairplot(df_top_peaks_qt,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("QT data", y=1.01,fontsize=20)
+g = sns.PairGrid(df_top_peaks_qt,corner=True)
+g.fig.suptitle("QuantileTansformer data", y=0.95,fontsize=26)
+g.map_lower(sns.scatterplot, hue=ds_dataset_cat.cat.codes,palette = 'RdBu',linewidth=0.5,s=50)
 g.map_diag(plt.hist, color='grey',edgecolor='black', linewidth=1.2)
+g.add_legend(fontsize=26)
+g.legend.get_texts()[0].set_text('Beijing Winter') # You can also change the legend title
+g.legend.get_texts()[1].set_text('Beijing Summer')
+g.legend.get_texts()[2].set_text('Delhi Summer')
+g.legend.get_texts()[3].set_text('Delhi Autumn')
+sns.move_legend(g, "center right", bbox_to_anchor=(0.8, 0.55), title='Dataset')
+plt.setp(g.legend.get_title(), fontsize='24')
+plt.setp(g.legend.get_texts(), fontsize='24')
 plt.show()
 
 
 #Sig/noise data
 #sns.pairplot(df_top_peaks_sig_noise,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("Sig/noise data", y=1.01,fontsize=20)
-g = sns.PairGrid(df_top_peaks_sig_noise)
-g.fig.suptitle("Sig/noise data", y=1.01,fontsize=26)
-g.map_upper(sns.scatterplot, color='navy')
-g.map_lower(sns.scatterplot, color='navy')
+g = sns.PairGrid(df_top_peaks_sig_noise,corner=True)
+g.fig.suptitle("Sig/noise data", y=0.95,fontsize=26)
+g.map_lower(sns.scatterplot, hue=ds_dataset_cat.cat.codes,palette = 'RdBu',linewidth=0.5,s=50)
 g.map_diag(plt.hist, color='grey',edgecolor='black', linewidth=1.2)
+g.add_legend(fontsize=26)
+g.legend.get_texts()[0].set_text('Beijing Winter') # You can also change the legend title
+g.legend.get_texts()[1].set_text('Beijing Summer')
+g.legend.get_texts()[2].set_text('Delhi Summer')
+g.legend.get_texts()[3].set_text('Delhi Autumn')
+sns.move_legend(g, "center right", bbox_to_anchor=(0.8, 0.55), title='Dataset')
+plt.setp(g.legend.get_title(), fontsize='24')
+plt.setp(g.legend.get_texts(), fontsize='24')
 plt.show()
 
 
