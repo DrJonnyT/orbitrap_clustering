@@ -10,18 +10,14 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as plticker
 from matplotlib.colors import ListedColormap
 import numpy as np
-import time
 
-import tensorflow.keras.backend as K
-from tensorflow.keras.callbacks import Callback, TerminateOnNaN
-import tensorflow as tf
 
 from sklearn.preprocessing import StandardScaler, FunctionTransformer, MinMaxScaler, PowerTransformer, QuantileTransformer
 from sklearn.cluster import AgglomerativeClustering, DBSCAN, KMeans
-from sklearn.decomposition import PCA
-from sklearn_extra.cluster import KMedoids
-from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score,silhouette_score,adjusted_rand_score
-from sklearn.manifold import TSNE
+#from sklearn.decomposition import PCA
+#from sklearn_extra.cluster import KMedoids
+#from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score,silhouette_score,adjusted_rand_score
+#from sklearn.manifold import TSNE
 
 import seaborn as sns
 
@@ -127,15 +123,49 @@ df_top_peaks_sig_noise.columns = combine_multiindex(df_top_peaks_sig_noise.colum
 
 
 #%%Pairplots distributions of these n biggest peaks
-sns.pairplot(df_top_peaks_unscaled,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("Unscaled data", y=1.01,fontsize=20)
-sns.pairplot(df_top_peaks_qt,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("QT data data", y=1.01,fontsize=20)
-sns.pairplot(df_top_peaks_minmax,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("MinMax data", y=1.01,fontsize=20)
-sns.pairplot(df_top_peaks_sig_noise,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("Sig/noise data", y=1.01,fontsize=20)
+sns.set_context("paper", rc={"axes.labelsize":18})
+#Unscaled data
+#g = sns.pairplot(df_top_peaks_unscaled,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("Unscaled data", y=1.01,fontsize=20)
+g = sns.PairGrid(df_top_peaks_unscaled)
+g.fig.suptitle("Unscaled data", y=1.01,fontsize=26)
+g.map_upper(sns.scatterplot, color='navy')
+g.map_lower(sns.scatterplot, color='navy')
+g.map_diag(plt.hist, color='grey',edgecolor='black', linewidth=1.2)
+plt.show()
 
+
+#MinMax data
+#sns.pairplot(df_top_peaks_minmax,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("MinMax data", y=1.01,fontsize=20)
+g = sns.PairGrid(df_top_peaks_minmax)
+g.fig.suptitle("MinMax data", y=1.01,fontsize=26)
+g.map_upper(sns.scatterplot, color='navy')
+g.map_lower(sns.scatterplot, color='navy')
+g.map_diag(plt.hist, color='grey',edgecolor='black', linewidth=1.2)
+plt.show()
+
+
+#QT data
+#sns.pairplot(df_top_peaks_qt,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("QT data data", y=1.01,fontsize=20)
+g = sns.PairGrid(df_top_peaks_qt)
+g.fig.suptitle("QuantileTransformer data", y=1.01,fontsize=26)
+g.map_upper(sns.scatterplot, color='navy')
+g.map_lower(sns.scatterplot, color='navy')
+g.map_diag(plt.hist, color='grey',edgecolor='black', linewidth=1.2)
+plt.show()
+
+
+#Sig/noise data
+#sns.pairplot(df_top_peaks_sig_noise,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("Sig/noise data", y=1.01,fontsize=20)
+g = sns.PairGrid(df_top_peaks_sig_noise)
+g.fig.suptitle("Sig/noise data", y=1.01,fontsize=26)
+g.map_upper(sns.scatterplot, color='navy')
+g.map_lower(sns.scatterplot, color='navy')
+g.map_diag(plt.hist, color='grey',edgecolor='black', linewidth=1.2)
+plt.show()
 
 
 #%%Clustering workflow - unscaled data
-df_cluster_labels_mtx = cluster_n_times(df_all_data,12,min_num_clusters=2,cluster_type='agglom')
+df_cluster_labels_mtx = cluster_n_times(df_all_data,10,min_num_clusters=2,cluster_type='agglom')
 df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
 
 df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
@@ -157,7 +187,7 @@ compare_cluster_metrics(df_all_data,2,12,'agglom','Unscaled data ',' metrics')
 
 
 #%%Clustering workflow - MinMax data
-df_cluster_labels_mtx = cluster_n_times(df_all_minmax,12,min_num_clusters=2,cluster_type='agglom')
+df_cluster_labels_mtx = cluster_n_times(df_all_minmax,10,min_num_clusters=2,cluster_type='agglom')
 df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
 
 df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
@@ -178,7 +208,7 @@ df_clust_cat_counts, df_cat_clust_counts, df_clust_time_cat_counts,df_time_cat_c
 compare_cluster_metrics(df_all_minmax,2,12,'agglom','MinMax data ',' metrics')
 
 #%%Clustering workflow - Quantile transformed data
-df_cluster_labels_mtx = cluster_n_times(df_all_qt,12,min_num_clusters=2,cluster_type='agglom')
+df_cluster_labels_mtx = cluster_n_times(df_all_qt,10,min_num_clusters=2,cluster_type='agglom')
 df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
 
 df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
@@ -199,7 +229,7 @@ df_clust_cat_counts, df_cat_clust_counts, df_clust_time_cat_counts,df_time_cat_c
 compare_cluster_metrics(df_all_qt,2,12,'agglom','QT data ',' metrics')
 
 #%%Clustering workflow - Sig/noise transformed data
-df_cluster_labels_mtx = cluster_n_times(df_all_sig_noise,12,min_num_clusters=2,cluster_type='agglom')
+df_cluster_labels_mtx = cluster_n_times(df_all_sig_noise,10,min_num_clusters=2,cluster_type='agglom')
 df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
 
 df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
