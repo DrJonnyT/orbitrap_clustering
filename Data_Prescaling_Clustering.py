@@ -123,7 +123,6 @@ df_top_peaks_sig_noise.columns = combine_multiindex(df_top_peaks_sig_noise.colum
 
 
 #%%Pairplots distributions of these n biggest peaks
-sns.set_context("paper", rc={"axes.labelsize":18})
 sns.set_context("talk", font_scale=1)
 
 #Unscaled data
