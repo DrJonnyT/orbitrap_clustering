@@ -1307,8 +1307,8 @@ def plot_cluster_AMS_means(df_clusters_AMS_NO3_mtx,df_clusters_AMS_SO4_mtx,df_cl
 
 
 #%% Average the cluster profiles
-def average_cluster_profiles(df_cluster_labels_mtx,df_all_data): 
-    cluster_profiles_mtx = np.empty((df_cluster_labels_mtx.shape[1],df_cluster_labels_mtx.columns.max(),df_all_data.shape[1]))
+def average_cluster_profiles(df_cluster_labels_mtx,df_data): 
+    cluster_profiles_mtx = np.empty((df_cluster_labels_mtx.shape[1],df_cluster_labels_mtx.columns.max(),df_data.shape[1]))
     cluster_profiles_mtx.fill(np.NaN)
     cluster_profiles_mtx_norm = cluster_profiles_mtx.copy()
     
@@ -1323,7 +1323,12 @@ def average_cluster_profiles(df_cluster_labels_mtx,df_all_data):
     for num_clusters in num_clusters_index:
         c = df_cluster_labels_mtx[num_clusters]
         for this_cluster in np.arange(num_clusters):
-            cluster_sum = df_all_data.reset_index(drop=True)[c==this_cluster].sum()
+            #Check if the indices match
+            if c.index.equals(df_data.index):
+                cluster_sum = df_data[c==this_cluster].sum()
+            else:   #reset both indices
+                cluster_sum = df_data.reset_index(drop=True)[c.reset_index(drop=True)==this_cluster].sum()
+                
             cluster_profiles_mtx[(num_clusters-df_cluster_labels_mtx.columns[0]),this_cluster,:] = cluster_sum
             cluster_profiles_mtx_norm[(num_clusters-df_cluster_labels_mtx.columns[0]),this_cluster,:] = cluster_sum / cluster_sum.sum()
     
