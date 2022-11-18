@@ -1323,7 +1323,7 @@ def average_cluster_profiles(df_cluster_labels_mtx,df_all_data):
     for num_clusters in num_clusters_index:
         c = df_cluster_labels_mtx[num_clusters]
         for this_cluster in np.arange(num_clusters):
-            cluster_sum = df_all_data[c==this_cluster].sum()
+            cluster_sum = df_all_data.reset_index(drop=True)[c==this_cluster].sum()
             cluster_profiles_mtx[(num_clusters-df_cluster_labels_mtx.columns[0]),this_cluster,:] = cluster_sum
             cluster_profiles_mtx_norm[(num_clusters-df_cluster_labels_mtx.columns[0]),this_cluster,:] = cluster_sum / cluster_sum.sum()
     
