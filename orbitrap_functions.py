@@ -946,7 +946,7 @@ def compare_cluster_metrics(df_data,min_clusters,max_clusters,cluster_type='aggl
     for num_clusters in num_clusters_index:
         if(cluster_type=='agglom'):
             cluster_obj = AgglomerativeClustering(n_clusters = num_clusters, linkage = 'ward')
-            suptitle_cluster_type = 'hierarchical clustering'
+            suptitle_cluster_type = 'HCA'
         elif(cluster_type=='kmeans' or cluster_type=='Kmeans' or cluster_type=='KMeans'):
             cluster_obj = KMeans(n_clusters = num_clusters)
             suptitle_cluster_type = 'KMeans'
