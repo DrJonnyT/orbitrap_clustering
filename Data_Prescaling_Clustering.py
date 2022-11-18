@@ -9,6 +9,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as plticker
 from matplotlib.colors import ListedColormap
+
+import matplotlib as mpl
+
+
 import numpy as np
 
 
@@ -38,7 +42,7 @@ from functions.prescale_whole_matrix import prescale_whole_matrix
 filepath = r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\ORBITRAP_Data_Pre_PMF.h5"
 df_all_data, df_all_err, ds_all_mz = Load_pre_PMF_data(filepath,join='inner')
 
-df_all_sig_noise = (df_all_data / df_all_err).abs().fillna(0)
+df_all_signoise = (df_all_data / df_all_err).abs().fillna(0)
 
 #Save data to CSV
 #df_all_data.to_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\df_all_data.csv")
@@ -100,7 +104,7 @@ df_all_minmax = pd.DataFrame(minmax.fit_transform(df_all_data.to_numpy()),index=
 
 # compare_cluster_metrics(df_minmax,2,12,cluster_type='agglom',suptitle_prefix='MinMax scaled data', suptitle_suffix='')
 
-# compare_cluster_metrics(df_all_sig_noise,2,12,cluster_type='agglom',suptitle_prefix='Sig/noise data', suptitle_suffix='')
+# compare_cluster_metrics(df_all_signoise,2,12,cluster_type='agglom',suptitle_prefix='Sig/noise data', suptitle_suffix='')
 
 
 #%%Extract the n biggest peaks from the original data and corresponding compounds from the prescaled data
@@ -109,7 +113,7 @@ df_top_peaks_list = cluster_extract_peaks(df_all_data.mean(), df_all_data.T,n_pe
 df_top_peaks_unscaled = df_all_data[df_top_peaks_list.index]
 df_top_peaks_qt = df_all_qt[df_top_peaks_list.index]
 df_top_peaks_minmax = df_all_minmax[df_top_peaks_list.index]
-df_top_peaks_sig_noise = df_all_sig_noise[df_top_peaks_list.index]
+df_top_peaks_signoise = df_all_signoise[df_top_peaks_list.index]
 
 #df_top_peaks_unscaled.columns = df_top_peaks_unscaled.columns.get_level_values(0) + ", " +  df_top_peaks_unscaled.columns.get_level_values(1).astype(str)
 
@@ -117,12 +121,14 @@ df_top_peaks_sig_noise = df_all_sig_noise[df_top_peaks_list.index]
 df_top_peaks_unscaled.columns = combine_multiindex(df_top_peaks_unscaled.columns)
 df_top_peaks_qt.columns = combine_multiindex(df_top_peaks_qt.columns)
 df_top_peaks_minmax.columns = combine_multiindex(df_top_peaks_minmax.columns)
-df_top_peaks_sig_noise.columns = combine_multiindex(df_top_peaks_sig_noise.columns)
+df_top_peaks_signoise.columns = combine_multiindex(df_top_peaks_signoise.columns)
     
 
 
 
 #%%Pairplots distributions of these n biggest peaks
+
+#Set Seaborn context so plots have better font sizes
 sns.set_context("talk", font_scale=1)
 
 #Unscaled data
@@ -177,8 +183,8 @@ plt.show()
 
 
 #Sig/noise data
-#sns.pairplot(df_top_peaks_sig_noise,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("Sig/noise data", y=1.01,fontsize=20)
-g = sns.PairGrid(df_top_peaks_sig_noise,corner=True)
+#sns.pairplot(df_top_peaks_signoise,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("Sig/noise data", y=1.01,fontsize=20)
+g = sns.PairGrid(df_top_peaks_signoise,corner=True)
 g.fig.suptitle("Sig/noise data", y=0.95,fontsize=26)
 g.map_lower(sns.scatterplot, hue=ds_dataset_cat.cat.codes,palette = 'RdBu',linewidth=0.5,s=50)
 g.map_diag(plt.hist, color='grey',edgecolor='black', linewidth=1.2)
@@ -193,7 +199,62 @@ plt.setp(g.legend.get_texts(), fontsize='24')
 plt.show()
 
 
+#Reset seaborn context so matplotlib plots are not messed up
+sns.reset_orig()
+
+
+#%%Cluster metrics for four different data prescaling
+df_cluster_labels_mtx_unscaled = cluster_n_times(df_all_data,10,min_num_clusters=2,cluster_type='agglom')
+df_cluster_counts_mtx_unscaled = count_cluster_labels_from_mtx(df_cluster_labels_mtx_unscaled)
+
+df_cluster_labels_mtx_minmax = cluster_n_times(df_all_minmax,10,min_num_clusters=2,cluster_type='agglom')
+df_cluster_counts_mtx_minmax = count_cluster_labels_from_mtx(df_cluster_labels_mtx_minmax)
+
+df_cluster_labels_mtx_qt = cluster_n_times(df_all_qt,10,min_num_clusters=2,cluster_type='agglom')
+df_cluster_counts_mtx_qt = count_cluster_labels_from_mtx(df_cluster_labels_mtx_qt)
+
+df_cluster_labels_mtx_signoise = cluster_n_times(df_all_signoise,10,min_num_clusters=2,cluster_type='agglom')
+df_cluster_counts_mtx_signoise = count_cluster_labels_from_mtx(df_cluster_labels_mtx_signoise)
+
+df_cluster_corr_mtx_unscaled, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_unscaled,df_all_data)[1:])
+df_cluster_corr_mtx_qt, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_qt,df_all_data)[1:])
+df_cluster_corr_mtx_minmax, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_minmax,df_all_data)[1:])
+df_cluster_corr_mtx_signoise, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_signoise,df_all_data)[1:])
+
+
+
+
+
+fig,ax = plt.subplots(2,1,figsize=(6,9))
+ax[0].plot(df_cluster_labels_mtx_unscaled.columns,df_cluster_counts_mtx_unscaled.min(axis=1),label='Unscaled',linewidth=2)
+ax[0].plot(df_cluster_labels_mtx_minmax.columns,df_cluster_counts_mtx_minmax.min(axis=1),label='MinMax',linewidth=2)
+ax[0].plot(df_cluster_labels_mtx_qt.columns,df_cluster_counts_mtx_qt.min(axis=1),label='QT',linewidth=2)
+ax[0].plot(df_cluster_labels_mtx_signoise.columns,df_cluster_counts_mtx_signoise.min(axis=1),label='Sig/noise',c='k',linewidth=2)
+ax[0].legend(framealpha=1.)
+ax[0].set_ylabel('Cardinality (num points) of smallest cluster',fontsize=12)
+ax[0].set_xlabel('Num clusters',fontsize=12)
+ax[0].set_yticks(np.arange(0, 230, 10))
+ax[0].grid(axis='y')
+
+ax[1].plot(df_cluster_labels_mtx_unscaled.columns,df_cluster_corr_mtx_unscaled.max(axis=1),label='Unscaled',linewidth=2)
+ax[1].plot(df_cluster_labels_mtx_minmax.columns,df_cluster_corr_mtx_minmax.max(axis=1),label='MinMax',linewidth=2)
+ax[1].plot(df_cluster_labels_mtx_qt.columns,df_cluster_corr_mtx_qt.max(axis=1),label='QT',linewidth=2)
+ax[1].plot(df_cluster_labels_mtx_signoise.columns,df_cluster_corr_mtx_signoise.max(axis=1),label='Sig/noise',c='k',linewidth=2)
+ax[1].legend(framealpha=1.)
+ax[1].set_ylabel('Max R between clusters',fontsize=12)
+ax[1].set_xlabel('Num clusters',fontsize=12)
+ax[1].set_yticks(np.arange(0.35, 1.05, 0.05))
+ax[1].grid(axis='y')
+
+fig.suptitle('Cluster cardinality and similarity',fontsize=16)
+
+plt.tight_layout()
+plt.show()
+
+
+
 #%%Clustering workflow - unscaled data
+
 df_cluster_labels_mtx = cluster_n_times(df_all_data,10,min_num_clusters=2,cluster_type='agglom')
 df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
 
@@ -258,7 +319,7 @@ df_clust_cat_counts, df_cat_clust_counts, df_clust_time_cat_counts,df_time_cat_c
 compare_cluster_metrics(df_all_qt,2,12,'agglom','QT data ',' metrics')
 
 #%%Clustering workflow - Sig/noise transformed data
-df_cluster_labels_mtx = cluster_n_times(df_all_sig_noise,10,min_num_clusters=2,cluster_type='agglom')
+df_cluster_labels_mtx = cluster_n_times(df_all_signoise,10,min_num_clusters=2,cluster_type='agglom')
 df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
 
 df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
@@ -276,5 +337,5 @@ plot_all_cluster_profiles(df_all_data,cluster_profiles_mtx_norm,num_clusters_ind
 df_clust_cat_counts, df_cat_clust_counts, df_clust_time_cat_counts,df_time_cat_clust_counts = count_clusters_project_time(
     df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat,title_prefix='Sig/noise data HCA, ',title_suffix='')
     
-compare_cluster_metrics(df_all_sig_noise,2,12,'agglom','Sig/noise data ',' metrics')
+compare_cluster_metrics(df_all_signoise,2,12,'agglom','Sig/noise data ',' metrics')
 
