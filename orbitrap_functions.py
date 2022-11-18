@@ -920,7 +920,7 @@ def cluster_n_times(df_data,max_num_clusters,min_num_clusters=1,cluster_type='ag
         #c = relabel_clusters_most_freq(clustering.labels_)
         cluster_labels_mtx.append(clustering.labels_)
         
-    df_cluster_labels_mtx = pd.DataFrame(cluster_labels_mtx,index=num_clusters_array).T
+    df_cluster_labels_mtx = pd.DataFrame(cluster_labels_mtx,index=num_clusters_array).T.rename_axis(columns="num_clusters")
     df_cluster_labels_mtx.index=df_data.index
     return df_cluster_labels_mtx
 
@@ -933,7 +933,7 @@ def count_cluster_labels_from_mtx(df_cluster_labels_mtx):
         c.reset_index(inplace=True,drop=True)
         df_cluster_counts_mtx.loc[n_clusters] = c.value_counts()
     
-    return df_cluster_counts_mtx
+    return df_cluster_counts_mtx.rename_axis(index='num_clusters',columns='cluster_index')
 
 
 #%%Compare clustering metrics for a given dataset
