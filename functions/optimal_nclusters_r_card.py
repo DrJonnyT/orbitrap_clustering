@@ -31,11 +31,11 @@ def optimal_nclusters_r_card(nclusters,maxr,mincard,maxr_threshold=0.95,mincard_
         Largest number of clusters for which (maxr > maxr_threshold) or neither (mincard < mincard_threshold).
 
     """
-    #pdb.set_trace()
-    #maxr_over_threshold = np.where(maxr > maxr_threshold)
-    #mincard_under_threshold = mincard < mincard_threshold
-    #either_false = np.where(np.invert(np.invert(maxr_over_threshold) * np.invert(mincard_under_threshold)))
     
+    #Make sure you can index easily
+    nclusters = np.array(nclusters)
+    maxr = np.array(maxr)
+    mincard = np.array(mincard)
     
     for index in range(len(nclusters)):
         if maxr[index] > maxr_threshold or mincard[index] < mincard_threshold:
