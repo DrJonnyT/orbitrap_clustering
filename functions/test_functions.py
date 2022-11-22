@@ -49,9 +49,13 @@ def test_optimal_nclusters_r_card():
 
 def test_avg_array_clusters():
     labels = [0,1,1,0]
-    data1D = [10.,20.,10.,0.]
+    data1D = [10.,20.,10.,5.]
     data2D = [[10.,20.],[20.,40.],[10.,20.],[0.,0.]]
-    assert avg_array_clusters(labels,data1D).equals(pd.Series([5.,15.],index=[0,1]))
+    
+    assert avg_array_clusters(labels,data1D).equals(pd.Series([7.5,15.],index=[0,1]))
+    assert avg_array_clusters(labels,data1D,weights=[1.,1.,1.,1.]).equals(pd.Series([7.5,15.],index=[0,1]))
+    assert avg_array_clusters(labels,data1D,weights=[3.,2.,2.,3.]).equals(pd.Series([7.5,15.],index=[0,1]))
+    assert avg_array_clusters(labels,data1D,weights=[1,2,2,4]).equals(pd.Series([6.,15.],index=[0,1]))
     
     with pytest.raises(Exception):
         avg_array_clusters(labels,data2D)
