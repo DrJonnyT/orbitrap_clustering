@@ -10,6 +10,7 @@ To run this file, run 'python -m pytest' from the main directory
 from functions.combine_multiindex import combine_multiindex
 from functions.prescale_whole_matrix import prescale_whole_matrix
 from functions.optimal_nclusters_r_card import optimal_nclusters_r_card
+from functions.avg_array_clusters import avg_array_clusters
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
@@ -41,8 +42,19 @@ def test_optimal_nclusters_r_card():
     #Warning if no suboptimal cluster numbers are found
     with pytest.warns(UserWarning):
         assert np.isnan(optimal_nclusters_r_card([1,2],[0.1,0.5],[50,40]))
-        
+                
     with pytest.warns(UserWarning):
         assert np.isnan(optimal_nclusters_r_card([1,2,3],[0.99,0.5,0.7],[50,2,1]))
         
+
+def test_avg_array_clusters():
+    labels = [0,1,1,0]
+    data1D = [10.,20.,10.,0.]
+    data2D = [[10.,20.],[20.,40.],[10.,20.],[0.,0.]]
+    assert avg_array_clusters(labels,data1D).equals(pd.Series([5.,15.],index=[0,1]))
+    
+    with pytest.raises(Exception):
+        avg_array_clusters(labels,data2D)
+    
+    
     
