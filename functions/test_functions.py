@@ -57,8 +57,19 @@ def test_avg_array_clusters():
     assert avg_array_clusters(labels,data1D,weights=[3.,2.,2.,3.]).equals(pd.Series([7.5,15.],index=[0,1]))
     assert avg_array_clusters(labels,data1D,weights=[1,2,2,4]).equals(pd.Series([6.,15.],index=[0,1]))
     
+    #Input is not 1D
     with pytest.raises(Exception):
         avg_array_clusters(labels,data2D)
+    
+    #Input not the right dimensions
+    with pytest.raises(Exception):
+        avg_array_clusters(labels,[0,1])
+    
+    #Weights not the right dimensions
+    with pytest.raises(Exception):
+        avg_array_clusters(labels,data1D,weights=[1,2])
+        
+    
     
     
     

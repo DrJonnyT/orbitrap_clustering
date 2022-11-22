@@ -25,6 +25,9 @@ def avg_array_clusters(labels,data,weights=None):
     #Error if data is not 1D
     if len(np.shape(data)) > 1:
         raise ValueError("data needs to be a 1-D array")
+        
+    if(np.shape(labels) != np.shape(data)):
+        raise ValueError("labels and data need to be same dimensions")
     
     
     data = np.array(data)
@@ -37,6 +40,8 @@ def avg_array_clusters(labels,data,weights=None):
         weights = np.ones(data.shape)
     else:
         weights = np.array(weights)
+        if(np.shape(data) != np.shape(weights)):
+            raise ValueError("data and weights need to have the same dimensions")
     
     for label in unique:
         data_label = data[labels == label]
