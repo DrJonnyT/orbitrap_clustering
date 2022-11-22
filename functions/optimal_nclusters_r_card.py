@@ -37,10 +37,15 @@ def optimal_nclusters_r_card(nclusters,maxr,mincard,maxr_threshold=0.95,mincard_
     maxr = np.array(maxr)
     mincard = np.array(mincard)
     
-    for index in range(len(nclusters)):
-        if maxr[index] > maxr_threshold or mincard[index] < mincard_threshold:
-            return nclusters[index]
+    #Check if first number of clusters breaches thresholds
+    if maxr[0] > maxr_threshold or mincard[0] < mincard_threshold:
+        warnings.warn("optimal_nclusters_r_card() the first number of clusters breaches the threshold, so just returning nan")
+        return np.nan
+    else:
+        for index in range(len(nclusters)):
+            if maxr[index] > maxr_threshold or mincard[index] < mincard_threshold:
+                return nclusters[index-1]
     
     #If you reach this point, no data points above threshold
-    warnings.warn("optimal_nclusters_r_card() has not found any threshold-breaching values and is just returning the largest number of clusters from nclusters")
-    return np.max(nclusters)
+    warnings.warn("optimal_nclusters_r_card() has not found any threshold-breaching values so returning nan")
+    return np.nan

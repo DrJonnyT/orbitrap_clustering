@@ -33,15 +33,16 @@ def test_prescale_whole_matrix():
     
     
 def test_optimal_nclusters_r_card():
-    assert optimal_nclusters_r_card([1,2],[0.1,0.5],[50,2]) == 2
-    assert optimal_nclusters_r_card([1,2],[0.1,0.99],[50,40]) == 2
-    assert optimal_nclusters_r_card([1,2],[0.1,0.5],[50,40],maxr_threshold=0.05) == 1
-    assert optimal_nclusters_r_card([1,2],[0.1,0.5],[50,40],mincard_threshold=60) == 1
+    assert optimal_nclusters_r_card([1,2,3],[0.1,0.5,0.7],[50,2,1]) == 1
+    assert optimal_nclusters_r_card([1,2,3],[0.1,0.5,0.99],[50,40,30]) == 2
+    assert optimal_nclusters_r_card([1,2],[0.1,0.5],[50,40],maxr_threshold=0.15) == 1
+    assert optimal_nclusters_r_card([1,2],[0.1,0.5],[50,40],mincard_threshold=45) == 1
     
     #Warning if no suboptimal cluster numbers are found
     with pytest.warns(UserWarning):
-        assert optimal_nclusters_r_card([1,2],[0.1,0.5],[50,40]) == 2
+        assert np.isnan(optimal_nclusters_r_card([1,2],[0.1,0.5],[50,40]))
         
-        
+    with pytest.warns(UserWarning):
+        assert np.isnan(optimal_nclusters_r_card([1,2,3],[0.99,0.5,0.7],[50,2,1]))
         
     
