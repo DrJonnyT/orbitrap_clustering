@@ -35,6 +35,7 @@ from functions.combine_multiindex import combine_multiindex
 from functions.prescale_whole_matrix import prescale_whole_matrix
 from functions.optimal_nclusters_r_card import optimal_nclusters_r_card
 from functions.avg_array_clusters import avg_array_clusters
+from file_loaders.load_beijingdelhi_merge import load_beijingdelhi_merge
 
 
 
@@ -540,4 +541,12 @@ plt.show()
 
 sns.reset_orig()
     
-    
+
+
+#%%Load air quality data
+
+
+df_all_merge = load_beijingdelhi_merge(newindex=df_all_data.index)
+
+
+
