@@ -56,6 +56,10 @@ def test_avg_array_clusters():
     assert avg_array_clusters(labels,data1D,weights=[1.,1.,1.,1.]).equals(pd.Series([7.5,15.],index=[0,1]))
     assert avg_array_clusters(labels,data1D,weights=[3.,2.,2.,3.]).equals(pd.Series([7.5,15.],index=[0,1]))
     assert avg_array_clusters(labels,data1D,weights=[1,2,2,4]).equals(pd.Series([6.,15.],index=[0,1]))
+    #Test with nan
+    assert avg_array_clusters(np.append(labels,0),np.append(data1D,np.nan)).equals(pd.Series([7.5,15.],index=[0,1]))
+    assert np.isnan(avg_array_clusters(np.append(labels,0),np.append(data1D,np.nan),removenans=False)[0])
+    
     
     #Input is not 1D
     with pytest.raises(Exception):

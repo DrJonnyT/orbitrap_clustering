@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 from pandas import Series
-def avg_array_clusters(labels,data,weights=None):
+import pdb
+def avg_array_clusters(labels,data,weights=None,removenans=True):
     """
     Average an array over cluster labels
 
@@ -28,9 +29,11 @@ def avg_array_clusters(labels,data,weights=None):
         
     if(np.shape(labels) != np.shape(data)):
         raise ValueError("labels and data need to be same dimensions")
+     
     
     
     data = np.array(data)
+    labels= np.array(labels)
     unique = np.unique(labels)
     
     #Create output series
@@ -42,6 +45,13 @@ def avg_array_clusters(labels,data,weights=None):
         weights = np.array(weights)
         if(np.shape(data) != np.shape(weights)):
             raise ValueError("data and weights need to have the same dimensions")
+    
+    if(removenans):
+        nonans_index = np.where(np.isfinite(labels) * np.isfinite(data) * np.isfinite(weights))[0]
+        labels = labels[nonans_index]
+        data = data[nonans_index]
+        weights = weights[nonans_index]
+        
     
     for label in unique:
         data_label = data[labels == label]
