@@ -558,22 +558,29 @@ df_all_merge['cluster_labels_qt'] = cluster_labels_qt
 df_all_merge['cluster_labels_signoise'] = cluster_labels_signoise
 
 
+df_all_merge_grouped = pd.concat([df_all_merge]*4).groupby(np.concatenate([cluster_labels_unscaled,cluster_labels_minmax+10,cluster_labels_qt+20,cluster_labels_signoise+30]))
+
+
+
 
 #%%Plot AQ data per cluster
-sns.set_context("talk", font_scale=1)
+
 
 #Make all the y scales the same
-# co_scale_max = 1.1 * aq_clusters_signoise['co_ppbv'].mean().max()
-# no2_scale_max = 1.1 * aq_clusters_signoise['no2_ppbv'].mean().max()
-# o3_scale_max = 1.1 * aq_clusters_signoise['o3'].mean().max()
-# so2_scale_max = 1.1 * aq_clusters_signoise['so2'].mean().max()
+co_scale_max = 1.1 * df_all_merge_grouped['co_ppbv'].quantile(0.75).max()
+no2_scale_max = 1.1 * df_all_merge_grouped['no2_ppbv'].quantile(0.75).max()
+o3_scale_max = 1.1 * df_all_merge_grouped['o3_ppbv'].quantile(0.75).max()
+so2_scale_max = 1.1 * df_all_merge_grouped['so2_ppbv'].quantile(0.75).max()
+
+tempc_scale_max = 1.1 * df_all_merge_grouped['temp_C'].quantile(0.75).max()
+tempc_scale_min = 1.1 * df_all_merge_grouped['temp_C'].quantile(0.25).min()
+rh_scale_max = 1.1 * df_all_merge_grouped['RH'].quantile(0.75).max()
+rh_scale_min = 1.1 * df_all_merge_grouped['RH'].quantile(0.25).min()
+
+limits = [[0,co_scale_max],[0,no2_scale_max],[tempc_scale_min,tempc_scale_max],[0,o3_scale_max],[0,so2_scale_max],[rh_scale_min,rh_scale_max]]
 
 
-# tempc_scale_max = 1.1 * aq_clusters_signoise['tempC'].mean().max()
-# tempc_scale_min = 0.9 * aq_clusters_signoise['tempc'].mean().min()
-# rh_scale_max = 1.1 * aq_clusters_signoise['RH'].mean().max()
-# rh_scale_min = 0.9 * aq_clusters_signoise['RH'].mean().min()
-
+sns.set_context("talk", font_scale=1)
 
 #Unscaled data
 fig,ax = plt.subplots(2,3,figsize=(10,10))
@@ -584,6 +591,7 @@ sns.boxplot(ax=ax[3], x='cluster_labels_unscaled', y="o3_ppbv", data=df_all_merg
 sns.boxplot(ax=ax[4], x='cluster_labels_unscaled', y="so2_ppbv", data=df_all_merge,showfliers=False,color='tab:red')
 sns.boxplot(ax=ax[2], x='cluster_labels_unscaled', y="temp_C", data=df_all_merge,showfliers=False,color='tab:olive')
 sns.boxplot(ax=ax[5], x='cluster_labels_unscaled', y="RH", data=df_all_merge,showfliers=False,color='tab:cyan')
+(ax[i].set_ylim(limits[i]) for i in range(len(limits)))
 plt.suptitle('Unscaled data, 4 clusters')
 plt.tight_layout()
 plt.show()
@@ -597,7 +605,8 @@ sns.boxplot(ax=ax[3], x='cluster_labels_minmax', y="o3_ppbv", data=df_all_merge,
 sns.boxplot(ax=ax[4], x='cluster_labels_minmax', y="so2_ppbv", data=df_all_merge,showfliers=False,color='tab:red')
 sns.boxplot(ax=ax[2], x='cluster_labels_minmax', y="temp_C", data=df_all_merge,showfliers=False,color='tab:olive')
 sns.boxplot(ax=ax[5], x='cluster_labels_minmax', y="RH", data=df_all_merge,showfliers=False,color='tab:cyan')
-plt.suptitle('minmax data, 4 clusters')
+(ax[i].set_ylim(limits[i]) for i in range(len(limits)))
+plt.suptitle('minmax data, 6 clusters')
 plt.tight_layout()
 plt.show()
 
@@ -610,7 +619,8 @@ sns.boxplot(ax=ax[3], x='cluster_labels_qt', y="o3_ppbv", data=df_all_merge,show
 sns.boxplot(ax=ax[4], x='cluster_labels_qt', y="so2_ppbv", data=df_all_merge,showfliers=False,color='tab:red')
 sns.boxplot(ax=ax[2], x='cluster_labels_qt', y="temp_C", data=df_all_merge,showfliers=False,color='tab:olive')
 sns.boxplot(ax=ax[5], x='cluster_labels_qt', y="RH", data=df_all_merge,showfliers=False,color='tab:cyan')
-plt.suptitle('qt data, 4 clusters')
+(ax[i].set_ylim(limits[i]) for i in range(len(limits)))
+plt.suptitle('qt data, 6 clusters')
 plt.tight_layout()
 plt.show()
 
@@ -623,9 +633,80 @@ sns.boxplot(ax=ax[3], x='cluster_labels_signoise', y="o3_ppbv", data=df_all_merg
 sns.boxplot(ax=ax[4], x='cluster_labels_signoise', y="so2_ppbv", data=df_all_merge,showfliers=False,color='tab:red')
 sns.boxplot(ax=ax[2], x='cluster_labels_signoise', y="temp_C", data=df_all_merge,showfliers=False,color='tab:olive')
 sns.boxplot(ax=ax[5], x='cluster_labels_signoise', y="RH", data=df_all_merge,showfliers=False,color='tab:cyan')
-plt.suptitle('signoise data, 4 clusters')
+(ax[i].set_ylim(limits[i]) for i in range(len(limits)))
+plt.suptitle('signoise data, 6 clusters')
 plt.tight_layout()
 plt.show()
 
 
 sns.reset_orig()
+
+
+#%%Now the same for the AMS data
+
+#Make all the y scales the same
+scale=1.1
+limits = [
+    [0,scale*df_all_merge_grouped['AMS_NH4'].quantile(0.75).max()],
+    [0,scale*df_all_merge_grouped['AMS_NO3'].quantile(0.75).max()],
+    [0,scale*df_all_merge_grouped['AMS_Chl'].quantile(0.75).max()],
+    [0,scale*df_all_merge_grouped['AMS_Org'].quantile(0.75).max()],
+    [0,scale*df_all_merge_grouped['AMS_SO4'].quantile(0.75).max()]]
+    
+
+sns.set_context("talk", font_scale=1)
+
+#Unscaled data
+fig,ax = plt.subplots(2,3,figsize=(10,10))
+ax = ax.ravel()
+sns.boxplot(ax=ax[0], x='cluster_labels_unscaled', y="AMS_NH4", data=df_all_merge,showfliers=False,color='tab:orange')
+sns.boxplot(ax=ax[1], x='cluster_labels_unscaled', y="AMS_NO3", data=df_all_merge,showfliers=False,color='tab:blue')
+sns.boxplot(ax=ax[2], x='cluster_labels_unscaled', y="AMS_Chl", data=df_all_merge,showfliers=False,color='tab:pink')
+sns.boxplot(ax=ax[3], x='cluster_labels_unscaled', y="AMS_Org", data=df_all_merge,showfliers=False,color='tab:green')
+sns.boxplot(ax=ax[4], x='cluster_labels_unscaled', y="AMS_SO4", data=df_all_merge,showfliers=False,color='tab:red')
+(ax[i].set_ylim(limits[i]) for i in range(len(limits)))
+plt.suptitle('Unscaled data, 4 clusters')
+plt.tight_layout()
+plt.show()
+
+#minmax data
+fig,ax = plt.subplots(2,3,figsize=(10,10))
+ax = ax.ravel()
+sns.boxplot(ax=ax[0], x='cluster_labels_minmax', y="AMS_NH4", data=df_all_merge,showfliers=False,color='tab:orange')
+sns.boxplot(ax=ax[1], x='cluster_labels_minmax', y="AMS_NO3", data=df_all_merge,showfliers=False,color='tab:blue')
+sns.boxplot(ax=ax[2], x='cluster_labels_minmax', y="AMS_Chl", data=df_all_merge,showfliers=False,color='tab:pink')
+sns.boxplot(ax=ax[3], x='cluster_labels_minmax', y="AMS_Org", data=df_all_merge,showfliers=False,color='tab:green')
+sns.boxplot(ax=ax[4], x='cluster_labels_minmax', y="AMS_SO4", data=df_all_merge,showfliers=False,color='tab:red')
+(ax[i].set_ylim(limits[i]) for i in range(len(limits)))
+plt.suptitle('minmax data, 6 clusters')
+plt.tight_layout()
+plt.show()
+
+#qt data
+fig,ax = plt.subplots(2,3,figsize=(10,10))
+ax = ax.ravel()
+sns.boxplot(ax=ax[0], x='cluster_labels_qt', y="AMS_NH4", data=df_all_merge,showfliers=False,color='tab:orange')
+sns.boxplot(ax=ax[1], x='cluster_labels_qt', y="AMS_NO3", data=df_all_merge,showfliers=False,color='tab:blue')
+sns.boxplot(ax=ax[2], x='cluster_labels_qt', y="AMS_Chl", data=df_all_merge,showfliers=False,color='tab:pink')
+sns.boxplot(ax=ax[3], x='cluster_labels_qt', y="AMS_Org", data=df_all_merge,showfliers=False,color='tab:green')
+sns.boxplot(ax=ax[4], x='cluster_labels_qt', y="AMS_SO4", data=df_all_merge,showfliers=False,color='tab:red')
+(ax[i].set_ylim(limits[i]) for i in range(len(limits)))
+plt.suptitle('qt data, 6 clusters')
+plt.tight_layout()
+plt.show()
+
+#signoise data
+fig,ax = plt.subplots(2,3,figsize=(10,10))
+ax = ax.ravel()
+sns.boxplot(ax=ax[0], x='cluster_labels_signoise', y="AMS_NH4", data=df_all_merge,showfliers=False,color='tab:orange')
+sns.boxplot(ax=ax[1], x='cluster_labels_signoise', y="AMS_NO3", data=df_all_merge,showfliers=False,color='tab:blue')
+sns.boxplot(ax=ax[2], x='cluster_labels_signoise', y="AMS_Chl", data=df_all_merge,showfliers=False,color='tab:pink')
+sns.boxplot(ax=ax[3], x='cluster_labels_signoise', y="AMS_Org", data=df_all_merge,showfliers=False,color='tab:green')
+sns.boxplot(ax=ax[4], x='cluster_labels_signoise', y="AMS_SO4", data=df_all_merge,showfliers=False,color='tab:red')
+(ax[i].set_ylim(limits[i]) for i in range(len(limits)))
+plt.suptitle('signoise data, 6 clusters')
+plt.tight_layout()
+plt.show()
+
+sns.reset_orig()
+
