@@ -31,6 +31,21 @@ class chemform:
             self.N = int(re.findall(r'N(\d+)',formula)[0])
         except:
             self.N = len(re.findall(r'N',formula))
+            
+    def classify(self):
+        if(self.C>0 and self.H>0 and self.O>0):
+            if self.S>0:
+                if self.N>0:
+                    return 'CHNOS'
+                else:
+                    return 'CHOS'
+            elif self.N>0:
+                return 'CHNO'
+            else:
+                return 'CHO'
+        else:
+            return ''
+                
         
     
         

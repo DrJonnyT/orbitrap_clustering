@@ -14,6 +14,8 @@ def test_chemform():
     assert chem2.O == 2
     assert chem2.S == 0
     
+    assert chem1.classify() == 'CHOS'
+    assert chem2.classify() == 'CHO'
     
     
 
