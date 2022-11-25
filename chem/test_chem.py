@@ -16,6 +16,12 @@ def test_chemform():
     
     assert chem1.classify() == 'CHOS'
     assert chem2.classify() == 'CHO'
+    assert chemform('CHO').classify() == 'CHO'
+    assert chemform('HOCS').classify() == 'CHOS'
+    assert chemform('S8C15H35').classify() == 'CHS'
+    assert chemform('N8C15H35').classify() == 'CHN'
+    assert chemform('N8C15H35O S').classify() == 'CHONS'
+    
     
     
 
