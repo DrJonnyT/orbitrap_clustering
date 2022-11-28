@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import re
+from numpy import NaN
 
 class ChemForm:
     """
@@ -50,20 +51,15 @@ class ChemForm:
         
         return classification
         
-        # if(self.C>0 and self.H>0 and self.O>0):
-        #     if self.S>0:
-        #         if self.N>0:
-        #             return 'CHNOS'
-        #         else:
-        #             return 'CHOS'
-        #     elif self.N>0:
-        #         return 'CHNO'
-        #     else:
-        #         return 'CHO'
-        # elif(self.C>0 and self.H>0):
-        #     return 'CHN'
-        # else:
-        #     return ''
+    def ratios(self):
+        if(self.C == 0):
+            return NaN, NaN, NaN, NaN
+        else:
+            H_C = self.H / self.C
+            O_C = self.O / self.C
+            N_C = self.N / self.C
+            S_C = self.S / self.C
+            return H_C, N_C, O_C, S_C
                 
         
     

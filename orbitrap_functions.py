@@ -20,6 +20,7 @@ from sklearn_extra.cluster import KMedoids
 from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score,silhouette_score
 from scipy.stats import pearsonr
 
+from chem.chemform import ChemForm
 
 
 #######################
@@ -598,15 +599,7 @@ def filter_by_chemform(formula):
 #Calculate H:C, O:C, S:C, N:C ratios
 #Ratio is element1:element2
 def chemform_ratios(formula):
-    chemformula = ChemForm(formula)
-    if(chemformula.C == 0):
-        return np.NaN, np.NaN, np.NaN, np.NaN
-    else:
-        H_C = chemformula.H / chemformula.C
-        O_C = chemformula.O / chemformula.C
-        N_C = chemformula.N / chemformula.C
-        S_C = chemformula.S / chemformula.C
-        return H_C, O_C, N_C, S_C
+    raise("chemform_ratios is depracated and should no longer be used. Use ChemForm().ratios instead, and note that the order of O/C and N/C is different")
     
     
     

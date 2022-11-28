@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from pytest import approx
+
 from chem.chemform import ChemForm
 
 def test_ChemForm():
@@ -21,6 +23,10 @@ def test_ChemForm():
     assert ChemForm('S8C15H35').classify() == 'CHS'
     assert ChemForm('N8C15H35').classify() == 'CHN'
     assert ChemForm('N8C15H35O S').classify() == 'CHONS'
+    
+    #Test ratios        
+    assert chem1.ratios() == (2,0,3,1)
+    assert ChemForm('C3 H5 N O3 S2').ratios() == approx((5/3,1/3,1,2/3))
     
     
     
