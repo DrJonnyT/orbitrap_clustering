@@ -576,53 +576,12 @@ def orbitrap_filter(df_in):
     df_orbitrap_peaks = df_orbitrap_peaks.iloc[:,np.r_[0:4]].groupby([df_orbitrap_peaks["Formula"],RT_round10]).aggregate("first").join(df_orbitrap_peaks.iloc[:,np.r_[4:len(df_orbitrap_peaks.columns)]].groupby([df_orbitrap_peaks["Formula"],RT_round10]).aggregate("sum") )
     
     
-    return df_orbitrap_peaks
-
-#A class for chemical formula
-class chemform:
-  def __init__(self, formula):
-      #OLD VERSION DOESNT WORK FOR NUMBERS >9
-    # #fiddle with the string so you can get the number of each element out, including 1 and 0
-    # formula = formula + " "
-    # formula = formula.replace(" ","1")
-    # formula = "0" + formula
-    
-    # self.C = int(formula[formula.find("C")+1])
-    # self.H = int(formula[formula.find("H")+1])
-    # self.O = int(formula[formula.find("O")+1])
-    # self.N = int(formula[formula.find("N")+1])
-    # self.S = int(formula[formula.find("S")+1])
-    
-    try:
-        self.C = int(re.findall(r'C(\d+)',formula)[0])
-    except:
-        self.C = len(re.findall(r'C',formula))
-        
-    try:
-        self.H = int(re.findall(r'H(\d+)',formula)[0])
-    except:
-        self.H = len(re.findall(r'H',formula))
-    
-    try:
-        self.O = int(re.findall(r'O(\d+)',formula)[0])
-    except:
-        self.O = len(re.findall(r'O',formula))
-        
-    try:
-        self.S = int(re.findall(r'S(\d+)',formula)[0])
-    except:
-        self.S = len(re.findall(r'S',formula))
-        
-    try:
-        self.N = int(re.findall(r'N(\d+)',formula)[0])
-    except:
-        self.N = len(re.findall(r'N',formula))
-        
+    return df_orbitrap_peaks      
     
 
 # #Take a string and work out the chemical formula, then return true or false if it's good or bad   
 def filter_by_chemform(formula):
-    chemformula = chemform(formula)
+    chemformula = ChemForm(formula)
     if(chemformula.S >= 1 and chemformula.N >= 1 and chemformula.O > chemformula.C*7):
         return False
     elif(chemformula.S >= 1 and chemformula.N == 0 and chemformula.O > chemformula.C*4):
@@ -639,7 +598,7 @@ def filter_by_chemform(formula):
 #Calculate H:C, O:C, S:C, N:C ratios
 #Ratio is element1:element2
 def chemform_ratios(formula):
-    chemformula = chemform(formula)
+    chemformula = ChemForm(formula)
     if(chemformula.C == 0):
         return np.NaN, np.NaN, np.NaN, np.NaN
     else:

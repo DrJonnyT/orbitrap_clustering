@@ -87,7 +87,7 @@ df_element_counts = pd.DataFrame(np.nan, index=formulae, columns=['C','H','N','O
 df_element_xtoC = pd.DataFrame(np.nan, index=formulae, columns=['H','N','O','S'])
 
 for i in range(len(formulae)):
-    this_chemform = chemform(formulae[i])
+    this_chemform = ChemForm(formulae[i])
     df_element_counts.iloc[i] = [this_chemform.C,this_chemform.H,this_chemform.N,this_chemform.O,this_chemform.S]
     df_element_xtoC.iloc[i] = np.array([this_chemform.H,this_chemform.N,this_chemform.O,this_chemform.S])/this_chemform.C
     

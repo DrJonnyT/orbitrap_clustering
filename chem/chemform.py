@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import re
 
-class chemform:
+class ChemForm:
     """
     A class for chemical formulae
     """
