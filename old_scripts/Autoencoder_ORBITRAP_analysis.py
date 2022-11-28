@@ -23,39 +23,7 @@ import math
 from joblib import dump, load
 import datetime
 
-
-# %%
-#A class for chemical formula
-class chemform:
-  def __init__(self, formula):
-    #fiddle with the string so you can get the number of each element out, including 1 and 0
-    formula = formula + " "
-    formula = formula.replace(" ","1")
-    formula = "0" + formula
-    
-    self.C = int(formula[formula.find("C")+1])
-    self.H = int(formula[formula.find("H")+1])
-    self.O = int(formula[formula.find("O")+1])
-    self.N = int(formula[formula.find("N")+1])
-    self.S = int(formula[formula.find("S")+1])
-    
-
-# #Take a string and work out the chemical formula, then return true or false if it's good or bad   
-def filter_by_chemform(formula):
-    chemformula = chemform(formula)
-    if(chemformula.S >= 1 and chemformula.N >= 1 and chemformula.O > chemformula.C*7):
-        return False
-    elif(chemformula.S >= 1 and chemformula.N == 0 and chemformula.O > chemformula.C*4):
-        return False
-    elif(chemformula.N >= 1 and chemformula.S == 0 and chemformula.O > chemformula.C*3):
-        return False
-    elif(chemformula.N == 0 and chemformula.S == 0 and chemformula.O > chemformula.C*3.5):
-        return False
-    elif(chemformula.H > chemformula.C*3):
-        return False
-    else:
-        return True
-    
+  
 
 # %%
 path='C:/Users/mbcx5jt5/Google Drive/Shared_York_Man2/'
