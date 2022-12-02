@@ -11,8 +11,11 @@ from functions.combine_multiindex import combine_multiindex
 from functions.prescale_whole_matrix import prescale_whole_matrix
 from functions.optimal_nclusters_r_card import optimal_nclusters_r_card
 from functions.avg_array_clusters import avg_array_clusters
+from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat
+
 import pandas as pd
 import numpy as np
+import datetime as dt
 from sklearn.preprocessing import MinMaxScaler
 import pytest
 
@@ -75,5 +78,9 @@ def test_avg_array_clusters():
         
     
     
+def test_delhi_beijing_datetime_cat():
+    df = pd.DataFrame([0],index=[dt.datetime(2016,11,15)])
+    ds_cat = delhi_beijing_datetime_cat(df.index)
+    assert type(ds_cat) == pd.core.series.Series
     
     

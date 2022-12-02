@@ -36,6 +36,7 @@ from functions.prescale_whole_matrix import prescale_whole_matrix
 from functions.optimal_nclusters_r_card import optimal_nclusters_r_card
 from functions.avg_array_clusters import avg_array_clusters
 from file_loaders.load_beijingdelhi_merge import load_beijingdelhi_merge
+from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat
 from chem.chemform import ChemForm
 from plotting.beijingdelhi import plot_all_cluster_tseries_BeijingDelhi, plot_cluster_heatmap_BeijingDelhi
 
@@ -62,13 +63,17 @@ df_all_times['date_start'] = pd.to_datetime(df_all_times['date_start'],dayfirst=
 df_all_times['date_mid'] = pd.to_datetime(df_all_times['date_mid'],dayfirst=True)
 df_all_times['date_end'] = pd.to_datetime(df_all_times['date_end'],dayfirst=True)
 
+#Now make sure the samples line but for the times and the previously-loaded data
 df_all_times.set_index(df_all_times['date_mid'],inplace=True)
 fuzzy_index = pd.merge_asof(pd.DataFrame(index=df_all_data.index),df_all_times,left_index=True,right_index=True,direction='nearest',tolerance=pd.Timedelta(hours=1.25))
 df_all_times = df_all_times.loc[fuzzy_index['date_mid']]
+#Fix the timestamp in the previously-loaded data
+df_all_data.index = df_all_times.index
+df_all_err.index = df_all_err.index
 
-dataset_cat = delhi_beijing_datetime_cat(df_all_data)
-df_dataset_cat = pd.DataFrame(delhi_beijing_datetime_cat(df_all_data),columns=['dataset_cat'],index=df_all_data.index)
-ds_dataset_cat = df_dataset_cat['dataset_cat']
+
+ds_dataset_cat = delhi_beijing_datetime_cat(df_all_data.index)
+
 
 time_cat = delhi_calc_time_cat(df_all_times)
 df_time_cat = pd.DataFrame(delhi_calc_time_cat(df_all_times),columns=['time_cat'],index=df_all_times.index)
