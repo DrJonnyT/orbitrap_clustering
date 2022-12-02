@@ -79,8 +79,12 @@ def test_avg_array_clusters():
     
     
 def test_delhi_beijing_datetime_cat():
-    df = pd.DataFrame([0],index=[dt.datetime(2016,11,15)])
-    ds_cat = delhi_beijing_datetime_cat(df.index)
-    assert type(ds_cat) == pd.core.series.Series
+    idx = pd.Index([dt.datetime(2016,11,15),dt.datetime(2017,5,25),dt.datetime(2018,6,2),dt.datetime(2018,11,5)])
+    ds_cat = delhi_beijing_datetime_cat(idx)
+    assert ds_cat[0] == 'Beijing_winter'
+    assert ds_cat[1] == 'Beijing_summer'
+    assert ds_cat[2] == 'Delhi_summer'
+    assert ds_cat[3] == 'Delhi_autumn'
+    assert ds_cat.index.equals(idx)
     
     
