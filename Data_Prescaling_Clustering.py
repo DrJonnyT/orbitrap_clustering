@@ -36,6 +36,8 @@ from functions.prescale_whole_matrix import prescale_whole_matrix
 from functions.optimal_nclusters_r_card import optimal_nclusters_r_card
 from functions.avg_array_clusters import avg_array_clusters
 from file_loaders.load_beijingdelhi_merge import load_beijingdelhi_merge
+from chem.chemform import ChemForm
+from plotting.beijingdelhi import plot_all_cluster_tseries_BeijingDelhi, plot_cluster_heatmap_BeijingDelhi
 
 
 
@@ -75,6 +77,10 @@ ds_time_cat = df_time_cat['time_cat']
 #This is a list of peaks with Sari's description from her PMF
 Sari_peaks_list = pd.read_csv(r'C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\Sari_Peaks_Sources.csv',index_col='Formula',na_filter=False)
 Sari_peaks_list = Sari_peaks_list[~Sari_peaks_list.index.duplicated(keep='first')]
+
+#%%Classify molecules into types
+#CHO/CHON/CHOS/CHNOS
+molecule_types = np.array(list(ChemForm(mol).classify() for mol in df_all_data.columns.get_level_values(0)))
 
 
 #%%Work out O:C, H:C, S:C, N:C ratios for all peaks
@@ -260,7 +266,7 @@ plt.tight_layout()
 plt.show()
 
 
-#Optimal num clusters based on R and min cardinality
+#%%Optimal num clusters based on R and min cardinality
 nclusters_unscaled = optimal_nclusters_r_card(df_cluster_labels_mtx_unscaled.columns.to_numpy(),df_cluster_corr_mtx_unscaled.max(axis=1),
                              df_cluster_counts_mtx_unscaled.min(axis=1))
 
@@ -551,7 +557,10 @@ sns.reset_orig()
 #%%Load air quality data
 
 
-df_all_merge = load_beijingdelhi_merge(newindex=df_all_data.index)
+#df_all_merge = load_beijingdelhi_merge(newindex=df_all_data.index)
+
+df_all_merge, df_merge_beijing_winter,df_merge_beijing_summer,df_merge_delhi_summer,df_merge_delhi_autumn = load_beijingdelhi_merge(newindex=df_all_data.index)
+
 df_all_merge['cluster_labels_unscaled'] = cluster_labels_unscaled
 df_all_merge['cluster_labels_minmax'] = cluster_labels_minmax
 df_all_merge['cluster_labels_qt'] = cluster_labels_qt
@@ -709,4 +718,28 @@ plt.tight_layout()
 plt.show()
 
 sns.reset_orig()
+
+
+
+#%%Classify by molecule type
+df_all_data_classified = pd.DataFrame()
+
+for mol in np.unique(molecule_types):
+    df_all_data_classified[mol] = df_all_data.loc[:,molecule_types==mol].sum(axis=1)
+    
+#Unscaled data
+fig,ax = plt.subplots(2,3,figsize=(10,10))
+ax = ax.ravel()
+sns.pieplot(ax=ax[0], y="CHO", data=df_all_data_classified,color='tab:orange')
+sns.hist(ax=ax[1], x='cluster_labels_unscaled', y="CHN", data=df_all_data_classified,showfliers=False,color='tab:blue')
+sns.hist(ax=ax[2], x='cluster_labels_unscaled', y="CHON", data=df_all_data_classified,showfliers=False,color='tab:pink')
+sns.hist(ax=ax[3], x='cluster_labels_unscaled', y="CHOS", data=df_all_data_classified,showfliers=False,color='tab:green')
+sns.hist(ax=ax[4], x='cluster_labels_unscaled', y="CHNOS", data=df_all_data_classified,showfliers=False,color='tab:red')
+(ax[i].set_ylim(limits[i]) for i in range(len(limits)))
+plt.suptitle('Unscaled data, 4 clusters')
+plt.tight_layout()
+plt.show()
+
+df_all_data_classified[cluster_labels_unscaled==2].sum().clip(lower=0).plot.pie()
+
 
