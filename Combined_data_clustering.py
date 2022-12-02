@@ -291,7 +291,7 @@ tsne_centers2, tsne_data2 = np.array_split(tsne_output2,[4],axis=0)
 
 colormap = ['gray','blue','red','yellow','purple','aqua','gold','k','orange']
 
-cmap_EOS11 = Make_EOS11_cmap()
+cmap_EOS11 = cmap_EOS11()
 #%%Plot Tsne. Top two are tsne of unscaled data, bottom two are for scaled data
 fig,ax = plt.subplots(1,2,figsize=(10,5))
 ax = ax.ravel()
@@ -565,7 +565,7 @@ print("They are just the same!!!")
 
 
 #%%Plot latent space
-cmap_EOS11 = Make_EOS11_cmap()
+cmap_EOS11 = cmap_EOS11()
 
 fig = plt.figure(figsize=(8,8))
 ax = fig.add_subplot(111, projection='3d')
@@ -673,7 +673,7 @@ ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
 plt.show()
 
 #%%Plot latent space
-cmap_EOS11 = Make_EOS11_cmap()
+cmap_EOS11 = cmap_EOS11()
 
 fig = plt.figure(figsize=(8,8))
 ax = fig.add_subplot(111, projection='3d')
@@ -755,7 +755,7 @@ plt.show()
 plt.scatter(latent_space[:,0],latent_spsace[:,1])
 
 #%%Plot latent space
-cmap_EOS11 = Make_EOS11_cmap()
+cmap_EOS11 = cmap_EOS11()
 
 fig = plt.figure(figsize=(8,8))
 ax = fig.add_subplot(111, projection='3d')
@@ -1123,7 +1123,7 @@ pca7 = PCA(n_components = 7)
 pca7_space = pca7.fit_transform(df_all_data)
 
 #%%Plot pca3 space
-cmap_EOS11 = Make_EOS11_cmap()
+cmap_EOS11 = cmap_EOS11()
 
 fig = plt.figure(figsize=(8,8))
 ax = fig.add_subplot(111, projection='3d')

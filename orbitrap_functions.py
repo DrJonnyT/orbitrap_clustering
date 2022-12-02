@@ -12,7 +12,6 @@ import numpy as np
 import pdb
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.ticker import MaxNLocator
 import re
 from sklearn.cluster import AgglomerativeClustering, KMeans
@@ -1022,13 +1021,7 @@ def calc_cluster_AMS_frac(df_cluster_labels_mtx,df_AQ_all):
 
 
 
-#%%Make EOS11 cmap
-def Make_EOS11_cmap():
-    #colors = ["darkorange", "gold", "lawngreen", "lightseagreen"]
-    colors = [(157/255, 30/255, 55/255),(205/255,58/255,70/255),(233/255,111/255,103/255),(242/255,162/255,121/255),(247/255,209/255,152/255),(242/255,235/255,185/255),(207/255,231/255,239/255),(138/255,209/255,235/255),(58/255,187/255,236/255),(0,154/255,219/255), (0, 94/255, 173/255)]
-    print()
-    cmap1 = LinearSegmentedColormap.from_list("EOSSpectral11", colors,N=11)
-    return cmap1
+
 
 
 #%%Plot cluster elemental ratios
@@ -1041,7 +1034,7 @@ def plot_cluster_elemental_ratios(df_clusters_HC_mtx,df_clusters_NC_mtx,df_clust
     X = np.arange(df_clusters_HC_mtx.index.min(),df_clusters_HC_mtx.index.max()+2) - 0.5
     Y = np.arange(df_clusters_HC_mtx.columns.min(),df_clusters_HC_mtx.columns.max()+2) - 0.5
     
-    cmap = Make_EOS11_cmap()
+    cmap = cmap_EOS11()
     
     fig,ax = plt.subplots(2,2,figsize=(12,8))
     ax = ax.ravel()
@@ -1088,7 +1081,7 @@ def plot_cluster_AMS_means(df_clusters_AMS_NO3_mtx,df_clusters_AMS_SO4_mtx,df_cl
     X = np.arange(df_clusters_AMS_NO3_mtx.index.min(),df_clusters_AMS_NO3_mtx.index.max()+2) - 0.5
     Y = np.arange(df_clusters_AMS_NO3_mtx.columns.min(),df_clusters_AMS_NO3_mtx.columns.max()+2) - 0.5
     
-    cmap = Make_EOS11_cmap()
+    cmap = cmap_EOS11()
     
     fig,ax = plt.subplots(2,3,figsize=(12,8))
     ax = ax.ravel()
@@ -1213,7 +1206,7 @@ def plot_cluster_profile_corrs(df_cluster_corr_mtx, df_prevcluster_corr_mtx,supt
         
     X = np.arange(df_cluster_corr_mtx.index.min(),df_cluster_corr_mtx.index.max()+2) - 0.5
     Y = np.arange(df_cluster_corr_mtx.columns.min(),df_cluster_corr_mtx.columns.max()+2) - 0.5
-    cmap = Make_EOS11_cmap()
+    cmap = cmap_EOS11()
     
     fig,ax = plt.subplots(1,2,figsize=(12,5))
     ax = ax.ravel()
