@@ -71,9 +71,7 @@ df_all_metadata_times.columns=['date_start','date_mid','date_end']
 df_all_metadata_times.set_index(pd.to_datetime(df_all_metadata_times['date_mid']),inplace=True)
 df_all_metadata_times = df_all_metadata_times.loc[df_all_data.index]
 
-dataset_cat = delhi_beijing_datetime_cat(df_all_data)
-df_dataset_cat = pd.DataFrame(delhi_beijing_datetime_cat(df_all_data),columns=['dataset_cat'],index=df_all_data.index)
-ds_dataset_cat = df_dataset_cat['dataset_cat']
+ds_dataset_cat = delhi_beijing_datetime_cat(df_all_data.index)
 
 time_cat = delhi_calc_time_cat(df_all_metadata_times)
 df_time_cat = pd.DataFrame(delhi_calc_time_cat(df_all_metadata_times),columns=['time_cat'],index=df_all_metadata_times.index)

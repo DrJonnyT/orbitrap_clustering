@@ -748,3 +748,17 @@ plt.show()
 df_all_data_classified[cluster_labels_unscaled==2].sum().clip(lower=0).plot.pie()
 
 
+##TESTING THIS
+plot_cluster_heatmap_BeijingDelhi(c,df_all_times,'Unscaled cluster heatmap',ylabel='Unscaled label')
+
+
+
+
+nrows = 3
+ncols = 5
+Z = np.arange(nrows * ncols).reshape(nrows, ncols)
+x = np.arange(ncols + 1)
+y = np.arange(nrows + 1)
+
+fig, ax = plt.subplots()
+ax.pcolormesh(x, y, Z, shading='flat', vmin=Z.min(), vmax=Z.max())

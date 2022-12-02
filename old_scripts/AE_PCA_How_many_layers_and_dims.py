@@ -61,9 +61,7 @@ df_all_err = pd.concat([df_beijing_err, df_delhi_err], axis=0, join="inner")
 df_all_raw = pd.concat([df_beijing_raw, df_delhi_raw], axis=1, join="inner")
 df_all_raw = df_all_raw.loc[:,~df_all_raw.columns.duplicated()] #Remove duplicate columns: m/z, RT, molecular weight, formula
 
-dataset_cat = delhi_beijing_datetime_cat(df_all_data)
-df_dataset_cat = pd.DataFrame(delhi_beijing_datetime_cat(df_all_data),columns=['dataset_cat'],index=df_all_data.index)
-ds_dataset_cat = df_dataset_cat['dataset_cat']
+ds_dataset_cat = delhi_beijing_datetime_cat(df_all_data.index)
 
 time_cat = delhi_calc_time_cat(df_all_data)
 df_time_cat = pd.DataFrame(delhi_calc_time_cat(df_all_data),columns=['time_cat'],index=df_all_data.index)
