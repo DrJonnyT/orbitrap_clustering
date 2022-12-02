@@ -20,6 +20,7 @@ from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score,silhou
 from scipy.stats import pearsonr
 
 from chem.chemform import ChemForm
+from plotting.cmap_EOS11 import cmap_EOS11
 
 
 #######################

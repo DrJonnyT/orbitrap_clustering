@@ -31,6 +31,8 @@ os.chdir('C:/Work/Python/Github/Orbitrap_clustering')
 from ae_functions import *
 from orbitrap_functions import *
 
+from plotting.cmap_EOS11 import cmap_EOS11
+
 
 
 
