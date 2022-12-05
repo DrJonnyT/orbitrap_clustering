@@ -33,13 +33,13 @@ from orbitrap_functions import *
 
 from plotting.cmap_EOS11 import cmap_EOS11
 
-
+from file_loaders.load_pre_PMF_data import load_pre_PMF_data
 
 
 
 #%%Load data from HDF
 filepath = r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\ORBITRAP_Data_Pre_PMF.h5"
-df_all_data, df_all_err, ds_all_mz = Load_pre_PMF_data(filepath)
+df_all_data, df_all_err, ds_all_mz = load_pre_PMF_data(filepath)
 
 #Save data to CSV
 df_all_data.to_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\df_all_data.csv")

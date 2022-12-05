@@ -10,18 +10,14 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as plticker
 from matplotlib.colors import ListedColormap
 
-import matplotlib as mpl
 
 
 import numpy as np
 
 
-from sklearn.preprocessing import StandardScaler, FunctionTransformer, MinMaxScaler, PowerTransformer, QuantileTransformer
-from sklearn.cluster import AgglomerativeClustering, DBSCAN, KMeans
-#from sklearn.decomposition import PCA
-#from sklearn_extra.cluster import KMedoids
-#from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score,silhouette_score,adjusted_rand_score
-#from sklearn.manifold import TSNE
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, PowerTransformer, QuantileTransformer
+from sklearn.cluster import AgglomerativeClustering
+
 
 import seaborn as sns
 
@@ -29,10 +25,9 @@ import seaborn as sns
 import os
 os.chdir('C:/Work/Python/Github/Orbitrap_clustering')
 from ae_functions import *
-from orbitrap_functions import *
+from orbitrap_functions import load_pre_PMF_data
 
 from functions.combine_multiindex import combine_multiindex
-from functions.prescale_whole_matrix import prescale_whole_matrix
 from functions.optimal_nclusters_r_card import optimal_nclusters_r_card
 from functions.avg_array_clusters import avg_array_clusters
 from file_loaders.load_beijingdelhi_merge import load_beijingdelhi_merge
@@ -40,13 +35,13 @@ from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat
 from chem.chemform import ChemForm
 from plotting.beijingdelhi import plot_all_cluster_tseries_BeijingDelhi, plot_cluster_heatmap_BeijingDelhi
 
-
+from file_loaders.load_pre_PMF_data import load_pre_PMF_data
 
 
 
 #%%Load data from HDF
 filepath = r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\ORBITRAP_Data_Pre_PMF.h5"
-df_all_data, df_all_err, ds_all_mz = Load_pre_PMF_data(filepath,join='inner')
+df_all_data, df_all_err, ds_all_mz = load_pre_PMF_data(filepath,join='inner')
 
 df_all_signoise = (df_all_data / df_all_err).abs().fillna(0)
 
