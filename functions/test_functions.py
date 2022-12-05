@@ -13,6 +13,8 @@ from functions.optimal_nclusters_r_card import optimal_nclusters_r_card
 from functions.avg_array_clusters import avg_array_clusters
 from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat
 
+from functions.math import round_to_nearest_x_even, round_to_nearest_x_odd, sqrt_sum_squares
+
 import pandas as pd
 import numpy as np
 import datetime as dt
@@ -78,6 +80,7 @@ def test_avg_array_clusters():
         
     
     
+#Test math
 def test_delhi_beijing_datetime_cat():
     idx = pd.Index([dt.datetime(2016,11,15),dt.datetime(2017,5,25),dt.datetime(2018,6,2),dt.datetime(2018,11,5)])
     ds_cat = delhi_beijing_datetime_cat(idx)
@@ -87,4 +90,17 @@ def test_delhi_beijing_datetime_cat():
     assert ds_cat[3] == 'Delhi_autumn'
     assert ds_cat.index.equals(idx)
     
+
+def test_round_to_nearest_x_even():
+    assert round_to_nearest_x_even(2.5) == 2
+    assert round_to_nearest_x_even(-0.9) == 0
+    assert np.array_equal( round_to_nearest_x_even([5,0.1]) ,  [4.,0.])
+    
+def test_round_to_nearest_x_odd():
+    assert round_to_nearest_x_odd(2.5) == 3
+    assert round_to_nearest_x_odd(-0.9) == -1
+    assert np.array_equal( round_to_nearest_x_odd([4,0.1]) ,  [5.,1.])
+    
+def test_sqrt_sum_squares():
+    assert sqrt_sum_squares([0,5,10,10,10,10,10,10]) == 25
     
