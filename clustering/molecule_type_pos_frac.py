@@ -3,7 +3,24 @@ import numpy as np
 import pandas as pd
 import pdb
 def molecule_type_pos_frac(mass_spectrum,molecule_types,**kwargs):
-    
+    """
+    Return the fractions of the listed molecule types that have positive data in mass_spectrum
+
+    Parameters
+    ----------
+    mass_spectrum : array
+        a mass spectrum
+    molecule_types : array of strings
+        molecule types, e.g. 'CHO'
+    **kwargs : 
+        mols_list: list of molecules, otherwise the default will be used
+
+    Returns
+    -------
+    df_output : pandas Series
+        the fraction of positive values, with index as the molecule type
+
+    """
     #Use custom list of molecules if required
     if 'mols_list' in kwargs:
         mols_list = kwargs.get('mols_list')
@@ -26,7 +43,7 @@ def molecule_type_pos_frac(mass_spectrum,molecule_types,**kwargs):
 
 
 
-# def molecule_type_pos_frac(cluster_labels_qt,qt_data,molecule_types):
+def molecule_type_pos_frac_clusters(cluster_labels_qt,qt_data,molecule_types):
     
 #     df_output = pd.DataFrame(index=np.unique(cluster_labels_qt),columns=np.unique(molecule_types))
     
