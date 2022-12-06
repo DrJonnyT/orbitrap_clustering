@@ -78,8 +78,10 @@ def plot_cluster_count_hists(*args,**kwargs):
                 pass
             
         ax[0].set_ylim(0, 1.05*ax[0].get_ylim()[1])
+        ax[-1].set_xlabel('Cluster index')
         
         fig.suptitle(f'{n_clusters} clusters')
+        
         plt.tight_layout()
         plt.show()
         
