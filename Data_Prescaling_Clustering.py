@@ -36,10 +36,13 @@ from functions.optimal_nclusters_r_card import optimal_nclusters_r_card
 from functions.avg_array_clusters import avg_array_clusters
 from file_loaders.load_beijingdelhi_merge import load_beijingdelhi_merge
 from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat
-from chem.chemform import ChemForm
+from chem import ChemForm
 from plotting.beijingdelhi import plot_all_cluster_tseries_BeijingDelhi, plot_cluster_heatmap_BeijingDelhi
+from plotting.plot_cluster_count_hists import plot_cluster_count_hists
 
 from file_loaders.load_pre_PMF_data import load_pre_PMF_data
+
+from clustering.molecule_type_pos_frac import molecule_type_pos_frac_clusters_mtx
 
 
 
@@ -86,6 +89,20 @@ Sari_peaks_list = Sari_peaks_list[~Sari_peaks_list.index.duplicated(keep='first'
 #%%Classify molecules into types
 #CHO/CHON/CHOS/CHNOS
 molecule_types = np.array(list(ChemForm(mol).classify() for mol in df_all_data.columns.get_level_values(0)))
+
+df_all_data_gb_moltypes = df_all_data.groupby(molecule_types,axis=1).sum()
+
+df_all_data_moltypes = pd.DataFrame(index = df_all_data.index)
+df_all_data_moltypes['CHOX'] = df_all_data_gb_moltypes['CHO'] + df_all_data_gb_moltypes['CHOS'] + df_all_data_gb_moltypes['CHON'] + df_all_data_gb_moltypes['CHONS']
+df_all_data_moltypes['CHNX'] = df_all_data_gb_moltypes['CHN'] + df_all_data_gb_moltypes['CHON'] + df_all_data_gb_moltypes['CHONS'] + df_all_data_gb_moltypes['CHNS']
+df_all_data_moltypes['CHSX'] = df_all_data_gb_moltypes['CHOS'] + df_all_data_gb_moltypes['CHS'] + df_all_data_gb_moltypes['CHONS'] + df_all_data_gb_moltypes['CHNS']
+
+df_all_data_moltypes_frac = df_all_data_moltypes / df_all_data_moltypes.mean()
+
+
+
+
+
 
 
 #%%Work out O:C, H:C, S:C, N:C ratios for all peaks
@@ -223,52 +240,126 @@ sns.reset_orig()
 
 
 #%%Cluster metrics for four different data prescaling
-df_cluster_labels_mtx_unscaled = cluster_n_times(df_all_data,10,min_num_clusters=2,cluster_type='agglom')
+df_cluster_labels_mtx_unscaled = cluster_n_times(df_all_data,13,min_num_clusters=2,cluster_type='agglom')
 df_cluster_counts_mtx_unscaled = count_cluster_labels_from_mtx(df_cluster_labels_mtx_unscaled)
 
-df_cluster_labels_mtx_minmax = cluster_n_times(df_all_minmax,10,min_num_clusters=2,cluster_type='agglom')
+df_cluster_labels_mtx_minmax = cluster_n_times(df_all_minmax,13,min_num_clusters=2,cluster_type='agglom')
 df_cluster_counts_mtx_minmax = count_cluster_labels_from_mtx(df_cluster_labels_mtx_minmax)
 
-df_cluster_labels_mtx_qt = cluster_n_times(df_all_qt,10,min_num_clusters=2,cluster_type='agglom')
+df_cluster_labels_mtx_qt = cluster_n_times(df_all_qt,13,min_num_clusters=2,cluster_type='agglom')
 df_cluster_counts_mtx_qt = count_cluster_labels_from_mtx(df_cluster_labels_mtx_qt)
 
-df_cluster_labels_mtx_signoise = cluster_n_times(df_all_signoise,10,min_num_clusters=2,cluster_type='agglom')
-df_cluster_counts_mtx_signoise = count_cluster_labels_from_mtx(df_cluster_labels_mtx_signoise)
+# df_cluster_labels_mtx_signoise = cluster_n_times(df_all_signoise,10,min_num_clusters=2,cluster_type='agglom')
+# df_cluster_counts_mtx_signoise = count_cluster_labels_from_mtx(df_cluster_labels_mtx_signoise)
 
+#Correlations between unscaled data, using the different cluster labels
+#This tells you about the clusters meaningfulness in the real world
 df_cluster_corr_mtx_unscaled, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_unscaled,df_all_data)[1:])
-df_cluster_corr_mtx_qt, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_qt,df_all_data)[1:])
 df_cluster_corr_mtx_minmax, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_minmax,df_all_data)[1:])
-df_cluster_corr_mtx_signoise, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_signoise,df_all_data)[1:])
+df_cluster_corr_mtx_qt, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_qt,df_all_data)[1:])
+#df_cluster_corr_mtx_signoise, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_signoise,df_all_data)[1:])
+
+#Correlations between SCALED data, using the different cluster labels
+#This tells you about the clustering itself
+df_cluster_corr_mtx_minmax_s, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_minmax,df_all_minmax)[1:])
+df_cluster_corr_mtx_qt_s, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_qt,df_all_qt)[1:])
+#df_cluster_corr_mtx_signoise_s, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_signoise,df_all_signoise)[1:])
 
 
 
 
 
-fig,ax = plt.subplots(2,1,figsize=(6,9))
-ax[0].plot(df_cluster_labels_mtx_unscaled.columns,df_cluster_counts_mtx_unscaled.min(axis=1),label='Unscaled',linewidth=2)
-ax[0].plot(df_cluster_labels_mtx_minmax.columns,df_cluster_counts_mtx_minmax.min(axis=1),label='MinMax',linewidth=2)
-ax[0].plot(df_cluster_labels_mtx_qt.columns,df_cluster_counts_mtx_qt.min(axis=1),label='QT',linewidth=2)
-ax[0].plot(df_cluster_labels_mtx_signoise.columns,df_cluster_counts_mtx_signoise.min(axis=1),label='Sig/noise',c='k',linewidth=2)
+sns.set_context("talk", font_scale=1)
+fig,ax = plt.subplots(2,1,figsize=(9,12))
+ax[0].plot(df_cluster_labels_mtx_unscaled.columns,df_cluster_counts_mtx_unscaled.min(axis=1),label='Unscaled',linewidth=2,c='k')
+ax[0].plot(df_cluster_labels_mtx_minmax.columns,df_cluster_counts_mtx_minmax.min(axis=1),label='MinMax',linewidth=2,c='tab:blue')
+ax[0].plot(df_cluster_labels_mtx_qt.columns,df_cluster_counts_mtx_qt.min(axis=1),label='QT',linewidth=2,c='tab:red')
+#ax[0].plot(df_cluster_labels_mtx_signoise.columns,df_cluster_counts_mtx_signoise.min(axis=1),label='Sig/noise',c='k',linewidth=2)
 ax[0].legend(framealpha=1.)
-ax[0].set_ylabel('Cardinality (num points) of smallest cluster',fontsize=12)
-ax[0].set_xlabel('Num clusters',fontsize=12)
-ax[0].set_yticks(np.arange(0, 230, 10))
+ax[0].set_ylabel('Cardinality (num points) of smallest cluster')
+ax[0].set_xlabel('Num clusters')
+ax[0].set_yticks(np.arange(0, 20, 1))
 ax[0].grid(axis='y')
+ax[0].set_ylim([0,20])
 
-ax[1].plot(df_cluster_labels_mtx_unscaled.columns,df_cluster_corr_mtx_unscaled.max(axis=1),label='Unscaled',linewidth=2)
-ax[1].plot(df_cluster_labels_mtx_minmax.columns,df_cluster_corr_mtx_minmax.max(axis=1),label='MinMax',linewidth=2)
-ax[1].plot(df_cluster_labels_mtx_qt.columns,df_cluster_corr_mtx_qt.max(axis=1),label='QT',linewidth=2)
-ax[1].plot(df_cluster_labels_mtx_signoise.columns,df_cluster_corr_mtx_signoise.max(axis=1),label='Sig/noise',c='k',linewidth=2)
-ax[1].legend(framealpha=1.)
-ax[1].set_ylabel('Max R between clusters',fontsize=12)
-ax[1].set_xlabel('Num clusters',fontsize=12)
+ax[1].plot(df_cluster_labels_mtx_unscaled.columns,df_cluster_corr_mtx_unscaled.max(axis=1),label='Unscaled',linewidth=2,c='k')
+ax[1].plot(df_cluster_labels_mtx_minmax.columns,df_cluster_corr_mtx_minmax.max(axis=1),label='MinMax (unscaled ms data)',linewidth=2,c='tab:blue')
+ax[1].plot(df_cluster_labels_mtx_qt.columns,df_cluster_corr_mtx_qt.max(axis=1),label='QT (unscaled ms data)',linewidth=2,c='tab:red')
+#ax[1].plot(df_cluster_labels_mtx_signoise.columns,df_cluster_corr_mtx_signoise.max(axis=1),label='Sig/noise (unscaled)',c='k',linewidth=2)
+
+ax[1].plot(df_cluster_labels_mtx_minmax.columns,df_cluster_corr_mtx_minmax_s.max(axis=1),label='MinMax (scaled ms data)',linewidth=2,linestyle='--',c='tab:blue')
+ax[1].plot(df_cluster_labels_mtx_qt.columns,df_cluster_corr_mtx_qt_s.max(axis=1),label='QT (scaled ms data)',linewidth=2,linestyle='--',c='tab:red')
+#ax[1].plot(df_cluster_labels_mtx_signoise.columns,df_cluster_corr_mtx_signoise_s.max(axis=1),label='Sig/noise (scaled)',c='k',linewidth=2,linestyle='--')
+
+ax[1].legend(title='Cluster labels',framealpha=1.)
+ax[1].set_ylabel('Max R between clusters')
+ax[1].set_xlabel('Num clusters')
 ax[1].set_yticks(np.arange(0.35, 1.05, 0.05))
 ax[1].grid(axis='y')
 
-fig.suptitle('Cluster cardinality and similarity',fontsize=16)
+fig.suptitle('Cluster cardinality and similarity')
 
 plt.tight_layout()
 plt.show()
+sns.reset_orig()
+
+
+
+#%%Plot stacked bar charts of cluster counts
+sns.set_context("talk", font_scale=1)
+plot_cluster_count_hists(df_cluster_counts_mtx_unscaled,df_cluster_counts_mtx_minmax,df_cluster_counts_mtx_qt,
+                         titles=['Unscaled','MinMax','QuantileTransformer'],
+                         colors=['k','tab:blue','tab:red'])
+
+sns.reset_orig()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #%%Optimal num clusters based on R and min cardinality
@@ -281,8 +372,8 @@ nclusters_minmax = optimal_nclusters_r_card(df_cluster_labels_mtx_minmax.columns
 nclusters_qt = optimal_nclusters_r_card(df_cluster_labels_mtx_qt.columns,df_cluster_corr_mtx_qt.max(axis=1),
                              df_cluster_counts_mtx_qt.min(axis=1))
 
-nclusters_signoise = optimal_nclusters_r_card(df_cluster_labels_mtx_signoise.columns,df_cluster_corr_mtx_signoise.max(axis=1),
-                             df_cluster_counts_mtx_signoise.min(axis=1))
+# nclusters_signoise = optimal_nclusters_r_card(df_cluster_labels_mtx_signoise.columns,df_cluster_corr_mtx_signoise.max(axis=1),
+#                              df_cluster_counts_mtx_signoise.min(axis=1))
 
 #Optimal num clusters based just on R
 nclusters_unscaled = optimal_nclusters_r_card(df_cluster_labels_mtx_unscaled.columns,
@@ -297,9 +388,9 @@ nclusters_qt = optimal_nclusters_r_card(df_cluster_labels_mtx_qt.columns,
                                         df_cluster_corr_mtx_qt.max(axis=1),
                                         df_cluster_counts_mtx_qt.min(axis=1),mincard_threshold=1)
 
-nclusters_signoise = optimal_nclusters_r_card(df_cluster_labels_mtx_signoise.columns,
-                                              df_cluster_corr_mtx_signoise.max(axis=1),
-                                              df_cluster_counts_mtx_signoise.min(axis=1),mincard_threshold=1)
+# nclusters_signoise = optimal_nclusters_r_card(df_cluster_labels_mtx_signoise.columns,
+#                                               df_cluster_corr_mtx_signoise.max(axis=1),
+#                                               df_cluster_counts_mtx_signoise.min(axis=1),mincard_threshold=1)
 
 
 #%%Clustering workflow - unscaled data
@@ -323,6 +414,7 @@ df_clust_cat_counts, df_cat_clust_counts, df_clust_time_cat_counts,df_time_cat_c
     df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat,title_prefix='Unscaled data HCA, ',title_suffix='')
     
 compare_cluster_metrics(df_all_data,2,12,'agglom','Unscaled data ',' metrics')
+
 
 
 #%%Clustering workflow - MinMax data
@@ -375,6 +467,16 @@ df_clust_cat_counts, df_cat_clust_counts, df_clust_time_cat_counts,df_time_cat_c
     df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat,title_prefix='QT data HCA, ',title_suffix='')
     
 compare_cluster_metrics(df_all_qt,2,12,'agglom','QT data ',' metrics')
+
+
+
+
+
+#Look at the fraction of each molecule that is positive in the QT data
+a, b = molecule_type_pos_frac_clusters_mtx(df_all_qt,molecule_types,df_cluster_labels_mtx)
+c = a[0]
+
+
 
 
 
