@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+import pdb
 
 ##E.g. round to nearest multiple of 2 would be rounded to 0, 2, 4, etc
 def round_to_nearest_x_even(num,x=2):
@@ -69,3 +70,32 @@ def sqrt_sum_squares(x):
     """
     x = np.array(x)
     return np.sqrt(np.sum(np.multiply(x,x)))
+
+
+def num_fraction_above_mean(x):
+    """
+    Calculate the number fraction of an array that is above the mean of that array
+    Does not work if x contains infinities
+
+    Parameters
+    ----------
+    x : array of numbers
+        
+
+    Returns
+    -------
+    frac : float
+        Number fraction of x that was above the mean of x.
+
+    """
+    x = np.array(x)
+    
+    #Return nan if there's infinities in the array
+    if np.isinf(x).sum() > 0:
+        return np.nan
+    
+    
+    x = x[~np.isnan(x)].ravel()
+    above_mean = np.greater_equal(x,x.mean())
+    frac = above_mean.sum() / len(x)
+    return frac

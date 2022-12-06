@@ -13,7 +13,7 @@ from functions.optimal_nclusters_r_card import optimal_nclusters_r_card
 from functions.avg_array_clusters import avg_array_clusters
 from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat
 
-from functions.math import round_to_nearest_x_even, round_to_nearest_x_odd, sqrt_sum_squares
+from functions.math import round_to_nearest_x_even, round_to_nearest_x_odd, sqrt_sum_squares, num_fraction_above_mean
 
 import pandas as pd
 import numpy as np
@@ -103,4 +103,9 @@ def test_round_to_nearest_x_odd():
     
 def test_sqrt_sum_squares():
     assert sqrt_sum_squares([0,5,10,10,10,10,10,10]) == 25
+    
+def test_num_fraction_above_mean():
+    assert num_fraction_above_mean([5,5,5,5,5,5,5,5,0,-1]) == 0.8
+    assert num_fraction_above_mean([5,5,5,5,5,5,5,5,0,-1,np.nan]) == 0.8
+    assert np.isnan(num_fraction_above_mean([5,5,5,5,5,5,5,0,-1,np.inf]))
     
