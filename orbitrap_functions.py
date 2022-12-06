@@ -1036,10 +1036,10 @@ def average_cluster_profiles(df_cluster_labels_mtx,df_data):
         for this_cluster in np.arange(num_clusters):
             #Check if the indices match
             if c.index.equals(df_data.index):
-                cluster_sum = df_data[c==this_cluster].mean(axis=1)
+                cluster_sum = df_data[c==this_cluster].mean(axis=0)
             else:   #reset both indices
-                cluster_sum = df_data.reset_index(drop=True)[c.reset_index(drop=True)==this_cluster].sum(mean_axis=1)
-                
+                cluster_sum = df_data.reset_index(drop=True)[c.reset_index(drop=True)==this_cluster].mean(axis=0)
+            #pdb.set_trace()    
             cluster_profiles_mtx[(num_clusters-df_cluster_labels_mtx.columns[0]),this_cluster,:] = cluster_sum
             cluster_profiles_mtx_norm[(num_clusters-df_cluster_labels_mtx.columns[0]),this_cluster,:] = cluster_sum / cluster_sum.sum()
     
