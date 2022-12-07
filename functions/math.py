@@ -101,3 +101,22 @@ def num_frac_above_val(x,val):
     above_mean = np.greater_equal(x,val)
     frac = above_mean.sum() / len(x)
     return frac
+
+
+def normdot(X,Y):
+    """
+    Normalised dot product of two arrays
+
+    Parameters
+    ----------
+    X : array
+        
+    Y : array
+        
+
+    Returns
+    -------
+    float
+
+    """
+    return np.dot(X,Y) / np.sqrt( np.dot(X,X) * np.dot(Y,Y)   )

@@ -14,6 +14,7 @@ from functions.avg_array_clusters import avg_array_clusters
 from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat
 
 from functions.math import round_to_nearest_x_even, round_to_nearest_x_odd, sqrt_sum_squares, num_frac_above_val
+from functions.math import normdot
 
 import pandas as pd
 import numpy as np
@@ -108,4 +109,12 @@ def test_num_frac_above_val():
     assert num_frac_above_val([5,5,5,5,5,5,5,5,0,-1],4) == 0.8
     assert num_frac_above_val([5,5,5,5,5,5,5,5,0,-1,np.nan],4) == 0.8
     assert np.isnan(num_frac_above_val([5,5,5,5,5,5,5,0,-1,np.inf],4))
+    
+    
+    
+def test_normdot():
+    assert normdot(1,2) == 1
+    assert normdot([1,2,3],[1,2,3]) == 1
+    assert normdot([1,2,3],[2,4,6]) == 1
+    print (normdot([1,2,3],[3,2,1]))
     
