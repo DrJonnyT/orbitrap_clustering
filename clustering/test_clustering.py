@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 from clustering import molecule_type_pos_frac
-from clustering.molecule_type_pos_frac import molecule_type_pos_frac_clusters
+from clustering.molecule_type_math import molecule_type_pos_frac_clusters
 
 
 def test_molecule_type_pos_frac():
