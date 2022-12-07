@@ -65,7 +65,7 @@ def molecule_type_pos_frac_clusters(data_2D,molecule_types,cluster_labels_1D,**k
         #Loop through all the different molecules
         for molecule in mols_list:
             #pdb.set_trace()
-            molecule_data = data_this_cluster.T[np.array(molecule_types) == molecule].to_numpy()
+            molecule_data = data_this_cluster.T[np.array(molecule_types) == molecule]
             df_output.loc[cluster][molecule] = np.greater_equal(molecule_data,0).mean()
                         
     return df_output
