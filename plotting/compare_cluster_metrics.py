@@ -1,11 +1,16 @@
 # -*- coding: utf-8 -*-
 from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score, silhouette_score
 from sklearn.cluster import AgglomerativeClustering, KMeans
-from sklearn_extra.cluster import KMedoids
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import pdb
+
+#sklearn_extra has some depracation warnings
+import warnings
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    from sklearn_extra.cluster import KMedoids
 
 #%%Compare clustering metrics for a given dataset
 def compare_cluster_metrics(df_data,min_clusters,max_clusters,cluster_type='agglom',suptitle_prefix='', suptitle_suffix=''):
