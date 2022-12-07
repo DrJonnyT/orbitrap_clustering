@@ -98,6 +98,6 @@ def num_frac_above_val(x,val):
     
     
     x = x[~np.isnan(x)].ravel()
-    above_mean = np.greater_equal(x,x.mean())
+    above_mean = np.greater_equal(x,val)
     frac = above_mean.sum() / len(x)
     return frac
