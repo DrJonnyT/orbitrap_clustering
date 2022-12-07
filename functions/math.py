@@ -72,20 +72,22 @@ def sqrt_sum_squares(x):
     return np.sqrt(np.sum(np.multiply(x,x)))
 
 
-def num_fraction_above_mean(x):
+def num_frac_above_val(x,val):
     """
-    Calculate the number fraction of an array that is above the mean of that array
+    Calculate the number fraction of an array that is above val
     Does not work if x contains infinities
 
     Parameters
     ----------
     x : array of numbers
+    
+    val : number
         
 
     Returns
     -------
     frac : float
-        Number fraction of x that was above the mean of x.
+        Number fraction of x that was above val.
 
     """
     x = np.array(x)
