@@ -13,7 +13,7 @@ from matplotlib.colors import ListedColormap
 
 
 import numpy as np
-
+import scipy
 
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, PowerTransformer, QuantileTransformer
 from sklearn.cluster import AgglomerativeClustering
@@ -28,12 +28,13 @@ os.chdir('C:/Work/Python/Github/Orbitrap_clustering')
 
 from orbitrap_functions import cluster_n_times, count_cluster_labels_from_mtx, chemform_ratios, cluster_extract_peaks, delhi_calc_time_cat
 from orbitrap_functions import correlate_cluster_profiles, average_cluster_profiles, calc_cluster_elemental_ratios, plot_cluster_profile_corrs, count_clusters_project_time
-from orbitrap_functions import plot_all_cluster_profiles, compare_cluster_metrics
+from orbitrap_functions import plot_all_cluster_profiles
 from orbitrap_functions import plot_cluster_elemental_ratios
 
 from functions.combine_multiindex import combine_multiindex
 from functions.optimal_nclusters_r_card import optimal_nclusters_r_card
 from functions.avg_array_clusters import avg_array_clusters
+from functions.math import normdot
 from file_loaders.load_beijingdelhi_merge import load_beijingdelhi_merge
 from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat
 from chem import ChemForm
@@ -42,7 +43,8 @@ from plotting.plot_cluster_count_hists import plot_cluster_count_hists
 
 from file_loaders.load_pre_PMF_data import load_pre_PMF_data
 
-from clustering.molecule_type_pos_frac import molecule_type_pos_frac_clusters_mtx
+from clustering.molecule_type_math import molecule_type_pos_frac_clusters_mtx
+from plotting.compare_cluster_metrics import compare_cluster_metrics, compare_cluster_metrics_fn
 
 
 
@@ -97,23 +99,23 @@ df_all_data_moltypes['CHOX'] = df_all_data_gb_moltypes['CHO'] + df_all_data_gb_m
 df_all_data_moltypes['CHNX'] = df_all_data_gb_moltypes['CHN'] + df_all_data_gb_moltypes['CHON'] + df_all_data_gb_moltypes['CHONS'] + df_all_data_gb_moltypes['CHNS']
 df_all_data_moltypes['CHSX'] = df_all_data_gb_moltypes['CHOS'] + df_all_data_gb_moltypes['CHS'] + df_all_data_gb_moltypes['CHONS'] + df_all_data_gb_moltypes['CHNS']
 
+#%%
 df_all_data_moltypes_frac = df_all_data_moltypes / df_all_data_moltypes.mean()
 
 
-
-
+WORKING ON THIS BIT
+probably refactor the code I did on monday lol
+num_fraction_above_mean
 
 
 
 #%%Work out O:C, H:C, S:C, N:C ratios for all peaks
 #df_element_ratios = df_all_data.columns.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[0])
 df_element_ratios = pd.DataFrame()
-df_element_ratios['H/C'] = df_all_data.columns.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[0])
-df_element_ratios['O/C'] = df_all_data.columns.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[1])
-df_element_ratios['N/C'] = df_all_data.columns.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[2])
-df_element_ratios['S/C'] = df_all_data.columns.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[3])
-
-
+df_element_ratios['H/C'] = df_all_data.columns.get_level_values(0).to_series().apply(lambda x: ChemForm(x).ratios()[0])
+df_element_ratios['N/C'] = df_all_data.columns.get_level_values(0).to_series().apply(lambda x: ChemForm(x).ratios()[1])
+df_element_ratios['O/C'] = df_all_data.columns.get_level_values(0).to_series().apply(lambda x: ChemForm(x).ratios()[2])
+df_element_ratios['S/C'] = df_all_data.columns.get_level_values(0).to_series().apply(lambda x: ChemForm(x).ratios()[3])
 
 #Work out time series of these variables in the unscaled data
 df_element_ratios_tseries = pd.DataFrame()
@@ -415,6 +417,49 @@ df_clust_cat_counts, df_cat_clust_counts, df_clust_time_cat_counts,df_time_cat_c
     
 compare_cluster_metrics(df_all_data,2,12,'agglom','Unscaled data ',' metrics')
 
+
+
+
+arg_dict = {
+    "criterion": "maxclust",
+    "metric" : "mahalanobis",
+    "method" : "ward"
+}
+
+compare_cluster_metrics_fn(df_all_data.to_numpy(),2,12,arg_dict=arg_dict,scipy_clust_fn=scipy.cluster.hierarchy.fclusterdata)
+
+
+
+
+
+
+#Clustering based on normalised dot product
+
+# Method to calculate distances between all sample pairs
+from sklearn.metrics import pairwise_distances
+def sim_affinity(X):
+    return pairwise_distances(X, metric=inv_normdot)
+    #return pairwise_distances(X, metric='manhattan')
+    
+
+def inv_normdot(X,Y):
+    return 1/normdot(X,Y)
+
+def normdot_1min(X,Y):
+    return 1 - normdot(X,Y)
+
+cluster = AgglomerativeClustering(n_clusters=5, affinity=sim_affinity, linkage='complete')
+d = cluster.fit(df_all_data.to_numpy()).labels_
+
+
+
+
+fig,ax=plt.subplots(1,figsize=(10,5))
+ax.plot(a,label='euclidean')
+ax.plot(b,label='manhattan')
+ax.plot(c,label='inv_norm')
+ax.plot(d,label='mahalanobis')
+ax.legend()
 
 
 #%%Clustering workflow - MinMax data
