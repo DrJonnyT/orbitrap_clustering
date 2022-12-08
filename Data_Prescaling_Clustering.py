@@ -26,7 +26,7 @@ import os
 os.chdir('C:/Work/Python/Github/Orbitrap_clustering')
 
 
-from orbitrap_functions import cluster_n_times, count_cluster_labels_from_mtx, chemform_ratios, cluster_extract_peaks, delhi_calc_time_cat
+from orbitrap_functions import count_cluster_labels_from_mtx, chemform_ratios, cluster_extract_peaks, delhi_calc_time_cat
 from orbitrap_functions import correlate_cluster_profiles, average_cluster_profiles, calc_cluster_elemental_ratios, plot_cluster_profile_corrs, count_clusters_project_time
 from orbitrap_functions import plot_all_cluster_profiles
 from orbitrap_functions import plot_cluster_elemental_ratios
@@ -44,6 +44,7 @@ from plotting.plot_cluster_count_hists import plot_cluster_count_hists
 from file_loaders.load_pre_PMF_data import load_pre_PMF_data
 
 from clustering.molecule_type_math import molecule_type_pos_frac_clusters_mtx
+from clustering.cluster_n_times import cluster_n_times
 from plotting.compare_cluster_metrics import compare_cluster_metrics, compare_cluster_metrics_fn
 
 
@@ -132,9 +133,9 @@ df_element_ratios_tseries['S/C'] = df_all_data.set_axis(df_all_data.columns.get_
 qt = QuantileTransformer(output_distribution="normal",n_quantiles=df_all_data.shape[0])
 df_all_qt = pd.DataFrame(qt.fit_transform(df_all_data.to_numpy()),index=df_all_data.index,columns=df_all_data.columns)
 
-#MinMax transformer
-minmax = MinMaxScaler()
-df_all_minmax = pd.DataFrame(minmax.fit_transform(df_all_data.to_numpy()),index=df_all_data.index,columns=df_all_data.columns)
+# #MinMax transformer
+# minmax = MinMaxScaler()
+# df_all_minmax = pd.DataFrame(minmax.fit_transform(df_all_data.to_numpy()),index=df_all_data.index,columns=df_all_data.columns)
 
 # compare_cluster_metrics(df_all_data,2,12,cluster_type='agglom',suptitle_prefix='Unscaled data', suptitle_suffix='')
 
@@ -150,16 +151,16 @@ n_peaks = 8
 df_top_peaks_list = cluster_extract_peaks(df_all_data.mean(), df_all_data.T,n_peaks,dp=1,dropRT=False)
 df_top_peaks_unscaled = df_all_data[df_top_peaks_list.index]
 df_top_peaks_qt = df_all_qt[df_top_peaks_list.index]
-df_top_peaks_minmax = df_all_minmax[df_top_peaks_list.index]
-df_top_peaks_signoise = df_all_signoise[df_top_peaks_list.index]
+#df_top_peaks_minmax = df_all_minmax[df_top_peaks_list.index]
+#df_top_peaks_signoise = df_all_signoise[df_top_peaks_list.index]
 
 #df_top_peaks_unscaled.columns = df_top_peaks_unscaled.columns.get_level_values(0) + ", " +  df_top_peaks_unscaled.columns.get_level_values(1).astype(str)
 
 
 df_top_peaks_unscaled.columns = combine_multiindex(df_top_peaks_unscaled.columns)
 df_top_peaks_qt.columns = combine_multiindex(df_top_peaks_qt.columns)
-df_top_peaks_minmax.columns = combine_multiindex(df_top_peaks_minmax.columns)
-df_top_peaks_signoise.columns = combine_multiindex(df_top_peaks_signoise.columns)
+#df_top_peaks_minmax.columns = combine_multiindex(df_top_peaks_minmax.columns)
+#df_top_peaks_signoise.columns = combine_multiindex(df_top_peaks_signoise.columns)
     
 
 
@@ -186,21 +187,21 @@ plt.setp(g.legend.get_texts(), fontsize='24')
 plt.show()
 
 
-#MinMax data
-#sns.pairplot(df_top_peaks_minmax,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("MinMax data", y=1.01,fontsize=20)
-g = sns.PairGrid(df_top_peaks_minmax,corner=True)
-g.fig.suptitle("MinMax data", y=0.95,fontsize=26)
-g.map_lower(sns.scatterplot, hue=ds_dataset_cat.cat.codes,palette = 'RdBu',linewidth=0.5,s=50)
-g.map_diag(plt.hist, color='grey',edgecolor='black', linewidth=1.2)
-g.add_legend(fontsize=26)
-g.legend.get_texts()[0].set_text('Beijing Winter') # You can also change the legend title
-g.legend.get_texts()[1].set_text('Beijing Summer')
-g.legend.get_texts()[2].set_text('Delhi Summer')
-g.legend.get_texts()[3].set_text('Delhi Autumn')
-sns.move_legend(g, "center right", bbox_to_anchor=(0.8, 0.55), title='Dataset')
-plt.setp(g.legend.get_title(), fontsize='24')
-plt.setp(g.legend.get_texts(), fontsize='24')
-plt.show()
+# #MinMax data
+# #sns.pairplot(df_top_peaks_minmax,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("MinMax data", y=1.01,fontsize=20)
+# g = sns.PairGrid(df_top_peaks_minmax,corner=True)
+# g.fig.suptitle("MinMax data", y=0.95,fontsize=26)
+# g.map_lower(sns.scatterplot, hue=ds_dataset_cat.cat.codes,palette = 'RdBu',linewidth=0.5,s=50)
+# g.map_diag(plt.hist, color='grey',edgecolor='black', linewidth=1.2)
+# g.add_legend(fontsize=26)
+# g.legend.get_texts()[0].set_text('Beijing Winter') # You can also change the legend title
+# g.legend.get_texts()[1].set_text('Beijing Summer')
+# g.legend.get_texts()[2].set_text('Delhi Summer')
+# g.legend.get_texts()[3].set_text('Delhi Autumn')
+# sns.move_legend(g, "center right", bbox_to_anchor=(0.8, 0.55), title='Dataset')
+# plt.setp(g.legend.get_title(), fontsize='24')
+# plt.setp(g.legend.get_texts(), fontsize='24')
+# plt.show()
 
 
 #QT data
@@ -220,21 +221,21 @@ plt.setp(g.legend.get_texts(), fontsize='24')
 plt.show()
 
 
-#Sig/noise data
-#sns.pairplot(df_top_peaks_signoise,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("Sig/noise data", y=1.01,fontsize=20)
-g = sns.PairGrid(df_top_peaks_signoise,corner=True)
-g.fig.suptitle("Sig/noise data", y=0.95,fontsize=26)
-g.map_lower(sns.scatterplot, hue=ds_dataset_cat.cat.codes,palette = 'RdBu',linewidth=0.5,s=50)
-g.map_diag(plt.hist, color='grey',edgecolor='black', linewidth=1.2)
-g.add_legend(fontsize=26)
-g.legend.get_texts()[0].set_text('Beijing Winter') # You can also change the legend title
-g.legend.get_texts()[1].set_text('Beijing Summer')
-g.legend.get_texts()[2].set_text('Delhi Summer')
-g.legend.get_texts()[3].set_text('Delhi Autumn')
-sns.move_legend(g, "center right", bbox_to_anchor=(0.8, 0.55), title='Dataset')
-plt.setp(g.legend.get_title(), fontsize='24')
-plt.setp(g.legend.get_texts(), fontsize='24')
-plt.show()
+# #Sig/noise data
+# #sns.pairplot(df_top_peaks_signoise,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("Sig/noise data", y=1.01,fontsize=20)
+# g = sns.PairGrid(df_top_peaks_signoise,corner=True)
+# g.fig.suptitle("Sig/noise data", y=0.95,fontsize=26)
+# g.map_lower(sns.scatterplot, hue=ds_dataset_cat.cat.codes,palette = 'RdBu',linewidth=0.5,s=50)
+# g.map_diag(plt.hist, color='grey',edgecolor='black', linewidth=1.2)
+# g.add_legend(fontsize=26)
+# g.legend.get_texts()[0].set_text('Beijing Winter') # You can also change the legend title
+# g.legend.get_texts()[1].set_text('Beijing Summer')
+# g.legend.get_texts()[2].set_text('Delhi Summer')
+# g.legend.get_texts()[3].set_text('Delhi Autumn')
+# sns.move_legend(g, "center right", bbox_to_anchor=(0.8, 0.55), title='Dataset')
+# plt.setp(g.legend.get_title(), fontsize='24')
+# plt.setp(g.legend.get_texts(), fontsize='24')
+# plt.show()
 
 
 #Reset seaborn context so matplotlib plots are not messed up
@@ -242,16 +243,16 @@ sns.reset_orig()
 
 
 #%%Cluster metrics for four different data prescaling
-df_cluster_labels_mtx_unscaled = cluster_n_times(df_all_data,13,min_num_clusters=2,cluster_type='agglom')
+df_cluster_labels_mtx_unscaled = cluster_n_times(df_all_data,2,13,min_num_clusters=2,cluster_type='agglom')
 df_cluster_counts_mtx_unscaled = count_cluster_labels_from_mtx(df_cluster_labels_mtx_unscaled)
 
-df_cluster_labels_mtx_minmax = cluster_n_times(df_all_minmax,13,min_num_clusters=2,cluster_type='agglom')
-df_cluster_counts_mtx_minmax = count_cluster_labels_from_mtx(df_cluster_labels_mtx_minmax)
+#df_cluster_labels_mtx_minmax = cluster_n_times(df_all_minmax,2,13,min_num_clusters=2,cluster_type='agglom')
+#df_cluster_counts_mtx_minmax = count_cluster_labels_from_mtx(df_cluster_labels_mtx_minmax)
 
-df_cluster_labels_mtx_qt = cluster_n_times(df_all_qt,13,min_num_clusters=2,cluster_type='agglom')
+df_cluster_labels_mtx_qt = cluster_n_times(df_all_qt,2,13,min_num_clusters=2,cluster_type='agglom')
 df_cluster_counts_mtx_qt = count_cluster_labels_from_mtx(df_cluster_labels_mtx_qt)
 
-# df_cluster_labels_mtx_signoise = cluster_n_times(df_all_signoise,10,min_num_clusters=2,cluster_type='agglom')
+# df_cluster_labels_mtx_signoise = cluster_n_times(df_all_signoise,2,10,min_num_clusters=2,cluster_type='agglom')
 # df_cluster_counts_mtx_signoise = count_cluster_labels_from_mtx(df_cluster_labels_mtx_signoise)
 
 #Correlations between unscaled data, using the different cluster labels
@@ -397,7 +398,7 @@ nclusters_qt = optimal_nclusters_r_card(df_cluster_labels_mtx_qt.columns,
 
 #%%Clustering workflow - unscaled data
 
-df_cluster_labels_mtx = cluster_n_times(df_all_data,10,min_num_clusters=2,cluster_type='agglom')
+df_cluster_labels_mtx = cluster_n_times(df_all_data,2,10,min_num_clusters=2,cluster_type='agglom')
 df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
 
 df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
@@ -463,7 +464,7 @@ ax.legend()
 
 
 #%%Clustering workflow - MinMax data
-df_cluster_labels_mtx = cluster_n_times(df_all_minmax,10,min_num_clusters=2,cluster_type='agglom')
+df_cluster_labels_mtx = cluster_n_times(df_all_minmax,2,10,min_num_clusters=2,cluster_type='agglom')
 df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
 
 df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
@@ -493,7 +494,7 @@ plot_all_cluster_profiles(df_all_minmax,cluster_profiles_mtx_norm,num_clusters_i
 
 
 #%%Clustering workflow - Quantile transformed data
-df_cluster_labels_mtx = cluster_n_times(df_all_qt,10,min_num_clusters=2,cluster_type='agglom')
+df_cluster_labels_mtx = cluster_n_times(df_all_qt,2,10,min_num_clusters=2,cluster_type='agglom')
 df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
 
 df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
@@ -534,7 +535,7 @@ plot_all_cluster_profiles(df_all_qt,cluster_profiles_mtx_norm,num_clusters_index
 
 
 #%%Clustering workflow - Sig/noise transformed data
-df_cluster_labels_mtx = cluster_n_times(df_all_signoise,10,min_num_clusters=2,cluster_type='agglom')
+df_cluster_labels_mtx = cluster_n_times(df_all_signoise,2,10,min_num_clusters=2,cluster_type='agglom')
 df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
 
 df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)

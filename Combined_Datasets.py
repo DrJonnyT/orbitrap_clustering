@@ -53,6 +53,8 @@ import os
 os.chdir('C:/Work/Python/Github/Orbitrap_clustering')
 from ae_functions import *
 
+from clustering.cluster_n_times import cluster_n_times
+
 # %%Load data
 
 path='C:/Users/mbcx5jt5/Google Drive/Shared_York_Man2/'
@@ -387,7 +389,7 @@ plt.xlabel('~Time (arb units)')
            
 
 #%%Implementation of workflow for real space data
-df_cluster_labels_mtx = cluster_n_times(df_all_data_1e6,10,min_num_clusters=2)
+df_cluster_labels_mtx = cluster_n_times(df_all_data_1e6,2,10,min_num_clusters=2)
 
 #c= df_cluster_labels_mtx[10]
 #plot_tseries_BeijingDelhi(c,ds_dataset_cat,'Real-space clustering, 4 clusters','Cluster index')
@@ -411,7 +413,7 @@ count_clusters_project_time(df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat,tit
 #%%
 #Implementation of workflow for latent space data
 df_latent_space=pd.DataFrame(latent_space,index=df_all_data_1e6.index)
-df_cluster_labels_mtx = cluster_n_times(df_latent_space,10,min_num_clusters=2)
+df_cluster_labels_mtx = cluster_n_times(df_latent_space,2,10,min_num_clusters=2)
 
 c= df_cluster_labels_mtx[10]
 plot_tseries_BeijingDelhi(c,ds_dataset_cat,'Latent-space clustering, 4 clusters','Cluster index')
@@ -434,7 +436,7 @@ plot_all_cluster_tseries_BeijingDelhi(df_cluster_labels_mtx,ds_dataset_cat,title
 count_clusters_project_time(df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat,title_prefix='Latent space ',title_suffix='')
 
 #%%Implementation of workflow for normalised space data
-df_cluster_labels_mtx = cluster_n_times(df_all_data_norm,10,min_num_clusters=2)
+df_cluster_labels_mtx = cluster_n_times(df_all_data_norm,2,10,min_num_clusters=2)
 
 c= df_cluster_labels_mtx[10]
 plot_tseries_BeijingDelhi(c,ds_dataset_cat,'Normalised-space clustering, 4 clusters','Cluster index')

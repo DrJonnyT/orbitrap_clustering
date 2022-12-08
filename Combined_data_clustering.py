@@ -34,6 +34,7 @@ from orbitrap_functions import *
 from plotting.cmap_EOS11 import cmap_EOS11
 
 from file_loaders.load_pre_PMF_data import load_pre_PMF_data
+from clustering.cluster_n_times import cluster_n_times
 
 
 
@@ -102,7 +103,7 @@ df_all_data_norm1 = pd.DataFrame(pipe_norm1_mtx.transform(df_all_data),columns=d
 
 
 #%%Implementation of workflow for real space data, K-Medoids
-df_cluster_labels_mtx = cluster_n_times(df_all_data_standard,10,min_num_clusters=2,cluster_type='kmedoids')
+df_cluster_labels_mtx = cluster_n_times(df_all_data_standard,2,10,min_num_clusters=2,cluster_type='kmedoids')
 df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
 
 df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
@@ -125,7 +126,7 @@ compare_cluster_metrics(df_all_data_standard,2,10,'kmedoids','Real space ',' met
 
 
 #%%Implementation of workflow for real space data, k-means
-df_cluster_labels_mtx = cluster_n_times(df_all_data_standard,10,min_num_clusters=2,cluster_type='kmeans')
+df_cluster_labels_mtx = cluster_n_times(df_all_data_standard,2,10,min_num_clusters=2,cluster_type='kmeans')
 df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
 
 df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
@@ -149,7 +150,7 @@ compare_cluster_metrics(df_all_data_standard,2,10,'kmeans','Real space ',' metri
 
 
 #%%Implementation of workflow for real space data, hierarchical clustering
-df_cluster_labels_mtx = cluster_n_times(df_all_data_standard,10,min_num_clusters=2,cluster_type='agglom')
+df_cluster_labels_mtx = cluster_n_times(df_all_data_standard,2,10,min_num_clusters=2,cluster_type='agglom')
 df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
 
 df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
@@ -615,7 +616,7 @@ plt.show()
 #%%Run clustering on scaled latent space
 
 #%%Implementation of workflow for latent space data
-df_cluster_labels_mtx = cluster_n_times(df_latent_space,10,min_num_clusters=2)
+df_cluster_labels_mtx = cluster_n_times(df_latent_space,2,10,min_num_clusters=2)
 df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
 
 df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
@@ -1032,7 +1033,7 @@ cluster_labels = np.asarray(cluster_labels)
 #%%Run clustering on VAE latent space
 
 #%%Implementation of workflow for latent space data
-df_cluster_labels_mtx = cluster_n_times(df_latent_space,10,min_num_clusters=2)
+df_cluster_labels_mtx = cluster_n_times(df_latent_space,2,10,min_num_clusters=2)
 df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
 
 df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
