@@ -7,6 +7,7 @@ from clustering import molecule_type_pos_frac
 from clustering.molecule_type_math import molecule_type_pos_frac_clusters
 from clustering.cluster_n_times import cluster_n_times, cluster_n_times_fn
 from clustering.cluster_nfrac_above_avg  import cluster_nfrac_above_avg
+from clustering.correlate_cluster_profiles import correlate_cluster_profiles
 
 
 
@@ -90,3 +91,5 @@ def test_cluster_nfrac_above_avg():
     df_nfrac = cluster_nfrac_above_avg(data,labels)
     assert df_nfrac[0] == 1.0
     assert df_nfrac[1] == 0.8
+    
+    
