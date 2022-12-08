@@ -14,7 +14,7 @@ from functions.avg_array_clusters import avg_array_clusters
 from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat
 
 from functions.math import round_to_nearest_x_even, round_to_nearest_x_odd, sqrt_sum_squares, num_frac_above_val
-from functions.math import normdot
+from functions.math import normdot, normdot_1min
 
 import pandas as pd
 import numpy as np
@@ -118,4 +118,9 @@ def test_normdot():
     assert normdot([1,2,3],[2,4,6]) == 1
     assert normdot([1,2,0],[0,0,1]) == 0
     assert normdot([1,2,3],[-1,-2,-3]) == -1
+    
+    a, b = [1,2,3], [6,8,-15]
+    assert normdot_1min(a,b) == 1 - normdot(a,b)
+    a, b = [0,-0.1,88], [6,8,-15]
+    assert normdot_1min(a,b) == 1 - normdot(a,b)
     

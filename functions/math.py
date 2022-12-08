@@ -120,3 +120,20 @@ def normdot(X,Y):
 
     """
     return np.dot(X,Y) / np.sqrt( np.dot(X,X) * np.dot(Y,Y)   )
+
+def normdot_1min(X,Y):
+    """
+    1 minus normalised dot product of two arrays
+
+    Parameters
+    ----------
+    X : array
+    
+    Y : array
+
+    Returns
+    -------
+    float
+
+    """
+    return 1 - normdot(X,Y)
