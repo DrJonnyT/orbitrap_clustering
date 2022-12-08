@@ -123,6 +123,9 @@ def cluster_n_times_fn(data,min_clusters,max_clusters,arg_dict,**kwargs):
         scipy_clust_fn = kwargs.get('scipy_clust_fn')
         clust_type = 'scipy'
         arg_dict['criterion'] = 'maxclust'
+    else:
+        #Neither sklearn or scipy cluster functions passed as input
+        raise ValueError('Must input either sklearn_clust_fn or scipy_clust_fn as keyword arguments')
         
     
     if type(data) == pd.core.frame.DataFrame:
