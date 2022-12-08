@@ -61,34 +61,71 @@ from ae_functions import *
 
 # %%Load data
 
-path='C:/Users/mbcx5jt5/Google Drive/Shared_York_Man2/'
-df_beijing_data, df_beijing_err, df_beijing_metadata, df_beijing_raw = beijing_load(
-    path + 'BJ_UnAmbNeg9.1.1_20210505-Times_Fixed.xlsx',path + 'BJ_UnAmbNeg9.1.1_20210505-Times_Fixed.xlsx',
-    peaks_sheetname="Compounds",metadata_sheetname="massloading_Beijing")
+# path='C:/Users/mbcx5jt5/Google Drive/Shared_York_Man2/'
+# df_beijing_data, df_beijing_err, df_beijing_metadata, df_beijing_raw = beijing_load(
+#     path + 'BJ_UnAmbNeg9.1.1_20210505-Times_Fixed.xlsx',path + 'BJ_UnAmbNeg9.1.1_20210505-Times_Fixed.xlsx',
+#     peaks_sheetname="Compounds",metadata_sheetname="massloading_Beijing")
 
-df_delhi_data, df_delhi_err, df_delhi_metadata, df_delhi_raw = delhi_load2(path + '/Delhi/Orbitrap/')
+# df_delhi_data, df_delhi_err, df_delhi_metadata, df_delhi_raw = delhi_load2(path + '/Delhi/Orbitrap/')
 
-df_all_data = pd.concat([df_beijing_data, df_delhi_data], axis=0, join="inner")
-df_all_err = pd.concat([df_beijing_err, df_delhi_err], axis=0, join="inner")
-df_all_raw = pd.concat([df_beijing_raw, df_delhi_raw], axis=1, join="inner")
-df_all_raw = df_all_raw.loc[:,~df_all_raw.columns.duplicated()] #Remove duplicate columns: m/z, RT, molecular weight, formula
+# df_all_data = pd.concat([df_beijing_data, df_delhi_data], axis=0, join="inner")
+# df_all_err = pd.concat([df_beijing_err, df_delhi_err], axis=0, join="inner")
+# df_all_raw = pd.concat([df_beijing_raw, df_delhi_raw], axis=1, join="inner")
+# df_all_raw = df_all_raw.loc[:,~df_all_raw.columns.duplicated()] #Remove duplicate columns: m/z, RT, molecular weight, formula
+
+# ds_dataset_cat = delhi_beijing_datetime_cat(df_all_data.index)
+
+# time_cat = delhi_calc_time_cat(df_all_data)
+# df_time_cat = pd.DataFrame(delhi_calc_time_cat(df_all_data),columns=['time_cat'],index=df_all_data.index)
+# ds_time_cat = df_time_cat['time_cat']
+
+# mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
+
+
+# #Sort columns by m/z
+# mz_columns_sorted = mz_columns.sort_values("Molecular Weight",axis=0)
+# df_all_data.columns= mz_columns['Molecular Weight']
+# df_all_data.sort_index(axis=1,inplace=True)
+# df_all_data.columns = mz_columns_sorted.index
+# mz_columns = mz_columns_sorted
+#%%Load data from HDF
+filepath = r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\ORBITRAP_Data_Pre_PMF.h5"
+df_all_data, df_all_err, ds_all_mz = load_pre_PMF_data(filepath,join='inner')
+
+df_all_signoise = (df_all_data / df_all_err).abs().fillna(0)
+
+#Save data to CSV
+#df_all_data.to_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\df_all_data.csv")
+#df_all_err.to_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\df_all_err.csv")
+#ds_all_mz.to_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\ds_all_mz.csv",index=False,header=False)
+
+#pd.DataFrame(df_all_data.columns.get_level_values(0),df_all_data.columns.get_level_values(1)).to_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\RT_formula.csv",header=False)
+
+#Load all time data, ie start/mid/end
+df_all_times = pd.read_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\Times_all.csv")
+df_all_times['date_start'] = pd.to_datetime(df_all_times['date_start'],dayfirst=True)
+df_all_times['date_mid'] = pd.to_datetime(df_all_times['date_mid'],dayfirst=True)
+df_all_times['date_end'] = pd.to_datetime(df_all_times['date_end'],dayfirst=True)
+
+#Now make sure the samples line but for the times and the previously-loaded data
+df_all_times.set_index(df_all_times['date_mid'],inplace=True)
+fuzzy_index = pd.merge_asof(pd.DataFrame(index=df_all_data.index),df_all_times,left_index=True,right_index=True,direction='nearest',tolerance=pd.Timedelta(hours=1.25))
+df_all_times = df_all_times.loc[fuzzy_index['date_mid']]
+#Fix the timestamp in the previously-loaded data
+df_all_data.index = df_all_times.index
+df_all_err.index = df_all_err.index
+
 
 ds_dataset_cat = delhi_beijing_datetime_cat(df_all_data.index)
 
-time_cat = delhi_calc_time_cat(df_all_data)
-df_time_cat = pd.DataFrame(delhi_calc_time_cat(df_all_data),columns=['time_cat'],index=df_all_data.index)
+
+time_cat = delhi_calc_time_cat(df_all_times)
+df_time_cat = pd.DataFrame(delhi_calc_time_cat(df_all_times),columns=['time_cat'],index=df_all_times.index)
 ds_time_cat = df_time_cat['time_cat']
 
-mz_columns = pd.DataFrame(df_all_raw['Molecular Weight'].loc[df_all_data.columns])
-
-
-#Sort columns by m/z
-mz_columns_sorted = mz_columns.sort_values("Molecular Weight",axis=0)
-df_all_data.columns= mz_columns['Molecular Weight']
-df_all_data.sort_index(axis=1,inplace=True)
-df_all_data.columns = mz_columns_sorted.index
-mz_columns = mz_columns_sorted
-
+#This is a list of peaks with Sari's description from her PMF
+Sari_peaks_list = pd.read_csv(r'C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\Sari_Peaks_Sources.csv',index_col='Formula',na_filter=False)
+Sari_peaks_list = Sari_peaks_list[~Sari_peaks_list.index.duplicated(keep='first')]
 
 
 #%%Load chemform namelists
@@ -101,44 +138,44 @@ chemform_namelist_all = combine_chemform_namelists(chemform_namelist_beijing,che
 #Divide whole thing by 1e6
 scalefactor = 1e6
 pipe_1e6 = FunctionTransformer(lambda x: np.divide(x,scalefactor),inverse_func = lambda x: np.multiply(x,scalefactor))
-pipe_1e6.fit(df_all_filters)
+pipe_1e6.fit(df_all_data)
 
-df_all_filters_1e6 = pd.DataFrame(pipe_1e6.transform(df_all_filters),columns=df_all_filters.columns)
-ds_all_filters_total_1e6 = df_all_filters_1e6.sum(axis=1)
+df_all_data_1e6 = pd.DataFrame(pipe_1e6.transform(df_all_data),columns=df_all_data.columns)
+ds_all_filters_total_1e6 = df_all_data_1e6.sum(axis=1)
 
 #Normalise so the mean of the whole matrix is 1
-orig_mean = df_all_filters.mean().mean()
+orig_mean = df_all_data.mean().mean()
 pipe_norm1_mtx = FunctionTransformer(lambda x: np.divide(x,orig_mean),inverse_func = lambda x: np.multiply(x,orig_mean))
-pipe_norm1_mtx.fit(df_all_filters)
-df_all_filters_norm1 = pd.DataFrame(pipe_norm1_mtx.transform(df_all_filters),columns=df_all_filters.columns)
+pipe_norm1_mtx.fit(df_all_data.to_numpy())
+df_all_data_norm1 = pd.DataFrame(pipe_norm1_mtx.transform(df_all_data),columns=df_all_data.columns)
 
 #Minmax scaling
 minmaxscaler_all = MinMaxScaler()
-df_all_filters_minmax = pd.DataFrame(minmaxscaler_all.fit_transform(df_all_filters.to_numpy()),columns=df_all_filters.columns)
+df_all_data_minmax = pd.DataFrame(minmaxscaler_all.fit_transform(df_all_data.to_numpy()),columns=df_all_data.columns)
 
 #Standard scaling
 standardscaler_all = StandardScaler()
-df_all_filters_standard = pd.DataFrame(standardscaler_all.fit_transform(df_all_filters.to_numpy()),columns=df_all_filters.columns)
+df_all_data_standard = pd.DataFrame(standardscaler_all.fit_transform(df_all_data.to_numpy()),columns=df_all_data.columns)
 
 #Robust scaling
 robustscaler_all = RobustScaler()
-df_all_filters_robust = pd.DataFrame(robustscaler_all.fit_transform(df_all_filters.to_numpy()),columns=df_all_filters.columns)
+df_all_data_robust = pd.DataFrame(robustscaler_all.fit_transform(df_all_data.to_numpy()),columns=df_all_data.columns)
 
 #df scaled so it is normalised by the total from each filter
-df_all_filters_norm = df_all_filters.div(df_all_filters.sum(axis=1), axis=0)
+df_all_data_norm = df_all_data.div(df_all_data.sum(axis=1), axis=0)
 
 #Log data and add one
-offset_min = df_all_filters.min().min() * (-1)
+offset_min = df_all_data.min().min() * (-1)
 pipe_log1p = FunctionTransformer(lambda x: np.log1p(x+offset_min),inverse_func = lambda x: (np.expm1(x) - offset_min) )
-df_all_filters_log1p = pd.DataFrame(pipe_log1p.fit_transform(df_all_filters.to_numpy()),columns=df_all_filters.columns)
+df_all_data_log1p = pd.DataFrame(pipe_log1p.fit_transform(df_all_data.to_numpy()),columns=df_all_data.columns)
 
 
 
 
 #%%Try autoencoder
-df_aug = augment_data_noise(df_all_filters_norm1,50,1,0)
+df_aug = augment_data_noise(df_all_data_norm1,50,1,0)
 ae_input = df_aug.values
-ae_input_val = df_all_filters_norm1.values
+ae_input_val = df_all_data_norm1.values
 input_dim = ae_input.shape[1]
 
 
@@ -277,17 +314,17 @@ def corr_coeff_rowwise_loops(A,B):
     return corr_mtx
             
 
-Beijing_rows_corr = corr_coeff_rowwise_loops(df_all_filters_norm1[ds_dataset_cat=='Beijing_winter'].values,df_all_filters_norm1[ds_dataset_cat=='Beijing_summer'].values)
+Beijing_rows_corr = corr_coeff_rowwise_loops(df_all_data_norm1[ds_dataset_cat=='Beijing_winter'].values,df_all_data_norm1[ds_dataset_cat=='Beijing_summer'].values)
 Beijing_rows_corr_min_index = np.unravel_index(Beijing_rows_corr.argmin(), Beijing_rows_corr.shape)
-Delhi_rows_corr = corr_coeff_rowwise_loops(df_all_filters_norm1[ds_dataset_cat=='Delhi_summer'].values,df_all_filters_norm1[ds_dataset_cat=='Delhi_autumn'].values)
+Delhi_rows_corr = corr_coeff_rowwise_loops(df_all_data_norm1[ds_dataset_cat=='Delhi_summer'].values,df_all_data_norm1[ds_dataset_cat=='Delhi_autumn'].values)
 Delhi_rows_corr_min_index = np.unravel_index(Delhi_rows_corr.argmin(), Delhi_rows_corr.shape)
 
 
 #This then is 4 factors that are very poorly correlated with each other in terms of their mass spec
-factor_A = df_all_filters_norm1[ds_dataset_cat=='Beijing_winter'].iloc[Beijing_rows_corr_min_index[0]].values
-factor_B = df_all_filters_norm1[ds_dataset_cat=='Beijing_summer'].iloc[Beijing_rows_corr_min_index[1]].values
-factor_C = df_all_filters_norm1[ds_dataset_cat=='Delhi_summer'].iloc[Delhi_rows_corr_min_index[0]].values
-factor_D = df_all_filters_norm1[ds_dataset_cat=='Delhi_autumn'].iloc[Delhi_rows_corr_min_index[1]].values
+factor_A = df_all_data_norm1[ds_dataset_cat=='Beijing_winter'].iloc[Beijing_rows_corr_min_index[0]].values
+factor_B = df_all_data_norm1[ds_dataset_cat=='Beijing_summer'].iloc[Beijing_rows_corr_min_index[1]].values
+factor_C = df_all_data_norm1[ds_dataset_cat=='Delhi_summer'].iloc[Delhi_rows_corr_min_index[0]].values
+factor_D = df_all_data_norm1[ds_dataset_cat=='Delhi_autumn'].iloc[Delhi_rows_corr_min_index[1]].values
 
 #Normalise all to 1
 factor_A = 1 * factor_A / factor_A.sum()
@@ -302,13 +339,13 @@ amp_B = np.abs(-np.sin(np.arange(0,3*math.pi,math.pi/50))*1.3 + 1)
 amp_C = np.append(np.arange(1.5,0.5,-0.015),np.arange(0.5,0,-0.5/83)) * 2.5
 #amp_D = 
 
-num_cols = df_all_filters.shape[1]
+num_cols = df_all_data.shape[1]
 df_factorA = pd.DataFrame((np.random.normal(1, 0.3, [150,num_cols])) * factor_A).multiply(amp_A,axis=0)
 df_factorB = pd.DataFrame((np.random.normal(1, 0.3, [150,num_cols])) * factor_B).multiply(amp_B,axis=0)
 df_factorC = pd.DataFrame((np.random.normal(1, 0.3, [150,num_cols])) * factor_C).multiply(amp_C,axis=0)
-df_factorA.columns = df_all_filters_norm1.columns
-df_factorB.columns = df_all_filters_norm1.columns
-df_factorC.columns = df_all_filters_norm1.columns
+df_factorA.columns = df_all_data_norm1.columns
+df_factorB.columns = df_all_data_norm1.columns
+df_factorC.columns = df_all_data_norm1.columns
 
 factorA_total = df_factorA.sum(axis=1)
 factorB_total = df_factorB.sum(axis=1)
