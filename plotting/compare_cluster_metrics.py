@@ -79,7 +79,7 @@ def compare_cluster_metrics(df_data,min_clusters,max_clusters,cluster_type='aggl
 
 def compare_cluster_metrics_fn(data,df_cluster_labels,**kwargs):
     """
-    Compare clustering metrics for a given dataset
+    Compare clustering metrics for a given dataset and set of cluster labels
 
     Parameters
     ----------

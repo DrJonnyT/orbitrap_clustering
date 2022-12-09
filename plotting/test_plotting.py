@@ -19,30 +19,30 @@ def test_cmap_EOS11():
     
     
     
-def test_compare_cluster_metrics_fn():
-    df = pd.DataFrame({
-        "Sample Name": ["Sample "+str(i) for i in range(6)],
-        "Feature1": [6, 5, 1, 2, 3, 4],
-        "Feature2": [5, 6, 2, 1, 4, 3],
-    })
+# def test_compare_cluster_metrics_fn():
+#     df = pd.DataFrame({
+#         "Sample Name": ["Sample "+str(i) for i in range(6)],
+#         "Feature1": [6, 5, 1, 2, 3, 4],
+#         "Feature2": [5, 6, 2, 1, 4, 3],
+#     })
     
-    arg_dict = {
-        "linkage": "ward"
-    }
+#     arg_dict = {
+#         "linkage": "ward"
+#     }
 
-    compare_cluster_metrics_fn(df[['Feature1', 'Feature2']],2,5,arg_dict=arg_dict,sklearn_clust_fn=AgglomerativeClustering)
+#     compare_cluster_metrics_fn(df[['Feature1', 'Feature2']],2,5,arg_dict=arg_dict,sklearn_clust_fn=AgglomerativeClustering)
     
     
-    arg_dict = {
-        "criterion": "maxclust",
-        "metric" : "euclidean",
-        "method" : "ward"
-    }
+#     arg_dict = {
+#         "criterion": "maxclust",
+#         "metric" : "euclidean",
+#         "method" : "ward"
+#     }
 
-    compare_cluster_metrics_fn(df[['Feature1', 'Feature2']],2,5,arg_dict=arg_dict,scipy_clust_fn=fclusterdata)
+#     compare_cluster_metrics_fn(df[['Feature1', 'Feature2']],2,5,arg_dict=arg_dict,scipy_clust_fn=fclusterdata)
 
     
-    #plt.close('all')
+#     #plt.close('all')
     
 
 def test_plot_cluster_heatmap_BeijingDelhi():
