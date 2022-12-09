@@ -74,11 +74,29 @@ def plot_tseries_BeijingDelhi(c,ds_dataset_cat,suptitle,ylabel,integer_labels=Fa
     
     
     
-#%% Plot the time series divided into 4 projects
-#c is the time series of cluster index
-#ds_dataset_cat is the categorical data series of which dataset there is
-#suptitle is the title to go at the top of the plot
-def plot_cluster_heatmap_BeijingDelhi(c,df_times,suptitle,ylabel,integer_labels=False):
+
+def plot_cluster_heatmap_BeijingDelhi(labels,df_times,suptitle,ylabel):
+    """
+    Plot a time series cluster heatmap, divided into 4 projects from Beijing and Delhi
+
+    Parameters
+    ----------
+    labels : array of int
+        Time series of cluster index
+    df_times : pandas dataframe
+        Needs to have columns 'date_start', 'date_mid', and 'date_end' of type time, and same num rows as len(c)
+    suptitle : string
+        Suptitle of the plot.
+    ylabel : string
+        Y label of the plot.
+    integer_labels : TYPE, optional
+        DESCRIPTION. The default is False.
+
+    Returns
+    -------
+    None.
+
+    """
         
     fig,ax = plt.subplots(2,2,figsize=(12,9))
     ax=ax.ravel()
@@ -87,12 +105,14 @@ def plot_cluster_heatmap_BeijingDelhi(c,df_times,suptitle,ylabel,integer_labels=
     
     #c_orig = c
     
+    #Not sure why this is needed to copy but it was being weird
     all_times = df_times.to_numpy().copy()
+    
     #Now need to scan through and cater for when a filter goes over midnight
     #Whenever a filter goes over midnight, change it so you have one row that ends and midnight and a 
     #new one that starts at midnight
     idx = 0
-    while idx < len(c):
+    while idx < len(labels):
         time_start = all_times[idx][0]
         time_end = all_times[idx][2]
         
@@ -105,7 +125,7 @@ def plot_cluster_heatmap_BeijingDelhi(c,df_times,suptitle,ylabel,integer_labels=
             all_times[idx] = [time_start,new_time_mid,midnight]
             
             #Insert new row starts from midnight
-            c = np.insert(c,idx+1,c[idx])
+            labels = np.insert(labels,idx+1,labels[idx])
             new_time_mid2 = (time_end - midnight)/2 + midnight
             all_times = np.insert(all_times,idx+1,[midnight,new_time_mid2,time_end],axis=0) 
             idx += 1
@@ -116,15 +136,15 @@ def plot_cluster_heatmap_BeijingDelhi(c,df_times,suptitle,ylabel,integer_labels=
     df_times.set_index('date_mid',inplace=True)
     
     #Onehot map of the cluster labels
-    df_c_onehot = pd.get_dummies(c).set_index(df_times.index)
+    df_labels_onehot = pd.get_dummies(labels).set_index(df_times.index)
     time_delta_frac = (df_times['date_end'] - df_times['date_start']) / np.timedelta64(1, 'D')
-    df_c_frachot = df_c_onehot.multiply( time_delta_frac,axis=0)
+    df_labels_frachot = df_labels_onehot.multiply( time_delta_frac,axis=0)
     
-    ds_dataset_cat = delhi_beijing_datetime_cat(df_c_frachot.index)
+    ds_dataset_cat = delhi_beijing_datetime_cat(df_labels_frachot.index)
     
     
     #The time for each culster per day, as a fraction of the total time sampled on that day
-    df_c_frachot_perday = df_c_frachot.resample('D').sum().divide(df_c_frachot.resample('D').sum().sum(axis=1),axis=0)
+    df_labels_frachot_perday = df_labels_frachot.resample('D').sum().divide(df_labels_frachot.resample('D').sum().sum(axis=1),axis=0)
     
     
     
@@ -132,41 +152,21 @@ def plot_cluster_heatmap_BeijingDelhi(c,df_times,suptitle,ylabel,integer_labels=
     for idx in range(4):
         #pdb.set_trace()
         cat = ds_dataset_cat.unique()[idx]
-        df_c_onehot_thiscat = df_c_onehot.loc[ds_dataset_cat == cat]
+        df_labels_onehot_thiscat = df_labels_onehot.loc[ds_dataset_cat == cat]
         #ds_dataset_cat_thiscat = ds_dataset_cat[ds_dataset_cat == cat]
         
         #The time for each culster per day, as a fraction of the total time sampled on that day
-        df_c_frachot_perday = df_c_onehot_thiscat.resample('D').sum().divide(df_c_onehot_thiscat.resample('D').sum().sum(axis=1),axis=0)
+        df_labels_frachot_perday = df_labels_onehot_thiscat.resample('D').sum().divide(df_labels_onehot_thiscat.resample('D').sum().sum(axis=1),axis=0)
         
     
-        xbins = pd.date_range(df_c_frachot_perday.index.floor("1D").min(),(df_c_frachot_perday.index.ceil("1D").max()+np.timedelta64(1,'D')),freq="1D").to_numpy()
-        ybins = np.unique(c)
+        xbins = pd.date_range(df_labels_frachot_perday.index.floor("1D").min(),(df_labels_frachot_perday.index.ceil("1D").max()+np.timedelta64(1,'D')),freq="1D").to_numpy()
+        ybins = np.unique(labels)
         ybins= np.append(ybins,ybins.max() + 1) -0.5
         
-        im = ax[idx].pcolormesh(xbins,ybins,df_c_frachot_perday.T)
+        im = ax[idx].pcolormesh(xbins,ybins,df_labels_frachot_perday.T)
         
-        
-        #ax[idx].hist2d(ds_dataset_cat_thiscat.index,c_thiscat, bins=[xbins,ybins],density=True)
-        ax[idx].set_yticks(np.unique(c))
-        
-        
-        # # raw bin counts
-        # counts, xedges, yedges = np.histogram2d(ds_dataset_cat_thiscat.index,c_thiscat, bins=[xbins,ybins])
-        
-        # # width of each bin in x and y dimensions
-        # dx = np.diff(xedges)
-        # dy = np.diff(yedges)
+        ax[idx].set_yticks(np.unique(labels))
 
-        # # compute the area of each bin using broadcasting
-        # area = dx[:,  None] * dy
-
-        # # normalized counts
-        # manual_norm = counts / area / ds_dataset_cat_thiscat.shape[0]
-        
-        
-        
-        # hist2d, xedges, yedges = np.histogram2d(ds_dataset_cat_thiscat.index,c_thiscat, bins=[xbins,ybins],density=True)
-        
         #Format dates on x labels
         ax[idx].xaxis.set_major_formatter(myFmt)
         ax[idx].tick_params(axis='x', labelrotation=45)
@@ -195,7 +195,7 @@ def plot_cluster_heatmap_BeijingDelhi(c,df_times,suptitle,ylabel,integer_labels=
     fig.subplots_adjust(right=0.85)
     cbar_ax = fig.add_axes([0.90, 0.17, 0.05, 0.7])
     fig.colorbar(im, cax=cbar_ax, label='Fraction')
-    plt.show()
+    #plt.show()
     
 #%% Plot the time series divided into 4 projects
 #c is the time series of cluster index
