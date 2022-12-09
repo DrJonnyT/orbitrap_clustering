@@ -46,10 +46,10 @@ def test_compare_cluster_metrics_fn():
     
 
 def test_plot_cluster_heatmap_BeijingDelhi():
-    time_start = pd.concat([pd.date_range("2016-11-11", periods=20, freq="6h").to_series(),
-                          pd.date_range("2017-05-20", periods=20, freq="6h").to_series(),
-                          pd.date_range("2018-05-30", periods=20, freq="6h").to_series(),
-                          pd.date_range("2018-10-12", periods=20, freq="6h").to_series()])
+    time_start = pd.concat([pd.date_range("2016-11-11", periods=20, freq="7h").to_series(),
+                          pd.date_range("2017-05-20", periods=20, freq="7h").to_series(),
+                          pd.date_range("2018-05-30", periods=20, freq="7h").to_series(),
+                          pd.date_range("2018-10-12", periods=20, freq="7h").to_series()])
     time_mid = time_start + datetime.timedelta(hours=3)
     time_end = time_start + datetime.timedelta(hours=6)
     df_times = pd.DataFrame()
