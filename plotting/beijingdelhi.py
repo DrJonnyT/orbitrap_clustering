@@ -89,15 +89,13 @@ def plot_cluster_heatmap_BeijingDelhi(labels,df_times,suptitle,ylabel):
         Suptitle of the plot.
     ylabel : string
         Y label of the plot.
-    integer_labels : TYPE, optional
-        DESCRIPTION. The default is False.
 
     Returns
     -------
     None.
 
     """
-        
+    
     fig,ax = plt.subplots(2,2,figsize=(12,9))
     ax=ax.ravel()
     
@@ -113,6 +111,7 @@ def plot_cluster_heatmap_BeijingDelhi(labels,df_times,suptitle,ylabel):
     #new one that starts at midnight
     idx = 0
     while idx < len(labels):
+        #pdb.set_trace()
         time_start = all_times[idx][0]
         time_end = all_times[idx][2]
         
@@ -196,6 +195,35 @@ def plot_cluster_heatmap_BeijingDelhi(labels,df_times,suptitle,ylabel):
     cbar_ax = fig.add_axes([0.90, 0.17, 0.05, 0.7])
     fig.colorbar(im, cax=cbar_ax, label='Fraction')
     #plt.show()
+    
+    
+def plot_n_cluster_heatmaps_BeijingDelhi(df_labels,df_times,suptitle_prefix,ylabel):
+    """
+    Run plot_cluster_heatmap_BeijingDelhi many times for different cluster labels
+
+    Parameters
+    ----------
+    df_labels : pandas dataframe of int
+        Dataframe of cluster labels, of the type produced by cluster_n_times. Index is time and columns are different n_clusters
+    df_times : pandas dataframe
+    Needs to have columns 'date_start', 'date_mid', and 'date_end' of type time, and same num rows as len(c)
+    suptitle_prefix : string
+        Suptitle prefix of the plot.
+    ylabel : string
+        Y label of the plot.
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    for n_clusters in df_labels.columns:
+        suptitle = f"{suptitle_prefix} {n_clusters} clusters"
+        #pdb.set_trace()
+        plot_cluster_heatmap_BeijingDelhi(df_labels[n_clusters].to_numpy(),df_times,suptitle,ylabel)
+    
+    
     
 #%% Plot the time series divided into 4 projects
 #c is the time series of cluster index
