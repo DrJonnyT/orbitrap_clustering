@@ -8,17 +8,12 @@ Created on Wed Nov  2 10:45:01 2022
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as plticker
-from matplotlib.colors import ListedColormap
-
-
-
 import numpy as np
 import scipy
 
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, PowerTransformer, QuantileTransformer
 from sklearn.cluster import AgglomerativeClustering
-from sklearn.metrics import pairwise_distances
-
+from sklearn.metrics import pairwise_distances, silhouette_score
 
 import seaborn as sns
 
@@ -27,8 +22,8 @@ import os
 os.chdir('C:/Work/Python/Github/Orbitrap_clustering')
 
 
-from orbitrap_functions import count_cluster_labels_from_mtx, chemform_ratios, cluster_extract_peaks, delhi_calc_time_cat
-from orbitrap_functions import correlate_cluster_profiles, average_cluster_profiles, calc_cluster_elemental_ratios, plot_cluster_profile_corrs, count_clusters_project_time
+from orbitrap_functions import count_cluster_labels_from_mtx, cluster_extract_peaks, delhi_calc_time_cat
+from orbitrap_functions import average_cluster_profiles, calc_cluster_elemental_ratios, plot_cluster_profile_corrs, count_clusters_project_time
 from orbitrap_functions import plot_all_cluster_profiles
 from orbitrap_functions import plot_cluster_elemental_ratios
 
@@ -39,15 +34,16 @@ from functions.math import normdot, normdot_1min
 from file_loaders.load_beijingdelhi_merge import load_beijingdelhi_merge
 from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat
 from chem import ChemForm
-from plotting.beijingdelhi import plot_all_cluster_tseries_BeijingDelhi, plot_cluster_heatmap_BeijingDelhi
+from plotting.beijingdelhi import plot_all_cluster_tseries_BeijingDelhi, plot_cluster_heatmap_BeijingDelhi, plot_n_cluster_heatmaps_BeijingDelhi
 from plotting.plot_cluster_count_hists import plot_cluster_count_hists
 
 from file_loaders.load_pre_PMF_data import load_pre_PMF_data
 
 from clustering.molecule_type_math import molecule_type_pos_frac_clusters_mtx
 from clustering.cluster_n_times import cluster_n_times, cluster_n_times_fn
+from clustering.correlate_cluster_profiles import correlate_cluster_profiles
 from clustering.cluster_nfrac_above_avg  import cluster_nfrac_above_avg
-from plotting.compare_cluster_metrics import compare_cluster_metrics, compare_cluster_metrics_fn
+from plotting.compare_cluster_metrics import compare_cluster_metrics, compare_cluster_metrics_fn, compare_cluster_metrics_fn2
 
 
 
@@ -277,14 +273,8 @@ distance_matrix = pairwise_distances(df_all_data, metric=normdot_1min)
 df_cluster_labels_mtx_normdot = cluster_n_times_fn(distance_matrix,minclust,maxclust,arg_dict=arg_dict, sklearn_clust_fn = AgglomerativeClustering)
 df_cluster_counts_mtx_normdot = count_cluster_labels_from_mtx(df_cluster_labels_mtx_normdot)
 
-
-
-
-
 # df_cluster_labels_mtx_signoise = cluster_n_times(df_all_signoise,2,10,min_num_clusters=2,cluster_type='agglom')
 # df_cluster_counts_mtx_signoise = count_cluster_labels_from_mtx(df_cluster_labels_mtx_signoise)
-
-
 
 
 
@@ -304,43 +294,82 @@ df_cluster_corr_mtx_qt_s, _ = correlate_cluster_profiles(*average_cluster_profil
 #df_cluster_corr_mtx_signoise_s, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_signoise,df_all_signoise)[1:])
 
 
+###Calculate Silhouette scores
+Silhouette_scores_unscaled = []
+Silhouette_scores_qt = []
+Silhouette_scores_normdot = []
+
+for n_clusters in df_cluster_labels_mtx_unscaled:
+    labels_unscaled = df_cluster_labels_mtx_unscaled[n_clusters]
+    labels_qt = df_cluster_labels_mtx_qt[n_clusters]
+    labels_normdot = df_cluster_labels_mtx_normdot[n_clusters]
+    
+    Silhouette_scores_unscaled.append(silhouette_score(df_all_data,labels_unscaled))
+    Silhouette_scores_qt.append(silhouette_score(df_all_qt,labels_qt))
+    Silhouette_scores_normdot.append(silhouette_score(distance_matrix,labels_normdot,metric='precomputed'))
 
 
 
+#%%Plot cluster metrics
 sns.set_context("talk", font_scale=1)
-fig,ax = plt.subplots(2,1,figsize=(9,12),sharex=True)
-ax[0].plot(df_cluster_labels_mtx_unscaled.columns,df_cluster_counts_mtx_unscaled.min(axis=1),label='Unscaled',linewidth=2,c='k')
+fig,ax = plt.subplots(3,1,figsize=(9,12),sharex=True)
+ax[0].plot(df_cluster_labels_mtx_unscaled.columns,df_cluster_counts_mtx_unscaled.min(axis=1),label='Naive',linewidth=2,c='k')
 ax[0].plot(df_cluster_labels_mtx_unscaled.columns,df_cluster_counts_mtx_normdot.min(axis=1),label='NormDot',linewidth=2,c='tab:blue')
 ax[0].plot(df_cluster_labels_mtx_qt.columns,df_cluster_counts_mtx_qt.min(axis=1),label='QT',linewidth=2,c='tab:red')
 #ax[0].plot(df_cluster_labels_mtx_signoise.columns,df_cluster_counts_mtx_signoise.min(axis=1),label='Sig/noise',c='k',linewidth=2)
-ax[0].legend(framealpha=1.)
-ax[0].set_ylabel('Cardinality (num points) of smallest cluster')
+ax[0].set_title('Cardinality of smallest cluster')
+ax[0].set_ylabel('Number of samples')
 ax[0].set_xlabel('Num clusters')
 ax[0].yaxis.set_major_locator(plticker.MultipleLocator(2))
 ax[0].yaxis.set_minor_locator(plticker.MultipleLocator(1))
 ax[0].grid(axis='y')
 ax[0].set_ylim([0,20])
+ax[0].label_outer()
+ax[0].xaxis.set_tick_params(labelbottom=True)
 
-ax[1].plot(df_cluster_labels_mtx_unscaled.columns,df_cluster_corr_mtx_unscaled.max(axis=1),label='Unscaled',linewidth=2,c='k')
+
+ax[1].plot(df_cluster_labels_mtx_unscaled.columns,df_cluster_corr_mtx_unscaled.max(axis=1),label='Naive',linewidth=2,c='k')
 ax[1].plot(df_cluster_labels_mtx_unscaled.columns,df_cluster_corr_mtx_normdot.max(axis=1),label='Normdot',linewidth=2,c='tab:blue')
-ax[1].plot(df_cluster_labels_mtx_qt.columns,df_cluster_corr_mtx_qt.max(axis=1),label='QT (unscaled ms data)',linewidth=2,c='tab:red')
+ax[1].plot(df_cluster_labels_mtx_qt.columns,df_cluster_corr_mtx_qt.max(axis=1),label='QT',linewidth=2,c='tab:red')
 #ax[1].plot(df_cluster_labels_mtx_signoise.columns,df_cluster_corr_mtx_signoise.max(axis=1),label='Sig/noise (unscaled)',c='k',linewidth=2)
 
 #ax[1].plot(df_cluster_labels_mtx_minmax.columns,df_cluster_corr_mtx_minmax_s.max(axis=1),label='MinMax (scaled ms data)',linewidth=2,linestyle='--',c='tab:blue')
-ax[1].plot(df_cluster_labels_mtx_qt.columns,df_cluster_corr_mtx_qt_s.max(axis=1),label='QT (scaled ms data)',linewidth=2,linestyle='--',c='tab:red')
+#ax[1].plot(df_cluster_labels_mtx_qt.columns,df_cluster_corr_mtx_qt_s.max(axis=1),label='QT (scaled ms data)',linewidth=2,linestyle='--',c='tab:red')
 #ax[1].plot(df_cluster_labels_mtx_signoise.columns,df_cluster_corr_mtx_signoise_s.max(axis=1),label='Sig/noise (scaled)',c='k',linewidth=2,linestyle='--')
 
-ax[1].legend(title='Cluster labels',framealpha=1.)
-ax[1].set_ylabel('Max correlation between clusters')
-ax[1].set_xlabel('Num clusters')
-ax[1].set_yticks(np.arange(0.20, 1.05, 0.05))
-
-ax[1].yaxis.set_major_locator(plticker.MultipleLocator(0.1))
-ax[1].yaxis.set_minor_locator(plticker.MultipleLocator(0.05))
+ax[1].legend(title='Cluster labels',framealpha=1.,loc='center right',bbox_to_anchor=(1.5, 0.5))
+ax[1].set_ylabel('Max R')
+ax[1].set_title('Max normdot between mean unscaled cluster profiles')
+ax[1].set_ylim(0.7)
+ax[1].yaxis.set_major_locator(plticker.MultipleLocator(0.05))
+ax[1].yaxis.set_minor_locator(plticker.MultipleLocator(0.025))
 
 ax[1].grid(axis='y')
 ax[1].xaxis.set_major_locator(plticker.MaxNLocator(integer=True))
 ax[1].xaxis.set_minor_locator(plticker.MultipleLocator(1))
+
+ax[1].label_outer()
+ax[1].xaxis.set_tick_params(labelbottom=True)
+
+
+ax[2].plot(df_cluster_labels_mtx_unscaled.columns,Silhouette_scores_unscaled,label='Naive',linewidth=2,c='k')
+ax[2].plot(df_cluster_labels_mtx_qt.columns,Silhouette_scores_normdot,label='QT',linewidth=2,c='tab:red')
+ax2t = ax[2].twinx()
+ax2t.plot(df_cluster_labels_mtx_unscaled.columns,Silhouette_scores_qt,label='Normdot',linewidth=2,c='tab:blue')
+ax[2].set_title('Silhouette score in data used for clustering')
+ax[2].set_ylabel('Silhouette score')
+ax[2].set_xlabel('Num clusters')
+ax[2].grid(axis='y')
+ax[2].set_ylim(0.25,0.6)
+ax[2].yaxis.set_major_locator(plticker.MultipleLocator(0.1))
+ax[2].yaxis.set_minor_locator(plticker.MultipleLocator(0.05))
+
+ax2t.set_yticks(np.arange(0.13,0.23,0.02))
+
+
+#ax2t.yaxis.set_minor_locator(plticker.MultipleLocator(0.025))
+ax2t.set_ylabel('Silhouette score (QT data)')
+ax2t.set_ylim(0.14,0.21)
 
 fig.suptitle('Cluster cardinality and similarity')
 
@@ -348,13 +377,34 @@ plt.tight_layout()
 plt.show()
 sns.reset_orig()
 
+#%%compare cluster metrics
+sns.set_context("notebook",font_scale=1.2)
+compare_cluster_metrics_fn(df_all_data,df_cluster_labels_mtx_unscaled,suptitle='Naive clustering metrics')
 
+
+
+##QT data
+compare_cluster_metrics_fn(df_all_qt,df_cluster_labels_mtx_qt,suptitle='QT clustering metrics')
+
+##Normdot data
+arg_dict = {
+    "affinity" : 'precomputed',
+    "linkage" : "complete",
+    }
+compare_cluster_metrics_fn(df_all_data,df_cluster_labels_mtx_qt,suptitle='Normdot clustering metrics')
+
+
+
+
+
+
+sns.reset_orig()
 
 #%%Plot stacked bar charts of cluster counts
 sns.set_context("talk", font_scale=1)
-plot_cluster_count_hists(df_cluster_counts_mtx_unscaled,df_cluster_counts_mtx_minmax,df_cluster_counts_mtx_qt,
+plot_cluster_count_hists(df_cluster_counts_mtx_unscaled,df_cluster_counts_mtx_normdot,df_cluster_counts_mtx_qt,
                          titles=['Unscaled','MinMax','QuantileTransformer'],
-                         colors=['k','tab:blue','tab:red'])
+                         colors=['tab:gray','tab:blue','tab:red'])
 
 sns.reset_orig()
 
@@ -363,15 +413,16 @@ sns.reset_orig()
 
 
 
+#%%Plot cluster heatmaps
+
+#plot_cluster_heatmap_BeijingDelhi(c,df_all_times,'Unscaled cluster heatmap',ylabel='Unscaled label')
+
+sns.set_context("talk", font_scale=1)
+plot_n_cluster_heatmaps_BeijingDelhi(df_cluster_labels_mtx_unscaled,df_all_times,"Unscaled data, ","Cluster label")
 
 
 
-
-
-
-
-
-
+sns.reset_orig()
 
 
 
