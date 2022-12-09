@@ -76,52 +76,25 @@ def compare_cluster_metrics(df_data,min_clusters,max_clusters,cluster_type='aggl
     plt.show()
 
 
-#%%Compare clustering metrics for a given dataset
 
-def compare_cluster_metrics_fn(data,min_clusters,max_clusters,arg_dict,**kwargs):
+def compare_cluster_metrics_fn(data,df_cluster_labels,**kwargs):
     """
     Compare clustering metrics for a given dataset
 
     Parameters
     ----------
     data : array
-        Data to cluster. Probably a 2D matrix
-    min_clusters : int
-        Minimum number of clusters to plot.
-    max_clusters : int
-        Maximum number of clusters to plot.
-    arg_dict : dictionary
-        A dictionary of arguments to pass into the clustering function
-    **kwargs
-        Required: one of "sklearn_clust_fn" or "scipy_clust_fn" which would be the clustering function
-        Optional: Suptitle, title at the top of the plot
+        Data used for clustering. Probably a 2D matrix
+    
+    df_cluster_labels: dataframe
+        Dataframe of cluster labels, of the type produced by cluster_n_times. Index is time and columns are different n_clusters
 
-    Raises
-    ------
-    ValueError
-        If input is not correct.
+    **kwargs
+        Optional: Suptitle, title at the top of the plot
 
     Returns
     -------
     None.
-    
-    Example usage
-    -------
-    df = pd.DataFrame({
-        "Feature1": [6.05, 5.1, 1, 2, 3.1, 4],
-        "Feature2": [5.05, 6, 2.1, 1.01, 4.1, 3],
-    })
-    arg_dict = {"linkage": "ward"}
-    compare_cluster_metrics_fn(df[['Feature1', 'Feature2']],2,5,arg_dict=arg_dict,sklearn_clust_fn=AgglomerativeClustering)
-    
-    or
-    
-    arg_dict = {
-        "criterion": "maxclust",
-        "metric" : "euclidean",
-        "method" : "ward"
-    }
-    compare_cluster_metrics_fn(df[['Feature1', 'Feature2']],2,5,arg_dict=arg_dict,scipy_clust_fn=fclusterdata)
 
     """
     
@@ -130,52 +103,26 @@ def compare_cluster_metrics_fn(data,min_clusters,max_clusters,arg_dict,**kwargs)
         suptitle = kwargs.get('suptitle')
     else:
         suptitle = ''
-        
+
     
-           
+    ch_score = []
+    db_score = []
+    silhouette_scores = []
     
-    
-    if 'sklearn_clust_fn' in kwargs:
-        if 'scipy_clust_fn' in kwargs:
-            raise ValueError('Cannot input both sklearn_clust_fn and scipy_clust_fn')
-        else:
-            sklearn_clust_fn = kwargs.get('sklearn_clust_fn')
-            clust_type = 'sklearn'
-    elif 'scipy_clust_fn' in kwargs:
-        scipy_clust_fn = kwargs.get('scipy_clust_fn')
-        clust_type = 'scipy'
-        arg_dict['criterion'] = 'maxclust'
-        
-    
-    
-    num_clusters_index = range(min_clusters,(max_clusters+1),1)
-    ch_score = np.empty(len(num_clusters_index))
-    db_score = np.empty(len(num_clusters_index))
-    silhouette_scores = np.empty(len(num_clusters_index))
-    
-    for num_clusters in num_clusters_index:
-        if clust_type == 'sklearn':
-            arg_dict['n_clusters'] = num_clusters
-            clust = sklearn_clust_fn(**arg_dict)
-            labels = clust.fit_predict(data)
-            ch_score[num_clusters-min_clusters] = calinski_harabasz_score(data, labels)
-            db_score[num_clusters-min_clusters] = davies_bouldin_score(data, labels)
-            silhouette_scores[num_clusters-min_clusters] = silhouette_score(data, labels)
-        elif clust_type == 'scipy':
-            arg_dict['t'] = num_clusters
-            labels = scipy_clust_fn(data,**arg_dict)
-            ch_score[num_clusters-min_clusters] = calinski_harabasz_score(data, labels)
-            db_score[num_clusters-min_clusters] = davies_bouldin_score(data, labels)
-            silhouette_scores[num_clusters-min_clusters] = silhouette_score(data, labels)
-        
+    for num_clusters in df_cluster_labels.columns:
+        labels = df_cluster_labels[num_clusters]
+        ch_score.append(calinski_harabasz_score(data, labels))
+        db_score.append(davies_bouldin_score(data, labels))
+        silhouette_scores.append(silhouette_score(data, labels))
+
     #Plot results
     fig,ax1 = plt.subplots(figsize=(10,6))
     ax2=ax1.twinx()
     ax3=ax1.twinx()
     ax3.spines.right.set_position(("axes", 1.1))
-    p1, = ax1.plot(num_clusters_index,ch_score,label="CH score")
-    p2, = ax2.plot(num_clusters_index,db_score,c='red',label="DB score")
-    p3, = ax3.plot(num_clusters_index,silhouette_scores,c='black',label="Silhouette score")
+    p1, = ax1.plot(df_cluster_labels.columns,ch_score,label="CH score")
+    p2, = ax2.plot(df_cluster_labels.columns,db_score,c='red',label="DB score")
+    p3, = ax3.plot(df_cluster_labels.columns,silhouette_scores,c='black',label="Silhouette score")
     ax1.set_xlabel("Num clusters")
     ax1.set_ylabel("CH score")
     ax2.set_ylabel("DB score")
