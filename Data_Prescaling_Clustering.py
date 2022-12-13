@@ -30,7 +30,7 @@ from orbitrap_functions import plot_cluster_elemental_ratios
 from functions.combine_multiindex import combine_multiindex
 from functions.optimal_nclusters_r_card import optimal_nclusters_r_card
 from functions.avg_array_clusters import avg_array_clusters
-from functions.math import normdot, normdot_1min
+from functions.math import normdot, normdot_1min, num_frac_above_val
 from file_loaders.load_beijingdelhi_merge import load_beijingdelhi_merge
 from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat
 from chem import ChemForm
@@ -91,13 +91,17 @@ Sari_peaks_list = Sari_peaks_list[~Sari_peaks_list.index.duplicated(keep='first'
 #CHO/CHON/CHOS/CHNOS
 molecule_types = np.array(list(ChemForm(mol).classify() for mol in df_all_data.columns.get_level_values(0)))
 
-df_all_data_gb_moltypes = df_all_data.groupby(molecule_types,axis=1).sum()
+#Summed concentrations of all molecule types from ChemForm.classify()
+#These sum to 1 so you can do the fraction as well
+df_all_data_moltypes = df_all_data.groupby(molecule_types,axis=1).sum()
+df_all_data_moltypes_frac = df_all_data_moltypes.clip(lower=0).div(df_all_data_moltypes.clip(lower=0).sum(axis=1), axis=0)
 
-df_all_data_moltypes = pd.DataFrame(index = df_all_data.index)
-df_all_data_moltypes['CHOX'] = df_all_data_gb_moltypes['CHO'] + df_all_data_gb_moltypes['CHOS'] + df_all_data_gb_moltypes['CHON'] + df_all_data_gb_moltypes['CHONS']
-df_all_data_moltypes['CHNX'] = df_all_data_gb_moltypes['CHN'] + df_all_data_gb_moltypes['CHON'] + df_all_data_gb_moltypes['CHONS'] + df_all_data_gb_moltypes['CHNS']
-df_all_data_moltypes['CHSX'] = df_all_data_gb_moltypes['CHOS'] + df_all_data_gb_moltypes['CHS'] + df_all_data_gb_moltypes['CHONS'] + df_all_data_gb_moltypes['CHNS']
 
+#Just these summed molecule types (do NOT sum to 1)
+df_all_data_moltypes2 = pd.DataFrame(index = df_all_data.index)
+df_all_data_moltypes2['CHOX'] = df_all_data_moltypes['CHO'] + df_all_data_moltypes['CHOS'] + df_all_data_moltypes['CHON'] + df_all_data_moltypes['CHONS']
+df_all_data_moltypes2['CHNX'] = df_all_data_moltypes['CHN'] + df_all_data_moltypes['CHON'] + df_all_data_moltypes['CHONS'] + df_all_data_moltypes['CHNS']
+df_all_data_moltypes2['CHSX'] = df_all_data_moltypes['CHOS'] + df_all_data_moltypes['CHS'] + df_all_data_moltypes['CHONS'] + df_all_data_moltypes['CHNS']
 
 
 #%%Work out O:C, H:C, S:C, N:C ratios for all peaks
@@ -378,32 +382,28 @@ plt.show()
 sns.reset_orig()
 
 #%%compare cluster metrics
-sns.set_context("notebook",font_scale=1.2)
-compare_cluster_metrics_fn(df_all_data,df_cluster_labels_mtx_unscaled,suptitle='Naive clustering metrics')
+
+# sns.set_context("notebook",font_scale=1.2)
+# compare_cluster_metrics_fn(df_all_data,df_cluster_labels_mtx_unscaled,suptitle='Naive clustering metrics')
 
 
 
-##QT data
-compare_cluster_metrics_fn(df_all_qt,df_cluster_labels_mtx_qt,suptitle='QT clustering metrics')
+# ##QT data
+# compare_cluster_metrics_fn(df_all_qt,df_cluster_labels_mtx_qt,suptitle='QT clustering metrics')
 
-##Normdot data
-arg_dict = {
-    "affinity" : 'precomputed',
-    "linkage" : "complete",
-    }
-compare_cluster_metrics_fn(df_all_data,df_cluster_labels_mtx_qt,suptitle='Normdot clustering metrics')
+# ##Normdot data
+# arg_dict = {
+#     "affinity" : 'precomputed',
+#     "linkage" : "complete",
+#     }
+# compare_cluster_metrics_fn(df_all_data,df_cluster_labels_mtx_qt,suptitle='Normdot clustering metrics')
 
-
-
-
-
-
-sns.reset_orig()
+# sns.reset_orig()
 
 #%%Plot stacked bar charts of cluster counts
 sns.set_context("talk", font_scale=1)
 plot_cluster_count_hists(df_cluster_counts_mtx_unscaled,df_cluster_counts_mtx_normdot,df_cluster_counts_mtx_qt,
-                         titles=['Unscaled','MinMax','QuantileTransformer'],
+                         titles=['Unscaled','Normdot','QuantileTransformer'],
                          colors=['tab:gray','tab:blue','tab:red'])
 
 sns.reset_orig()
@@ -413,14 +413,101 @@ sns.reset_orig()
 
 
 
+
+#%%Plot cluster number fraction above median
+
+
+
+def bin_mol_data_for_plot(df_cluster_labels_mtx,df_data_moltypes):
+
+    index = df_cluster_labels_mtx.columns
+    columns = pd.Index(np.unique(df_cluster_labels_mtx),name="cluster_index")
+
+    df_frac_percluster_CHO = pd.DataFrame(index=index,columns=columns)
+    df_frac_percluster_CHOS = pd.DataFrame(index=index,columns=columns)
+    df_frac_percluster_CHON = pd.DataFrame(index=index,columns=columns)
+    df_frac_percluster_CHONS = pd.DataFrame(index=index,columns=columns)
+
+
+    for n_clusters in index:
+        cluster_labels = df_cluster_labels_mtx[n_clusters]
+        for cluster in columns:
+            moltypes_thiscluster =  df_data_moltypes.reset_index(drop=True).loc[cluster_labels == cluster]
+    
+            # df_frac_percluster_CHO[cluster][n_clusters] = num_frac_above_val(moltypes_thiscluster['CHO'],df_all_data_moltypes['CHO'].median())
+            # df_frac_percluster_CHOS[cluster][n_clusters] = num_frac_above_val(moltypes_thiscluster['CHOS'],df_all_data_moltypes['CHOS'].median())
+            # df_frac_percluster_CHON[cluster][n_clusters] = num_frac_above_val(moltypes_thiscluster['CHON'],df_all_data_moltypes['CHON'].median())
+            # df_frac_percluster_CHONS[cluster][n_clusters] = num_frac_above_val(moltypes_thiscluster['CHONS'],df_all_data_moltypes['CHONS'].median())
+            
+            df_frac_percluster_CHO[cluster][n_clusters] = (moltypes_thiscluster['CHO'].mean() )#- df_all_data_moltypes['CHO'].mean()) / df_all_data_moltypes['CHO'].std() 
+            df_frac_percluster_CHOS[cluster][n_clusters] = (moltypes_thiscluster['CHOS'].mean() )#- df_all_data_moltypes['CHOS'].mean()) / df_all_data_moltypes['CHOS'].std() 
+            df_frac_percluster_CHON[cluster][n_clusters] = (moltypes_thiscluster['CHON'].mean() )#- df_all_data_moltypes['CHON'].mean()) / df_all_data_moltypes['CHON'].std() 
+            df_frac_percluster_CHONS[cluster][n_clusters] = (moltypes_thiscluster['CHONS'].mean() )#- df_all_data_moltypes['CHONS'].mean()) / df_all_data_moltypes['CHONS'].std() 
+            
+            
+    df_mol_data_forplot = pd.melt(df_frac_percluster_CHO.reset_index(),id_vars='num_clusters')
+    df_mol_data_forplot = df_mol_data_forplot.rename(columns={'value': 'CHO'})
+    df_mol_data_forplot['CHOS'] = pd.melt(df_frac_percluster_CHOS.reset_index(),id_vars='num_clusters')['value']
+    df_mol_data_forplot['CHON'] = pd.melt(df_frac_percluster_CHON.reset_index(),id_vars='num_clusters')['value']
+    df_mol_data_forplot['CHONS'] = pd.melt(df_frac_percluster_CHONS.reset_index(),id_vars='num_clusters')['value']
+    
+    return df_mol_data_forplot
+
+df_mol_data_forplot_unscaled = bin_mol_data_for_plot(df_cluster_labels_mtx_unscaled,df_all_data_moltypes)
+df_mol_data_forplot_qt = bin_mol_data_for_plot(df_cluster_labels_mtx_qt,df_all_data_moltypes)
+#df_mol_data_forplot_qt_scaled = bin_mol_data_for_plot(df_cluster_labels_mtx_qt,df_all_data_moltypes_qt)
+df_mol_data_forplot_normdot = bin_mol_data_for_plot(df_cluster_labels_mtx_normdot,df_all_data_moltypes)
+
+
+
+
+
+def plot_binned_mol_data(df_mol_data_forplot,suptitle):
+
+    sns.set_context("talk", font_scale=1)    
+    
+    fig,ax = plt.subplots(2,2,figsize=(14,8),sharex=True)
+    ax = ax.ravel()
+    ax[0].scatter(df_mol_data_forplot['num_clusters'],df_mol_data_forplot['CHO'],marker='x',s=25)
+    ax[0].set_ylabel('CHO')
+    ax[1].scatter(df_mol_data_forplot['num_clusters'],df_mol_data_forplot['CHON'],marker='x',s=25)
+    ax[1].set_ylabel('CHON')
+    ax[2].scatter(df_mol_data_forplot['num_clusters'],df_mol_data_forplot['CHOS'],marker='x',s=25)
+    ax[2].set_ylabel('CHOS')
+    ax[3].scatter(df_mol_data_forplot['num_clusters'],df_mol_data_forplot['CHONS'],marker='x',s=25)
+    ax[3].set_ylabel('CHONS')
+    
+    ax[1].xaxis.set_major_locator(plticker.MaxNLocator(integer=True))
+    ax[1].xaxis.set_minor_locator(plticker.MultipleLocator(1))
+    fig.suptitle(suptitle)
+    
+    plt.tight_layout()
+    plt.show()    
+    
+    sns.reset_orig()
+
+
+
+plot_binned_mol_data(df_mol_data_forplot_unscaled,'Unscaled data')
+plot_binned_mol_data(df_mol_data_forplot_qt,'QT data')
+plot_binned_mol_data(df_mol_data_forplot_normdot,'Normdot data')
+
+
+
+
+# ax[0].scatter(df_frac_percluster_CHO.index,df_frac_percluster_CHO)
+# df_frac_percluster_CHO.plot.scatter(x='index',y=)
+        
+    
+
+
+
 #%%Plot cluster heatmaps
 
 #plot_cluster_heatmap_BeijingDelhi(c,df_all_times,'Unscaled cluster heatmap',ylabel='Unscaled label')
 
 sns.set_context("talk", font_scale=1)
 plot_n_cluster_heatmaps_BeijingDelhi(df_cluster_labels_mtx_unscaled,df_all_times,"Unscaled data, ","Cluster label")
-
-
 
 sns.reset_orig()
 
