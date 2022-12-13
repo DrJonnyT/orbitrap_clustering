@@ -109,6 +109,10 @@ def test_num_frac_above_val():
     assert num_frac_above_val([5,5,5,5,5,5,5,5,0,-1],4) == 0.8
     assert num_frac_above_val([5,5,5,5,5,5,5,5,0,-1,np.nan],4) == 0.8
     assert np.isnan(num_frac_above_val([5,5,5,5,5,5,5,0,-1,np.inf],4))
+    assert np.isnan(num_frac_above_val([np.nan,np.nan],4))
+    assert np.isnan(num_frac_above_val([],4))
+    assert np.isnan(num_frac_above_val([5,5],np.nan))
+    
     
     
     

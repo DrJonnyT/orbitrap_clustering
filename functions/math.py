@@ -96,8 +96,17 @@ def num_frac_above_val(x,val):
     if np.isinf(x).sum() > 0:
         return np.nan
     
-    
+    #Return nan if val is not a normal number
+    if np.isnan(val) or np.isinf(val):
+        return np.nan
+     
+    #Select only non-nan data
     x = x[~np.isnan(x)].ravel()
+    
+    #Return nan if no data in array
+    if(len(x)) == 0:
+        return np.nan
+    
     above_mean = np.greater_equal(x,val)
     frac = above_mean.sum() / len(x)
     return frac
