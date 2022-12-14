@@ -1046,7 +1046,7 @@ def count_clusters_project_time(df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat
         # ax[3].set_ylabel('Fraction')
         # ax[1].set_xlabel('Cluster number')
         
-        fig,ax = plt.subplots(2,2,figsize=(9,10))
+        fig,ax = plt.subplots(2,2,figsize=(9,10),constrained_layout=True)
         ax = ax.ravel()
         plt0 = df_clust_cat_counts.plot.bar(ax=ax[0],colormap='viridis',stacked=True)
         df_cat_clust_counts.plot.bar(ax=ax[1],stacked=True,colormap='RdBu',width=0.8)
@@ -1073,8 +1073,8 @@ def count_clusters_project_time(df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat
         #ax[0].set_xticks(ax[0].get_xticks(), ax[0].get_xticklabels(), rotation=60)
         ax[0].tick_params(axis='x', labelrotation=25)
         ax[2].tick_params(axis='x', labelrotation=25)
-        plt.tight_layout()
-        plt.show()
+        #plt.tight_layout()
+        
 
     return df_clust_cat_counts, df_cat_clust_counts, df_clust_time_cat_counts, df_time_cat_clust_counts
 
