@@ -24,7 +24,6 @@ os.chdir('C:/Work/Python/Github/Orbitrap_clustering')
 
 from orbitrap_functions import count_cluster_labels_from_mtx, cluster_extract_peaks, delhi_calc_time_cat
 from orbitrap_functions import average_cluster_profiles, calc_cluster_elemental_ratios, plot_cluster_profile_corrs, count_clusters_project_time
-from orbitrap_functions import plot_all_cluster_profiles
 from orbitrap_functions import plot_cluster_elemental_ratios
 
 from functions.combine_multiindex import combine_multiindex
@@ -42,9 +41,9 @@ from file_loaders.load_pre_PMF_data import load_pre_PMF_data
 from clustering.molecule_type_math import molecule_type_pos_frac_clusters_mtx
 from clustering.cluster_n_times import cluster_n_times, cluster_n_times_fn
 from clustering.correlate_cluster_profiles import correlate_cluster_profiles
-from clustering.cluster_nfrac_above_avg  import cluster_nfrac_above_avg
-from plotting.compare_cluster_metrics import compare_cluster_metrics, compare_cluster_metrics_fn, compare_cluster_metrics_fn2
+from plotting.compare_cluster_metrics import compare_cluster_metrics, compare_cluster_metrics_fn
 from plotting.plot_binned_mol_data import bin_mol_data_for_plot, plot_binned_mol_data
+from plotting.plot_cluster_profiles import plot_all_cluster_profiles
 
 
 
@@ -275,6 +274,7 @@ arg_dict = {
 
 distance_matrix = pairwise_distances(df_all_data, metric=normdot_1min)
 df_cluster_labels_mtx_normdot = cluster_n_times_fn(distance_matrix,minclust,maxclust,arg_dict=arg_dict, sklearn_clust_fn = AgglomerativeClustering)
+df_cluster_labels_mtx_normdot = df_cluster_labels_mtx_normdot.set_index(df_all_data.index)
 df_cluster_counts_mtx_normdot = count_cluster_labels_from_mtx(df_cluster_labels_mtx_normdot)
 
 # df_cluster_labels_mtx_signoise = cluster_n_times(df_all_signoise,2,10,min_num_clusters=2,cluster_type='agglom')
@@ -456,9 +456,9 @@ plot_binned_mol_data(df_mol_data_forplot_unscaled_frac,df_mol_data_forplot_qt_fr
 #%%Plot cluster heatmaps
 
 sns.set_context("talk", font_scale=1)
-plot_n_cluster_heatmaps_BeijingDelhi(df_cluster_labels_mtx_unscaled.loc[:,3:4],df_all_times,"Unscaled data, ","Cluster label")
-plot_n_cluster_heatmaps_BeijingDelhi(df_cluster_labels_mtx_normdot.loc[:,7:8],df_all_times,"Normdot data, ","Cluster label")
-plot_n_cluster_heatmaps_BeijingDelhi(df_cluster_labels_mtx_qt.loc[:,6:7],df_all_times,"QT data, ","Cluster label")
+plot_n_cluster_heatmaps_BeijingDelhi(df_cluster_labels_mtx_unscaled.loc[:,4:4],df_all_times,"Unscaled data, ","Cluster label")
+plot_n_cluster_heatmaps_BeijingDelhi(df_cluster_labels_mtx_normdot.loc[:,8:8],df_all_times,"Normdot data, ","Cluster label")
+plot_n_cluster_heatmaps_BeijingDelhi(df_cluster_labels_mtx_qt.loc[:,7:7],df_all_times,"QT data, ","Cluster label")
 
 sns.reset_orig()
 
@@ -466,23 +466,27 @@ sns.reset_orig()
 
 
 #%%Plot all cluster profile
-plot_all_cluster_profiles(df_all_data,cluster_profiles_mtx_norm,num_clusters_index,ds_all_mz,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,
-                          df_cluster_corr_mtx,df_prevcluster_corr_mtx,df_cluster_counts_mtx,Sari_peaks_list,title_prefix='Unscaled data HCA, ')
-                        
 
+def plot_all_cluster_profiles_workflow(df_cluster_labels_mtx,title_prefix):
+    df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
 
+    df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
 
+    cluster_profiles_mtx, cluster_profiles_mtx_norm, num_clusters_index, cluster_index = average_cluster_profiles(df_cluster_labels_mtx,df_all_data)
 
+    df_cluster_corr_mtx, df_prevcluster_corr_mtx = correlate_cluster_profiles(cluster_profiles_mtx_norm, num_clusters_index, cluster_index)
 
+    plot_all_cluster_profiles(df_all_data,cluster_profiles_mtx_norm,num_clusters_index,ds_all_mz,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,
+                              df_cluster_corr_mtx,df_prevcluster_corr_mtx,df_cluster_counts_mtx,Sari_peaks_list,title_prefix=title_prefix)
+          
+    df_clust_cat_counts, df_cat_clust_counts, df_clust_time_cat_counts,df_time_cat_clust_counts = count_clusters_project_time(
+        df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat,title_prefix=title_prefix)
 
-
-
-
-
-
-
-
-
+sns.set_context("talk", font_scale=0.8)
+plot_all_cluster_profiles_workflow(df_cluster_labels_mtx_unscaled.loc[:,4:4],'Unscaled data, ')
+plot_all_cluster_profiles_workflow(df_cluster_labels_mtx_qt.loc[:,7:7],'QT data, ')
+plot_all_cluster_profiles_workflow(df_cluster_labels_mtx_normdot.loc[:,8:8],'Normdot data, ')
+sns.reset_orig()
 
 
 
@@ -628,7 +632,7 @@ plot_all_cluster_profiles(df_all_minmax,cluster_profiles_mtx_norm,num_clusters_i
 
 
 #%%Clustering workflow - Quantile transformed data
-df_cluster_labels_mtx = cluster_n_times(df_all_qt,2,10,min_num_clusters=2,cluster_type='agglom')
+df_cluster_labels_mtx = cluster_n_times(df_all_qt,2,10,cluster_type='agglom')
 df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
 
 df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
