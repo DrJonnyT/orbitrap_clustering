@@ -263,9 +263,14 @@ df_cluster_counts_mtx_qt = count_cluster_labels_from_mtx(df_cluster_labels_mtx_q
 #Clustering based on normalised dot product
 # Method to calculate distances between all sample pairs
 
-def normdot_1min_affinity(X):
-    return pairwise_distances(X, metric=normdot_1min)
-    #return pairwise_distances(X, metric='manhattan')  
+# def normdot_1min_affinity(X):
+#     return pairwise_distances(X, metric=normdot_1min)
+
+def dot_1over(X,Y):
+    return np.reciprocal(np.dot(X,Y))
+
+# def dot_1over_affinity(X):
+#     return pairwise_distances(X, metric=dot_1over)
 
 arg_dict = {
     "affinity" : 'precomputed',
@@ -279,8 +284,6 @@ df_cluster_counts_mtx_normdot = count_cluster_labels_from_mtx(df_cluster_labels_
 
 # df_cluster_labels_mtx_signoise = cluster_n_times(df_all_signoise,2,10,min_num_clusters=2,cluster_type='agglom')
 # df_cluster_counts_mtx_signoise = count_cluster_labels_from_mtx(df_cluster_labels_mtx_signoise)
-
-
 
 #Correlations between unscaled data, using the different cluster labels
 #This tells you about the clusters meaningfulness in the real world
@@ -482,26 +485,194 @@ def plot_all_cluster_profiles_workflow(df_cluster_labels_mtx,title_prefix):
     df_clust_cat_counts, df_cat_clust_counts, df_clust_time_cat_counts,df_time_cat_clust_counts = count_clusters_project_time(
         df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat,title_prefix=title_prefix)
 
-sns.set_context("talk", font_scale=0.8)
+
 plot_all_cluster_profiles_workflow(df_cluster_labels_mtx_unscaled.loc[:,4:4],'Unscaled data, ')
+#plot_all_cluster_profiles_workflow(df_cluster_labels_mtx_unscaled.loc[:,8:8],'Unscaled data (absolute max nclusters), ')
 plot_all_cluster_profiles_workflow(df_cluster_labels_mtx_qt.loc[:,7:7],'QT data, ')
 plot_all_cluster_profiles_workflow(df_cluster_labels_mtx_normdot.loc[:,8:8],'Normdot data, ')
+
+
+
+
+
+
+cluster_labels_unscaled = df_cluster_labels_mtx_unscaled.loc[:,4:4].to_numpy().ravel()
+cluster_labels_qt = df_cluster_labels_mtx_qt.loc[:,7:7].to_numpy().ravel()
+cluster_labels_normdot = df_cluster_labels_mtx_normdot.loc[:,8:8].to_numpy().ravel()
+
+
+
+
+#%%Load air quality data
+
+df_all_merge, df_merge_beijing_winter,df_merge_beijing_summer,df_merge_delhi_summer,df_merge_delhi_autumn = load_beijingdelhi_merge(newindex=df_all_data.index)
+
+df_all_merge['cluster_labels_unscaled'] = cluster_labels_unscaled
+df_all_merge['cluster_labels_qt'] = cluster_labels_qt
+df_all_merge['cluster_labels_normdot'] = cluster_labels_normdot
+
+
+df_all_merge_grouped = pd.concat([df_all_merge]*3).groupby(np.concatenate([cluster_labels_unscaled,cluster_labels_qt+10,cluster_labels_normdot+50]))
+
+
+
+
+
+#%%Plot AQ data per cluster
+
+
+#Make all the y scales the same
+co_scale_max = 1.05 * df_all_merge_grouped['co_ppbv'].quantile(0.95,interpolation='lower').max()
+no2_scale_max = 1.1 * df_all_merge_grouped['no2_ppbv'].quantile(0.95,interpolation='lower').max()
+o3_scale_max = 1.1 * df_all_merge_grouped['o3_ppbv'].quantile(0.95,interpolation='lower').max()
+so2_scale_max = 1.1 * df_all_merge_grouped['so2_ppbv'].quantile(0.95,interpolation='lower').max()
+
+tempc_scale_max = 1.1 * df_all_merge_grouped['temp_C'].quantile(0.95,interpolation='lower').max()
+tempc_scale_min = 0.9 * df_all_merge_grouped['temp_C'].quantile(0.05,interpolation='lower').min()
+rh_scale_max = 1.1 * df_all_merge_grouped['RH'].quantile(0.95,interpolation='lower').max()
+rh_scale_min = 0.9 * df_all_merge_grouped['RH'].quantile(0.05,interpolation='lower').min()
+
+limits = [[0,co_scale_max],[0,no2_scale_max],[tempc_scale_min,tempc_scale_max],[0,o3_scale_max],[0,so2_scale_max],[rh_scale_min,rh_scale_max]]
+
+whis=[5,95]
+sns.set_context("talk", font_scale=1)
+
+#Unscaled data
+fig,ax = plt.subplots(2,3,figsize=(10,10))
+ax = ax.ravel()
+sns.boxplot(ax=ax[0], x='cluster_labels_unscaled', y="co_ppbv", data=df_all_merge,showfliers=False,color='tab:gray',whis=whis)
+sns.boxplot(ax=ax[1], x='cluster_labels_unscaled', y="no2_ppbv", data=df_all_merge,showfliers=False,color='tab:blue',whis=whis)
+sns.boxplot(ax=ax[3], x='cluster_labels_unscaled', y="o3_ppbv", data=df_all_merge,showfliers=False,color='tab:green',whis=whis)
+sns.boxplot(ax=ax[4], x='cluster_labels_unscaled', y="so2_ppbv", data=df_all_merge,showfliers=False,color='tab:red',whis=whis)
+sns.boxplot(ax=ax[2], x='cluster_labels_unscaled', y="temp_C", data=df_all_merge,showfliers=False,color='tab:olive',whis=whis)
+sns.boxplot(ax=ax[5], x='cluster_labels_unscaled', y="RH", data=df_all_merge,showfliers=False,color='tab:cyan',whis=whis)
+[axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
+plt.suptitle('Unscaled data, 4 clusters')
+plt.tight_layout()
+plt.show()
+
+
+#qt data
+fig,ax = plt.subplots(2,3,figsize=(10,10))
+ax = ax.ravel()
+sns.boxplot(ax=ax[0], x='cluster_labels_qt', y="co_ppbv", data=df_all_merge,showfliers=False,color='tab:gray',whis=whis)
+sns.boxplot(ax=ax[1], x='cluster_labels_qt', y="no2_ppbv", data=df_all_merge,showfliers=False,color='tab:blue',whis=whis)
+sns.boxplot(ax=ax[3], x='cluster_labels_qt', y="o3_ppbv", data=df_all_merge,showfliers=False,color='tab:green',whis=whis)
+sns.boxplot(ax=ax[4], x='cluster_labels_qt', y="so2_ppbv", data=df_all_merge,showfliers=False,color='tab:red',whis=whis)
+sns.boxplot(ax=ax[2], x='cluster_labels_qt', y="temp_C", data=df_all_merge,showfliers=False,color='tab:olive',whis=whis)
+sns.boxplot(ax=ax[5], x='cluster_labels_qt', y="RH", data=df_all_merge,showfliers=False,color='tab:cyan',whis=whis)
+[axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
+plt.suptitle('qt data, 7 clusters')
+plt.tight_layout()
+plt.show()
+
+#normdot data
+fig,ax = plt.subplots(2,3,figsize=(10,10))
+ax = ax.ravel()
+sns.boxplot(ax=ax[0], x='cluster_labels_normdot', y="co_ppbv", data=df_all_merge,showfliers=False,color='tab:gray',whis=whis)
+sns.boxplot(ax=ax[1], x='cluster_labels_normdot', y="no2_ppbv", data=df_all_merge,showfliers=False,color='tab:blue',whis=whis)
+sns.boxplot(ax=ax[3], x='cluster_labels_normdot', y="o3_ppbv", data=df_all_merge,showfliers=False,color='tab:green',whis=whis)
+sns.boxplot(ax=ax[4], x='cluster_labels_normdot', y="so2_ppbv", data=df_all_merge,showfliers=False,color='tab:red',whis=whis)
+sns.boxplot(ax=ax[2], x='cluster_labels_normdot', y="temp_C", data=df_all_merge,showfliers=False,color='tab:olive',whis=whis)
+sns.boxplot(ax=ax[5], x='cluster_labels_normdot', y="RH", data=df_all_merge,showfliers=False,color='tab:cyan',whis=whis)
+[axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
+plt.suptitle('normdot data, 8 clusters')
+plt.tight_layout()
+plt.show()
+
+
 sns.reset_orig()
 
 
 
 
 
+#%%Plot different molecules by cluster
+
+sns.set_context("talk", font_scale=1)
+
+whis=[5,95]
+#Unscaled data
+fig,ax = plt.subplots(2,2,figsize=(8,8))
+ax = ax.ravel()
+sns.boxplot(ax=ax[0], x=cluster_labels_unscaled, y="CHO", data=df_all_data_moltypes,showfliers=False,color='tab:green',whis=whis)
+sns.boxplot(ax=ax[1], x=cluster_labels_unscaled, y="CHON", data=df_all_data_moltypes,showfliers=False,color='tab:blue',whis=whis)
+sns.boxplot(ax=ax[2], x=cluster_labels_unscaled, y="CHOS", data=df_all_data_moltypes,showfliers=False,color='tab:red',whis=whis)
+sns.boxplot(ax=ax[3], x=cluster_labels_unscaled, y="CHONS", data=df_all_data_moltypes,showfliers=False,color='tab:gray',whis=whis)
+
+#[axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
+plt.suptitle('Unscaled data, 4 clusters')
+plt.tight_layout()
+plt.show()
+
+#Unscaled data
+fig,ax = plt.subplots(2,2,figsize=(8,8))
+ax = ax.ravel()
+sns.boxplot(ax=ax[0], x=cluster_labels_unscaled, y="CHO", data=df_all_data_moltypes_frac,showfliers=False,color='tab:green',whis=whis)
+sns.boxplot(ax=ax[1], x=cluster_labels_unscaled, y="CHON", data=df_all_data_moltypes_frac,showfliers=False,color='tab:blue',whis=whis)
+sns.boxplot(ax=ax[2], x=cluster_labels_unscaled, y="CHOS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:red',whis=whis)
+sns.boxplot(ax=ax[3], x=cluster_labels_unscaled, y="CHONS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:gray',whis=whis)
+
+#[axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
+plt.suptitle('Unscaled data fraction, 4 clusters')
+plt.tight_layout()
+plt.show()
 
 
+#qt data
+fig,ax = plt.subplots(2,2,figsize=(8,8))
+ax = ax.ravel()
+sns.boxplot(ax=ax[0], x=cluster_labels_qt, y="CHO", data=df_all_data_moltypes,showfliers=False,color='tab:green',whis=whis)
+sns.boxplot(ax=ax[1], x=cluster_labels_qt, y="CHON", data=df_all_data_moltypes,showfliers=False,color='tab:blue',whis=whis)
+sns.boxplot(ax=ax[2], x=cluster_labels_qt, y="CHOS", data=df_all_data_moltypes,showfliers=False,color='tab:red',whis=whis)
+sns.boxplot(ax=ax[3], x=cluster_labels_qt, y="CHONS", data=df_all_data_moltypes,showfliers=False,color='tab:gray',whis=whis)
+
+#[axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
+plt.suptitle('qt data, 7 clusters')
+plt.tight_layout()
+plt.show()
+
+#qt data
+fig,ax = plt.subplots(2,2,figsize=(8,8))
+ax = ax.ravel()
+sns.boxplot(ax=ax[0], x=cluster_labels_qt, y="CHO", data=df_all_data_moltypes_frac,showfliers=False,color='tab:green',whis=whis)
+sns.boxplot(ax=ax[1], x=cluster_labels_qt, y="CHON", data=df_all_data_moltypes_frac,showfliers=False,color='tab:blue',whis=whis)
+sns.boxplot(ax=ax[2], x=cluster_labels_qt, y="CHOS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:red',whis=whis)
+sns.boxplot(ax=ax[3], x=cluster_labels_qt, y="CHONS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:gray',whis=whis)
+
+#[axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
+plt.suptitle('qt data fraction, 7 clusters')
+plt.tight_layout()
+plt.show()
 
 
+#normdot data
+fig,ax = plt.subplots(2,2,figsize=(8,8))
+ax = ax.ravel()
+sns.boxplot(ax=ax[0], x=cluster_labels_normdot, y="CHO", data=df_all_data_moltypes,showfliers=False,color='tab:green',whis=whis)
+sns.boxplot(ax=ax[1], x=cluster_labels_normdot, y="CHON", data=df_all_data_moltypes,showfliers=False,color='tab:blue',whis=whis)
+sns.boxplot(ax=ax[2], x=cluster_labels_normdot, y="CHOS", data=df_all_data_moltypes,showfliers=False,color='tab:red',whis=whis)
+sns.boxplot(ax=ax[3], x=cluster_labels_normdot, y="CHONS", data=df_all_data_moltypes,showfliers=False,color='tab:gray',whis=whis)
 
+#[axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
+plt.suptitle('normdot data, 7 clusters')
+plt.tight_layout()
+plt.show()
 
+#normdot data
+fig,ax = plt.subplots(2,2,figsize=(8,8))
+ax = ax.ravel()
+sns.boxplot(ax=ax[0], x=cluster_labels_normdot, y="CHO", data=df_all_data_moltypes_frac,showfliers=False,color='tab:green',whis=whis)
+sns.boxplot(ax=ax[1], x=cluster_labels_normdot, y="CHON", data=df_all_data_moltypes_frac,showfliers=False,color='tab:blue',whis=whis)
+sns.boxplot(ax=ax[2], x=cluster_labels_normdot, y="CHOS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:red',whis=whis)
+sns.boxplot(ax=ax[3], x=cluster_labels_normdot, y="CHONS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:gray',whis=whis)
 
+#[axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
+plt.suptitle('normdot data fraction, 7 clusters')
+plt.tight_layout()
+plt.show()
 
-
-
+sns.reset_orig()
 
 #%%Optimal num clusters based on R and min cardinality
 nclusters_unscaled = optimal_nclusters_r_card(df_cluster_labels_mtx_unscaled.columns.to_numpy(),df_cluster_corr_mtx_unscaled.max(axis=1),
