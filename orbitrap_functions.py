@@ -13,10 +13,9 @@ import pdb
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import MaxNLocator
-import re
-from sklearn.cluster import AgglomerativeClustering, KMeans
-from sklearn_extra.cluster import KMedoids
-from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score,silhouette_score
+import seaborn as sns
+
+
 from scipy.stats import pearsonr
 
 from chem.chemform import ChemForm
@@ -1013,9 +1012,11 @@ def corr_coeff_rowwise_loops(A,B):
 #%%
 
         
-        
-#%%Count clusters by project and time
+
+#%%Count clusters by project and time, and plot them
 def count_clusters_project_time(df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat,title_prefix='',title_suffix=''):
+    sns.set_context("talk", font_scale=0.8)    
+    
     for num_clusters in df_cluster_labels_mtx.columns:
         c = df_cluster_labels_mtx[num_clusters]
         a = pd.DataFrame(c.values,columns=['clust'],index=ds_dataset_cat.index)
@@ -1028,29 +1029,13 @@ def count_clusters_project_time(df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat
         df_clust_time_cat_counts = a1.groupby(ds_time_cat)['clust'].value_counts(normalize=True).unstack()
         df_time_cat_clust_counts = ds_time_cat.groupby(a1['clust']).value_counts(normalize=True).unstack()
 
-        #Previous version, area plot and bar plot
-        # fig,ax = plt.subplots(2,2,figsize=(9,10))
-        # ax = ax.ravel()
-        # plt0 = df_clust_cat_counts.plot.area(ax=ax[0],colormap='tab20')
-        # df_cat_clust_counts.plot.bar(ax=ax[1],stacked=True,colormap='RdBu',width=0.8)
-        # df_clust_time_cat_counts.plot.area(ax=ax[2],colormap='tab20',legend=False)
-        # df_time_cat_clust_counts.plot.bar(ax=ax[3],stacked=True,colormap='PuOr',width=0.8)
-        # suptitle = title_prefix + str(num_clusters) + ' clusters' + title_suffix
-        # plt.suptitle(suptitle)
-        # ax[0].set_ylabel('Fraction')
-        # ax[1].set_ylabel('Fraction')
-        # ax[0].set_xlabel('')
-        # ax[2].set_ylabel('Fraction')
-        # ax[2].set_xlabel('')
-        # ax[3].set_xlabel('Cluster number')
-        # ax[3].set_ylabel('Fraction')
-        # ax[1].set_xlabel('Cluster number')
         
         fig,ax = plt.subplots(2,2,figsize=(9,10),constrained_layout=True)
         ax = ax.ravel()
-        plt0 = df_clust_cat_counts.plot.bar(ax=ax[0],colormap='viridis',stacked=True)
+        cmap = 'RdYlBu'
+        df_clust_cat_counts.plot.bar(ax=ax[0],colormap=cmap,stacked=True,legend=False)
         df_cat_clust_counts.plot.bar(ax=ax[1],stacked=True,colormap='RdBu',width=0.8)
-        df_clust_time_cat_counts.plot.bar(ax=ax[2],colormap='viridis',legend=False,stacked=True)
+        df_clust_time_cat_counts.plot.bar(ax=ax[2],colormap=cmap,legend=False,stacked=True)
         df_time_cat_clust_counts.plot.bar(ax=ax[3],stacked=True,colormap='PuOr',width=0.8)
         suptitle = title_prefix + str(num_clusters) + ' clusters' + title_suffix
         plt.suptitle(suptitle)
@@ -1062,18 +1047,24 @@ def count_clusters_project_time(df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat
         ax[3].set_xlabel('Cluster number')
         ax[3].set_ylabel('Fraction')
         ax[1].set_xlabel('Cluster number')
+        
+        ax[0].set_xticklabels(['Beij win','Beij sum','Del sum', 'Del aut'])
 
 
-        handles, labels = ax[0].get_legend_handles_labels()
-        ax[0].legend(reversed(handles), reversed(labels),title='Cluster number', bbox_to_anchor=(0.5, -0.43),loc='lower center',ncol=5)
+        handles, labels = ax[2].get_legend_handles_labels()
+        #pdb.set_trace()
+        if(len(labels) > 5):
+            ncols = int(np.ceil(len(labels)/2))
+        else:
+            ncols = len(labels)
+        ax[2].legend(reversed(handles), reversed(labels),title='Cluster number', bbox_to_anchor=(0.5, 1.5),loc='upper center',ncol=ncols,handletextpad=0.4,labelspacing=0.8)
         handles, labels = ax[1].get_legend_handles_labels()
-        ax[1].legend(reversed(handles), reversed(labels), bbox_to_anchor=(0.5, -0.3),loc='lower center',ncol=2)
+        ax[1].legend(reversed(handles), reversed(labels), bbox_to_anchor=(0.5, -0.45),loc='lower center',ncol=2,handletextpad=0.4)
         handles, labels = ax[3].get_legend_handles_labels()
-        ax[3].legend(reversed(handles), reversed(labels), bbox_to_anchor=(0.5, -0.27),loc='lower center',ncol=3)
-        #ax[0].set_xticks(ax[0].get_xticks(), ax[0].get_xticklabels(), rotation=60)
-        ax[0].tick_params(axis='x', labelrotation=25)
-        ax[2].tick_params(axis='x', labelrotation=25)
-        #plt.tight_layout()
+        ax[3].legend(reversed(handles), reversed(labels), bbox_to_anchor=(0.5, -0.42),loc='lower center',ncol=3,handletextpad=0.4)
+        ax[0].tick_params(axis='x', labelrotation=35)
+        ax[2].tick_params(axis='x', labelrotation=35)
+        
         
 
     return df_clust_cat_counts, df_cat_clust_counts, df_clust_time_cat_counts, df_time_cat_clust_counts
