@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 from orbitrap_functions import cluster_extract_peaks
 #%%Plot cluster profiles
 def plot_all_cluster_profiles(df_all_data,cluster_profiles_mtx_norm, num_clusters_index,mz_columns,df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx,df_cluster_corr_mtx,df_prevcluster_corr_mtx,df_cluster_counts_mtx=pd.DataFrame(),peaks_list=pd.DataFrame(columns=['Source']),title_prefix=''):
@@ -16,6 +17,7 @@ def plot_one_cluster_profile(df_all_data,cluster_profiles_mtx_norm, num_clusters
                              df_cluster_corr_mtx=pd.DataFrame(),df_prevcluster_corr_mtx=pd.DataFrame(),
                              df_cluster_counts_mtx=pd.DataFrame(),peaks_list=pd.DataFrame(columns=['Source']),suptitle=''):
     
+    sns.set_context("talk", font_scale=0.8)
     num_clusters_index = np.atleast_1d(num_clusters_index)
     
     if((num_clusters_index.shape[0])==1):    #Check if min number of clusters is 1
@@ -102,7 +104,7 @@ def plot_one_cluster_profile(df_all_data,cluster_profiles_mtx_norm, num_clusters
         the_table.auto_set_font_size(False)
         the_table.set_fontsize(11)
         cells = the_table.properties()["celld"]
-        #pdb.set_trace()
+
         #Set alignment of column headers
         cells[0,1].set_text_props(ha="right")
         cells[0,2].set_text_props(ha="right")
@@ -111,9 +113,7 @@ def plot_one_cluster_profile(df_all_data,cluster_profiles_mtx_norm, num_clusters
             cells[i, 1].set_text_props(ha="right")
             cells[i, 2].set_text_props(ha="right")
         
-        
-        #the_table.scale(1, 1.5)  # may help
-        #plt.tight_layout()
+
         
     
-    plt.show()
+    sns.reset_orig()
