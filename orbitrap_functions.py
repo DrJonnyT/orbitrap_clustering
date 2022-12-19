@@ -513,7 +513,7 @@ def cluster_extract_peaks(cluster, df_raw,num_peaks,chemform_namelist=pd.DataFra
     if(dropRT is False):
         output_df["RT"] = nlargest.index.get_level_values(1)
     #output_df.set_index(output_df['Formula'],inplace=True)
-    output_df["peak_pct"] = nlargest_pct.round(dp).values
+    output_df["peak_pct"] = nlargest_pct.astype('float64').round(dp).values
     
     if(chemform_namelist.empty == True):
         output_df["Name"] = output_df["Formula"]
