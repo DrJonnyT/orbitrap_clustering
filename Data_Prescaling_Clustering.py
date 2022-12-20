@@ -16,7 +16,7 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import pairwise_distances, silhouette_score
 
 import seaborn as sns
-
+import pdb
 
 import os
 os.chdir('C:/Work/Python/Github/Orbitrap_clustering')
@@ -151,7 +151,16 @@ df_all_aerosolomics = pd.DataFrame(index=df_all_data.index)
 for source in ds_aerosolomics_sources:
     df_all_aerosolomics[source] = df_all_data.iloc[:,ds_mol_aerosolomics.str.contains(source).to_numpy()].sum(axis=1)
 
+df_all_aerosolomics['Unknown'] = df_all_data.iloc[:,(ds_mol_aerosolomics == '').to_numpy()].sum(axis=1)
 
+#ds_aerosolomics_unknown = df_all_data.iloc[:,(ds_mol_aerosolomics == '').to_numpy()].sum(axis=1)
+
+ds_aerosolomics_known = df_all_data.iloc[:,~(ds_mol_aerosolomics == '').to_numpy()].sum(axis=1)
+
+
+
+Need to make it so we calculate the clusters that are particularly rich or not in unique markers for each source
+get the list of ds_mol_aerosolomics with no semicolons
 
 
 
@@ -558,7 +567,7 @@ sns.reset_orig()
 
 
 #%%Plot cluster number fraction above median
-import pdb
+
 
 #Just plot up to a max of 10 clusters now
 
@@ -921,6 +930,138 @@ plt.tight_layout()
 plt.show()
 
 sns.reset_orig()
+
+
+
+
+
+#%%Plot clusters by Aerosolomics source
+
+
+def plot_cluster_aerosolomics(cluster_labels,df_aero_concs):
+    """
+    Box plots of aerosolomics sources, averaged for each cluster label
+
+    Parameters
+    ----------
+    cluster_labels : array of integers
+        Cluster labels
+    df_aero_concs : dataframe
+        Concentrations of species from the different Aerosolomics sources
+
+    Returns
+    -------
+    None.
+
+    """
+    sns.set_context("talk", font_scale=1)
+    fig,ax = plt.subplots(2,5,figsize=(14,8))
+    ax=ax.ravel()
+    whis=[5,95]
+    
+    for subp, source in enumerate(df_all_aerosolomics.columns):
+        sns.boxplot(ax=ax[subp],x=cluster_labels,y=df_all_aerosolomics[source],color='tab:gray',whis=whis,showfliers=False)
+        ax[subp].set_ylabel('')
+        ax[subp].set_title(source)
+
+    plt.tight_layout()
+    sns.reset_orig()
+    
+    
+def plot_cluster_aerosolomics_spectra(cluster_labels,df_aero_concs,**kwargs):
+    """
+    Box plots of aerosolomics sources, averaged for each cluster label. Plotted like a spectrum
+
+    Parameters
+    ----------
+    cluster_labels : array of integers
+        Cluster labels
+    df_aero_concs : dataframe
+        Concentrations of species from the different Aerosolomics sources
+
+    kwargs : keyword arguments (optional)
+        suptitle : plot suptitle
+    Returns
+    -------
+    None.
+
+    """
+    sns.set_context("talk", font_scale=1)
+    unique_labels = np.unique(cluster_labels)
+    num_clust = len(unique_labels)
+    
+    if num_clust <=4:
+        fig,ax = plt.subplots(1,num_clust,figsize=(num_clust*3,4))
+    elif num_clust <= 8:
+        fig,ax = plt.subplots(2,5,figsize=(num_clust*5,8))
+    ax=ax.ravel()
+    whis=[5,95]
+    
+    df_aero_gb = df_aero_concs.groupby(cluster_labels)
+    
+    
+    for cluster in unique_labels:
+        #pdb.set_trace()
+        thiscluster_means = df_aero_gb
+        df_aero_gb.mean().loc[cluster].plot.bar(ax=ax[cluster])
+        
+        #sns.boxplot(ax=ax[cluster],x=cluster_labels,y=df_all_aerosolomics[source],color='tab:gray',whis=whis,showfliers=False)
+        #ax[cluster].set_ylabel('')
+        #ax[cluster].set_title(source)
+
+    if 'suptitle' in kwargs:
+        plt.suptitle(kwargs.get('suptitle'))
+
+    plt.tight_layout()
+    sns.reset_orig()
+
+plot_cluster_aerosolomics_spectra(cluster_labels_unscaled,df_all_aerosolomics,suptitle='Naive clustering')
+
+plot_cluster_aerosolomics_spectra(cluster_labels_normdot,df_all_aerosolomics,suptitle='Normdot clustering')
+plot_cluster_aerosolomics_spectra(cluster_labels_qt,df_all_aerosolomics,suptitle='QT clustering')
+
+
+
+#%%A big gap
+##Everything below here is old and probably wont make it into the final script
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #%%Optimal num clusters based on R and min cardinality
 nclusters_unscaled = optimal_nclusters_r_card(df_cluster_labels_mtx_unscaled.columns.to_numpy(),df_cluster_corr_mtx_unscaled.max(axis=1),
