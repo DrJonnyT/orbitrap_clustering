@@ -60,6 +60,16 @@ class ChemForm:
             N_C = self.N / self.C
             S_C = self.S / self.C
             return H_C, N_C, O_C, S_C
+    
+    def mass(self):
+        """
+        Returns
+        -------
+        TYPE
+            Molecular mass in AMU. To nearest AMU
+
+        """
+        return self.H + 16*self.O + 14*self.N + 32*self.S + 12*self.C
                 
         
     
