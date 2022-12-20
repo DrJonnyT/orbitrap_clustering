@@ -90,10 +90,16 @@ Sari_peaks_list = Sari_peaks_list[~Sari_peaks_list.index.duplicated(keep='first'
 #CHO/CHON/CHOS/CHNOS
 molecule_types = np.array(list(ChemForm(mol).classify() for mol in df_all_data.columns.get_level_values(0)))
 
+#Number of carbon atoms
+molecule_Cx = np.array(list(ChemForm(mol).C for mol in df_all_data.columns.get_level_values(0)))
+
 #Summed concentrations of all molecule types from ChemForm.classify()
 #These sum to 1 so you can do the fraction as well
 df_all_data_moltypes = df_all_data.groupby(molecule_types,axis=1).sum()
 df_all_data_moltypes_frac = df_all_data_moltypes.clip(lower=0).div(df_all_data_moltypes.clip(lower=0).sum(axis=1), axis=0)
+
+df_all_data_Cx = df_all_data.groupby(molecule_Cx,axis=1).sum()
+df_all_data_Cx_frac = df_all_data_Cx.clip(lower=0).div(df_all_data_Cx.clip(lower=0).sum(axis=1), axis=0)
 
 
 #Just these summed molecule types (do NOT sum to 1)
@@ -101,6 +107,53 @@ df_all_data_moltypes2 = pd.DataFrame(index = df_all_data.index)
 df_all_data_moltypes2['CHOX'] = df_all_data_moltypes['CHO'] + df_all_data_moltypes['CHOS'] + df_all_data_moltypes['CHON'] + df_all_data_moltypes['CHONS']
 df_all_data_moltypes2['CHNX'] = df_all_data_moltypes['CHN'] + df_all_data_moltypes['CHON'] + df_all_data_moltypes['CHONS'] + df_all_data_moltypes['CHNS']
 df_all_data_moltypes2['CHSX'] = df_all_data_moltypes['CHOS'] + df_all_data_moltypes['CHS'] + df_all_data_moltypes['CHONS'] + df_all_data_moltypes['CHNS']
+
+
+
+
+#%%Classify molecules based on Aerosolomics dataset
+aerosolomics_path = "C:/Work/Orbitrap/data/Aerosolomics"
+import glob
+csv_files = glob.glob(aerosolomics_path + "/*.csv")
+
+# Read each CSV file into DataFrame
+# This creates a generator for dataframes in that folder
+cols = ['CompoundName','ChemicalFormula','ExtractedMass','RT']
+   
+gen_df = (pd.read_csv(file,header=2,usecols=cols) for file in csv_files)
+df_aerosolomics = pd.concat(gen_df, ignore_index=True)
+
+#Source is just the first 2 or 3 letters, the molecule input in the chamber
+df_aerosolomics['source'] = df_aerosolomics['CompoundName'].str.split('_').str[0]
+df_aerosolomics = df_aerosolomics.set_index("ChemicalFormula")
+
+#All possible sources from the Aerosolomics dataset
+ds_aerosolomics_sources = df_aerosolomics['source'].unique()
+
+df_aerosolomics_gbmol = df_aerosolomics.groupby(df_aerosolomics.index)
+
+#This is now a series, index is molecular formula, data is a string of the molecules that 
+#could be the source of that molecule
+ds_aerosolomics_mol_sources = df_aerosolomics_gbmol['source'].unique().apply(lambda x: ';'.join(x))
+
+#A series with index of molecular formula, same length as our data, with data as possible sources
+ds_mol_aerosolomics = ds_aerosolomics_mol_sources.reindex(df_all_data.columns.get_level_values(0)).fillna('')
+
+#The same but with no duplicates
+ds_mol_aerosolomics_nodup = ds_mol_aerosolomics[~ds_mol_aerosolomics.index.duplicated(keep='first')]
+
+
+#%%Sum molecules based on Aerosolomics sources
+#Pick out columns that contain each of the sources
+
+df_all_aerosolomics = pd.DataFrame(index=df_all_data.index)
+
+for source in ds_aerosolomics_sources:
+    df_all_aerosolomics[source] = df_all_data.iloc[:,ds_mol_aerosolomics.str.contains(source).to_numpy()].sum(axis=1)
+
+
+
+
 
 
 #%%Work out O:C, H:C, S:C, N:C ratios for all peaks
@@ -137,6 +190,92 @@ df_all_qt = pd.DataFrame(qt.fit_transform(df_all_data.to_numpy()),index=df_all_d
 # compare_cluster_metrics(df_minmax,2,12,cluster_type='agglom',suptitle_prefix='MinMax scaled data', suptitle_suffix='')
 
 # compare_cluster_metrics(df_all_signoise,2,12,cluster_type='agglom',suptitle_prefix='Sig/noise data', suptitle_suffix='')
+
+#Normalised so sum of every sample is 1
+df_all_data_norm = df_all_data.divide(df_all_data.sum(axis=1),axis=0)
+
+
+#%%Plot average mass spec for each dataset and all datasets
+sns.set_context("talk", font_scale=1)
+fig,ax = plt.subplots(5,1,figsize=(10,14),sharex=True,sharey=True)
+ax = ax.ravel()
+
+ax[0].stem(ds_all_mz,df_all_data_norm.to_numpy()[ds_dataset_cat == 'Beijing_winter'].mean(axis=0),markerfmt=' ')
+ax[0].set_xlim(left=100,right=400)
+ax[0].set_ylabel(r"µg m$^{-3}$")
+ax[0].set_title('Beijing winter')
+
+ax[1].stem(ds_all_mz,df_all_data_norm.to_numpy()[ds_dataset_cat == 'Beijing_summer'].mean(axis=0),markerfmt=' ')
+ax[1].set_ylabel(r"µg m$^{-3}$")
+ax[1].set_title('Beijing summer')
+
+ax[2].stem(ds_all_mz,df_all_data_norm.to_numpy()[ds_dataset_cat == 'Delhi_summer'].mean(axis=0),markerfmt=' ')
+ax[2].set_ylabel(r"µg m$^{-3}$")
+ax[2].set_title('Delhi summer')
+
+ax[3].stem(ds_all_mz,df_all_data_norm.to_numpy()[ds_dataset_cat == 'Delhi_autumn'].mean(axis=0),markerfmt=' ')
+ax[3].set_ylabel(r"µg m$^{-3}$")
+ax[3].set_title('Delhi autumn')
+
+ax[4].stem(ds_all_mz,df_all_data_norm.to_numpy().mean(axis=0),markerfmt=' ')
+ax[4].set_ylabel(r"µg m$^{-3}$")
+ax[4].set_title('All projects')
+ax[4].set_xlabel('m/z')
+
+plt.suptitle('Average mass spectra per project')
+plt.tight_layout()
+
+sns.reset_orig()
+
+
+#%%Plot average Cx frac for each dataset and all datasets
+sns.set_context("talk", font_scale=1)
+fig,ax = plt.subplots(5,1,figsize=(10,14),sharex=False,sharey=True)
+ax = ax.ravel()
+
+ax[0].stem(df_all_data_Cx_frac.columns,df_all_data_Cx_frac.to_numpy()[ds_dataset_cat == 'Beijing_winter'].mean(axis=0),markerfmt=' ')
+ax[0].set_ylabel(r"µg m$^{-3}$")
+ax[0].set_title('Beijing winter')
+
+ax[1].stem(df_all_data_Cx_frac.columns,df_all_data_Cx_frac.to_numpy()[ds_dataset_cat == 'Beijing_summer'].mean(axis=0),markerfmt=' ')
+ax[1].set_ylabel(r"µg m$^{-3}$")
+ax[1].set_title('Beijing summer')
+
+ax[2].stem(df_all_data_Cx_frac.columns,df_all_data_Cx_frac.to_numpy()[ds_dataset_cat == 'Delhi_summer'].mean(axis=0),markerfmt=' ')
+ax[2].set_ylabel(r"µg m$^{-3}$")
+ax[2].set_title('Delhi summer')
+
+ax[3].stem(df_all_data_Cx_frac.columns,df_all_data_Cx_frac.to_numpy()[ds_dataset_cat == 'Delhi_autumn'].mean(axis=0),markerfmt=' ')
+ax[3].set_ylabel(r"µg m$^{-3}$")
+ax[3].set_title('Delhi autumn')
+
+ax[4].stem(df_all_data_Cx_frac.columns,df_all_data_Cx_frac.to_numpy().mean(axis=0),markerfmt=' ')
+ax[4].set_ylabel(r"µg m$^{-3}$")
+ax[4].set_title('All projects')
+ax[4].set_xlabel('m/z')
+
+plt.suptitle('Average Cx per project')
+plt.tight_layout()
+
+sns.reset_orig()
+
+
+
+
+
+#%%Calculate top 10 peaks for each project
+n_peaks = 10
+df_top_peaks_Beijing_winter = cluster_extract_peaks(df_all_data.loc[ds_dataset_cat == 'Beijing_winter'].mean(axis=0), df_all_data.T,n_peaks,dp=1,dropRT=False)
+df_top_peaks_Beijing_summer = cluster_extract_peaks(df_all_data.loc[ds_dataset_cat == 'Beijing_summer'].mean(axis=0), df_all_data.T,n_peaks,dp=1,dropRT=False)
+df_top_peaks_Delhi_summer = cluster_extract_peaks(df_all_data.loc[ds_dataset_cat == 'Delhi_summer'].mean(axis=0), df_all_data.T,n_peaks,dp=1,dropRT=False)
+df_top_peaks_Delhi_autumn = cluster_extract_peaks(df_all_data.loc[ds_dataset_cat == 'Delhi_autumn'].mean(axis=0), df_all_data.T,n_peaks,dp=1,dropRT=False)
+df_top_peaks_all = cluster_extract_peaks(df_all_data.mean(axis=0), df_all_data.T,n_peaks,dp=1,dropRT=False)
+
+#With potential sources
+list_df_toppeaks = [df_top_peaks_Beijing_winter,df_top_peaks_Beijing_summer,df_top_peaks_Delhi_summer,df_top_peaks_Delhi_autumn,df_top_peaks_all]
+
+for df_top_peaks in list_df_toppeaks:
+    df_top_peaks['source'] = ds_mol_aerosolomics_nodup.loc[df_top_peaks.index.get_level_values(0)].to_numpy()
 
 
 #%%Extract the n biggest peaks from the original data and corresponding compounds from the prescaled data
@@ -345,7 +484,7 @@ ax[1].plot(df_cluster_labels_mtx_qt.columns,df_cluster_corr_mtx_qt.max(axis=1),l
 #ax[1].plot(df_cluster_labels_mtx_signoise.columns,df_cluster_corr_mtx_signoise_s.max(axis=1),label='Sig/noise (scaled)',c='k',linewidth=2,linestyle='--')
 
 ax[1].legend(title='Cluster labels',framealpha=1.,loc='center right',bbox_to_anchor=(1.5, 0.5))
-ax[1].set_ylabel('Max R')
+ax[1].set_ylabel('Correlation')
 ax[1].set_title('Max normdot between mean unscaled cluster profiles')
 ax[1].set_ylim(0.7)
 ax[1].yaxis.set_major_locator(plticker.MultipleLocator(0.05))
@@ -360,23 +499,24 @@ ax[1].xaxis.set_tick_params(labelbottom=True)
 
 
 ax[2].plot(df_cluster_labels_mtx_unscaled.columns,Silhouette_scores_unscaled,label='Naive',linewidth=2,c='k')
-ax[2].plot(df_cluster_labels_mtx_qt.columns,Silhouette_scores_normdot,label='QT',linewidth=2,c='tab:red')
-ax2t = ax[2].twinx()
-ax2t.plot(df_cluster_labels_mtx_unscaled.columns,Silhouette_scores_qt,label='Normdot',linewidth=2,c='tab:blue')
+ax[2].plot(df_cluster_labels_mtx_qt.columns,Silhouette_scores_normdot,label='normdot',linewidth=2,c='tab:blue')
+#ax2t = ax[2].twinx()
+#ax2t.plot(df_cluster_labels_mtx_unscaled.columns,Silhouette_scores_qt,label='QT',linewidth=2,c='tab:red')
+ax[2].plot(df_cluster_labels_mtx_unscaled.columns,Silhouette_scores_qt,label='QT',linewidth=2,c='tab:red')
 ax[2].set_title('Silhouette score in data used for clustering')
 ax[2].set_ylabel('Silhouette score')
 ax[2].set_xlabel('Num clusters')
 ax[2].grid(axis='y')
-ax[2].set_ylim(0.25,0.6)
+ax[2].set_ylim(0.13,0.6)
 ax[2].yaxis.set_major_locator(plticker.MultipleLocator(0.1))
 ax[2].yaxis.set_minor_locator(plticker.MultipleLocator(0.05))
 
-ax2t.set_yticks(np.arange(0.13,0.23,0.02))
+#ax2t.set_yticks(np.arange(0.13,0.23,0.02))
 
 
 #ax2t.yaxis.set_minor_locator(plticker.MultipleLocator(0.025))
-ax2t.set_ylabel('Silhouette score (QT data)')
-ax2t.set_ylim(0.14,0.21)
+#ax2t.set_ylabel('Silhouette score (QT data)')
+#ax2t.set_ylim(0.14,0.21)
 
 fig.suptitle('Cluster cardinality and similarity')
 
@@ -501,7 +641,115 @@ cluster_labels_qt = df_cluster_labels_mtx_qt.loc[:,7:7].to_numpy().ravel()
 cluster_labels_normdot = df_cluster_labels_mtx_normdot.loc[:,8:8].to_numpy().ravel()
 
 
+#%%Plot CHO etc mols per cluster, for the accepted cluster numbers
 
+
+# #Make all the y scales the same
+# co_scale_max = 1.05 * df_all_merge_grouped['co_ppbv'].quantile(0.95,interpolation='lower').max()
+# no2_scale_max = 1.1 * df_all_merge_grouped['no2_ppbv'].quantile(0.95,interpolation='lower').max()
+# o3_scale_max = 1.1 * df_all_merge_grouped['o3_ppbv'].quantile(0.95,interpolation='lower').max()
+# so2_scale_max = 1.1 * df_all_merge_grouped['so2_ppbv'].quantile(0.95,interpolation='lower').max()
+
+# tempc_scale_max = 1.1 * df_all_merge_grouped['temp_C'].quantile(0.95,interpolation='lower').max()
+# tempc_scale_min = 0.9 * df_all_merge_grouped['temp_C'].quantile(0.05,interpolation='lower').min()
+# rh_scale_max = 1.1 * df_all_merge_grouped['RH'].quantile(0.95,interpolation='lower').max()
+# rh_scale_min = 0.9 * df_all_merge_grouped['RH'].quantile(0.05,interpolation='lower').min()
+
+# limits = [[0,co_scale_max],[0,no2_scale_max],[tempc_scale_min,tempc_scale_max],[0,o3_scale_max],[0,so2_scale_max],[rh_scale_min,rh_scale_max]]
+
+
+#df_moltype_gb_clust_unscaled = df_all_data_moltypes_frac.groupby(cluster_labels_unscaled)
+
+
+
+
+
+
+whis=[5,95]
+sns.set_context("talk", font_scale=1)
+
+
+#Unscaled data
+#fig,ax = plt.subplots(3,4,figsize=(10,10))
+fig = plt.figure(constrained_layout=True,figsize=(14,12))
+subfigs = fig.subfigures(nrows=1, ncols=4)
+
+axs = subfigs[0].subplots(nrows=3, ncols=1, sharey=True)
+sns.boxplot(ax=axs[0], x=cluster_labels_unscaled, y="CHO", data=df_all_data_moltypes_frac,showfliers=False,color='tab:green',whis=whis)
+sns.boxplot(ax=axs[1], x=cluster_labels_normdot, y="CHO", data=df_all_data_moltypes_frac,showfliers=False,color='tab:green',whis=whis)
+sns.boxplot(ax=axs[2], x=cluster_labels_qt, y="CHO", data=df_all_data_moltypes_frac,showfliers=False,color='tab:green',whis=whis)
+axs[0].set_title('CHO')
+[ax.set_ylabel("") for ax in axs]
+[ax.grid(axis='y',alpha=0.5) for ax in axs]
+axs[0].set_ylabel("Naive clustering")
+axs[1].set_ylabel("Normdot clustering")
+axs[2].set_ylabel("QT clustering")
+
+axs = subfigs[1].subplots(nrows=3, ncols=1, sharey=True)
+sns.boxplot(ax=axs[0], x=cluster_labels_unscaled, y="CHON", data=df_all_data_moltypes_frac,showfliers=False,color='tab:blue',whis=whis)
+sns.boxplot(ax=axs[1], x=cluster_labels_normdot, y="CHON", data=df_all_data_moltypes_frac,showfliers=False,color='tab:blue',whis=whis)
+sns.boxplot(ax=axs[2], x=cluster_labels_qt, y="CHON", data=df_all_data_moltypes_frac,showfliers=False,color='tab:blue',whis=whis)
+axs[0].set_title('CHON')
+[ax.set_ylabel("") for ax in axs]
+[ax.grid(axis='y',alpha=0.5) for ax in axs]
+
+
+axs = subfigs[2].subplots(nrows=3, ncols=1, sharey=True)
+sns.boxplot(ax=axs[0], x=cluster_labels_unscaled, y="CHOS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:red',whis=whis)
+sns.boxplot(ax=axs[1], x=cluster_labels_normdot, y="CHOS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:red',whis=whis)
+sns.boxplot(ax=axs[2], x=cluster_labels_qt, y="CHOS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:red',whis=whis)
+axs[0].set_title('CHOS')
+[ax.set_ylabel("") for ax in axs]
+[ax.grid(axis='y',alpha=0.5) for ax in axs]
+
+axs = subfigs[3].subplots(nrows=3, ncols=1, sharey=True)
+sns.boxplot(ax=axs[0], x=cluster_labels_unscaled, y="CHONS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:gray',whis=whis)
+sns.boxplot(ax=axs[1], x=cluster_labels_normdot, y="CHONS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:gray',whis=whis)
+sns.boxplot(ax=axs[2], x=cluster_labels_qt, y="CHONS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:gray',whis=whis)
+axs[0].set_title('CHONS')
+[ax.set_ylabel("") for ax in axs]
+[ax.grid(axis='y',alpha=0.5) for ax in axs]
+
+#[axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
+#plt.suptitle('Unscaled data, 4 clusters')
+
+
+
+
+
+plt.show()
+
+
+# #qt data
+# fig,ax = plt.subplots(2,3,figsize=(10,10))
+# ax = ax.ravel()
+# sns.boxplot(ax=ax[0], x='cluster_labels_qt', y="co_ppbv", data=df_all_merge,showfliers=False,color='tab:gray',whis=whis)
+# sns.boxplot(ax=ax[1], x='cluster_labels_qt', y="no2_ppbv", data=df_all_merge,showfliers=False,color='tab:blue',whis=whis)
+# sns.boxplot(ax=ax[3], x='cluster_labels_qt', y="o3_ppbv", data=df_all_merge,showfliers=False,color='tab:green',whis=whis)
+# sns.boxplot(ax=ax[4], x='cluster_labels_qt', y="so2_ppbv", data=df_all_merge,showfliers=False,color='tab:red',whis=whis)
+# sns.boxplot(ax=ax[2], x='cluster_labels_qt', y="temp_C", data=df_all_merge,showfliers=False,color='tab:olive',whis=whis)
+# sns.boxplot(ax=ax[5], x='cluster_labels_qt', y="RH", data=df_all_merge,showfliers=False,color='tab:cyan',whis=whis)
+# [axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
+# plt.suptitle('qt data, 7 clusters')
+# plt.tight_layout()
+# plt.show()
+
+# #normdot data
+# fig,ax = plt.subplots(2,3,figsize=(10,10))
+# ax = ax.ravel()
+# sns.boxplot(ax=ax[0], x='cluster_labels_normdot', y="co_ppbv", data=df_all_merge,showfliers=False,color='tab:gray',whis=whis)
+# sns.boxplot(ax=ax[1], x='cluster_labels_normdot', y="no2_ppbv", data=df_all_merge,showfliers=False,color='tab:blue',whis=whis)
+# sns.boxplot(ax=ax[3], x='cluster_labels_normdot', y="o3_ppbv", data=df_all_merge,showfliers=False,color='tab:green',whis=whis)
+# sns.boxplot(ax=ax[4], x='cluster_labels_normdot', y="so2_ppbv", data=df_all_merge,showfliers=False,color='tab:red',whis=whis)
+# sns.boxplot(ax=ax[2], x='cluster_labels_normdot', y="temp_C", data=df_all_merge,showfliers=False,color='tab:olive',whis=whis)
+# sns.boxplot(ax=ax[5], x='cluster_labels_normdot', y="RH", data=df_all_merge,showfliers=False,color='tab:cyan',whis=whis)
+# [axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
+# plt.suptitle('normdot data, 8 clusters')
+# plt.tight_layout()
+# plt.show()
+
+
+sns.reset_orig()
 
 #%%Load air quality data
 
