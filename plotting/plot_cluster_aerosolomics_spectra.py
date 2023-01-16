@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.stats import percentileofscore
+import pdb
 
 def plot_cluster_aerosolomics_spectra(cluster_labels,df_aero_concs,**kwargs):
     """
@@ -58,7 +59,7 @@ def plot_cluster_aerosolomics_spectra(cluster_labels,df_aero_concs,**kwargs):
     elif num_clust <= 8:
         fig,ax = plt.subplots(2,4,figsize=(14,8))
     ax=ax.ravel()
-    #whis=[5,95]
+    
     
     df_aero_gb = df_aero_concs.groupby(cluster_labels)
     
@@ -95,6 +96,11 @@ def plot_cluster_aerosolomics_spectra(cluster_labels,df_aero_concs,**kwargs):
             ax[cluster].grid(axis='y',linestyle='--',alpha=0.5)
         
         ax[cluster].set_ylabel(ylabel)
+        
+    
+    #Remove empty subplots
+    for blank in range(unique_labels.max()+1,len(ax)):
+        ax[blank].set_axis_off()
 
     if 'suptitle' in kwargs:
         plt.suptitle(kwargs.get('suptitle'))
