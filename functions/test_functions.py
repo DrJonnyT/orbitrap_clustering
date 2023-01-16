@@ -11,7 +11,7 @@ from functions.combine_multiindex import combine_multiindex
 from functions.prescale_whole_matrix import prescale_whole_matrix
 from functions.optimal_nclusters_r_card import optimal_nclusters_r_card
 from functions.avg_array_clusters import avg_array_clusters
-from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat
+from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat, delhi_calc_time_cat
 
 from functions.math import round_to_nearest_x_even, round_to_nearest_x_odd, sqrt_sum_squares, num_frac_above_val
 from functions.math import normdot, normdot_1min
@@ -81,7 +81,7 @@ def test_avg_array_clusters():
         
     
     
-#Test math
+#Test datetime categoricals
 def test_delhi_beijing_datetime_cat():
     idx = pd.Index([dt.datetime(2016,11,15),dt.datetime(2017,5,25),dt.datetime(2018,6,2),dt.datetime(2018,11,5)])
     ds_cat = delhi_beijing_datetime_cat(idx)
@@ -91,7 +91,22 @@ def test_delhi_beijing_datetime_cat():
     assert ds_cat[3] == 'Delhi_autumn'
     assert ds_cat.index.equals(idx)
     
-
+def test_delhi_calc_time_cat():
+    date_start = [dt.datetime(2016,11,15,1),dt.datetime(2017,5,25,7),dt.datetime(2018,6,2,12),dt.datetime(2018,11,5,18),dt.datetime(2018,11,5,14)]
+    date_end = [dt.datetime(2016,11,15,2),dt.datetime(2017,5,25,8),dt.datetime(2018,6,2,13),dt.datetime(2018,11,5,19),dt.datetime(2018,11,6,15)]
+    df_in = pd.DataFrame({'date_start': date_start, 'date_end': date_end})
+    df_in = df_in.set_index((df_in['date_end']-df_in['date_start'])/2 + df_in['date_start'])
+    ds_cat = delhi_calc_time_cat(df_in)
+    
+    assert ds_cat[0] == 'Night'
+    assert ds_cat[1] == 'Morning'
+    assert ds_cat[2] == 'Midday'
+    assert ds_cat[3] == 'Afternoon'
+    assert ds_cat[4] == '24hr'    
+    
+    
+    
+#Test math
 def test_round_to_nearest_x_even():
     assert round_to_nearest_x_even(2.5) == 2
     assert round_to_nearest_x_even(-0.9) == 0

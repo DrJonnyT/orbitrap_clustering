@@ -347,78 +347,7 @@ def delhi_load2(path,subtract_blank=True,output="DEFAULT"):
 
 
 
-#%%
-#Map filter times onto night/morning/midday/afternoon as per Hamilton et al 2021
-def delhi_calc_time_cat(df_in):
-    dict_hour_to_time_cat =	{
-      0: "Night",
-      1: "Night",
-      2: "Night",
-      3: "Night",
-      4: "Night",
-      5: "Night",
-      6: "Night",
-      7: "Morning",
-      8: "Morning",
-      9: "Morning",
-      10: "Morning",
-      11: "Midday",
-      12: "Midday",
-      13: "Afternoon",
-      14: "Afternoon",
-      15: "Afternoon",
-      16: "Afternoon",
-      17: "Afternoon",
-      18: "Afternoon",  
-      19: "Afternoon",
-      20: "Night",
-      21: "Night",
-      22: "Night",
-      23: "Night",
-    }
-    
-    cat1 = pd.Categorical(df_in.index.hour.to_series().map(dict_hour_to_time_cat).values,categories=['Morning','Midday' ,'Afternoon','Night','24hr'], ordered=True)
-    #pdb.set_trace()
-    time_length = (df_in['date_end'] - df_in['date_start']) / dt.timedelta(hours=1)
-    cat1[time_length>22] = ['24hr']
-    
-    return cat1
 
-#Map filter times onto night/morning/midday/afternoon as per Hamilton et al 2021
-#Also 24hr filters as separate category- this requires a time length column
-def calc_time_cat(df_metadata):
-    dict_hour_to_time_cat =	{
-      0: "Night",
-      1: "Night",
-      2: "Night",
-      3: "Night",
-      4: "Night",
-      5: "Night",
-      6: "Night",
-      7: "Morning",
-      8: "Morning",
-      9: "Morning",
-      10: "Morning",
-      11: "Midday",
-      12: "Midday",
-      13: "Afternoon",
-      14: "Afternoon",
-      15: "Afternoon",
-      16: "Afternoon",
-      17: "Afternoon",
-      18: "Afternoon",
-      19: "Afternoon",
-      20: "Night",
-      21: "Night",
-      22: "Night",
-      23: "Night",
-      24: "Night",
-      999: "24hr"
-    }
-    time_hour = df_metadata['mid_datetime'].dt.hour.copy()
-    time_hour[df_metadata['timesampled_h'].ge(24)] = 999
-    time_cat = pd.Categorical(time_hour.map(dict_hour_to_time_cat).values,['Morning','Midday' ,'Afternoon','Night','24hr'], ordered=True)   
-    return time_cat
 
 
 
@@ -1009,7 +938,55 @@ def corr_coeff_rowwise_loops(A,B):
 
 
 
-#%%
+#%% Not sure this is used anymore, replaced by delhi_calc_time_cat
+def calc_time_cat(df_metadata):
+    """
+    #Map filter times onto night/morning/midday/afternoon as per Hamilton et al 2021
+    #Also 24hr filters as separate category- this requires a time length column
+
+    Parameters
+    ----------
+    df_in : dataframe
+        Index must be local time
+
+    Returns
+    -------
+    cat1 : pandas categorial
+        Categories are Morning/Midday/Afternoon/Night/24hr based on the local time
+
+    """
+    dict_hour_to_time_cat =	{
+      0: "Night",
+      1: "Night",
+      2: "Night",
+      3: "Night",
+      4: "Night",
+      5: "Night",
+      6: "Night",
+      7: "Morning",
+      8: "Morning",
+      9: "Morning",
+      10: "Morning",
+      11: "Midday",
+      12: "Midday",
+      13: "Afternoon",
+      14: "Afternoon",
+      15: "Afternoon",
+      16: "Afternoon",
+      17: "Afternoon",
+      18: "Afternoon",
+      19: "Afternoon",
+      20: "Night",
+      21: "Night",
+      22: "Night",
+      23: "Night",
+      24: "Night",
+      999: "24hr"
+    }
+    time_hour = df_metadata['mid_datetime'].dt.hour.copy()
+    time_hour[df_metadata['timesampled_h'].ge(24)] = 999
+    time_cat = pd.Categorical(time_hour.map(dict_hour_to_time_cat).values,['Morning','Midday' ,'Afternoon','Night','24hr'], ordered=True)   
+    return time_cat
 
         
 
