@@ -20,7 +20,7 @@ def plot_cluster_aerosolomics_spectra(cluster_labels,df_aero_concs,**kwargs):
         suptitle : string
             Plot suptitle
         avg : string, default: 'mean'
-            If mean, plot the 'mean' per cluster. If 'pct' plot the percentile score
+            If 'mean', plot the mean per cluster. If 'pct' plot the percentile score. If 'median' plot the median per cluster.
         ygrid : bool, default : True
             Add a y grid
         offset_zero : bool, default : False
@@ -68,24 +68,33 @@ def plot_cluster_aerosolomics_spectra(cluster_labels,df_aero_concs,**kwargs):
     for cluster in unique_labels:
         
         if avg == 'mean':
+            ylabel = 'µg$\,$m$^{-3}$'
             ds_toplot = df_aero_gb.mean().loc[cluster]
+        elif avg == 'median':
+            ylabel = 'µg$\,$m$^{-3}$'
+            ds_toplot = df_aero_gb.median().loc[cluster]
         elif avg == 'pct':
-            data_thisclust = df_aero_concs.loc[cluster_labels==cluster]
+            ylabel = 'Percentile'
             
             #Extract the percentile of the median of each molecule, for this cluster
+            data_thisclust = df_aero_concs.loc[cluster_labels==cluster]
             ds_toplot = pd.Series([percentileofscore(df_aero_concs[source],data_thisclust[source].median()) for source in df_aero_concs.columns],index=df_aero_concs.columns, dtype='float')
             
-        if(offset_zero):
-            #Make it so the plotting starts halfway up the graph
-            ds_toplot = ds_toplot - 50
-            ax[cluster].set_ylim(-50,50)
-            ax[cluster].set_yticks([-50,-25,0,25,50], [0,25,50,75,100])
+            if(offset_zero):
+                #Make it so the plotting starts halfway up the graph
+                ds_toplot = ds_toplot - 50
+                ax[cluster].set_ylim(-50,50)
+                ax[cluster].set_yticks([-50,-25,0,25,50], [0,25,50,75,100])
+            
+
             
         #Plot the data
         ds_toplot.plot.bar(ax=ax[cluster],color=x_colors)
         
         if(ygrid):
             ax[cluster].grid(axis='y',linestyle='--',alpha=0.5)
+        
+        ax[cluster].set_ylabel(ylabel)
 
     if 'suptitle' in kwargs:
         plt.suptitle(kwargs.get('suptitle'))
