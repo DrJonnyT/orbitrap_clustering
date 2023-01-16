@@ -44,7 +44,7 @@ from clustering.correlate_cluster_profiles import correlate_cluster_profiles
 from plotting.compare_cluster_metrics import compare_cluster_metrics, compare_cluster_metrics_fn
 from plotting.plot_binned_mol_data import bin_mol_data_for_plot, plot_binned_mol_data
 from plotting.plot_cluster_profiles import plot_all_cluster_profiles
-
+from plotting.plot_cluster_aerosolomics_spectra import plot_cluster_aerosolomics_spectra
 
 
 #%%Load data from HDF
@@ -947,7 +947,7 @@ sns.reset_orig()
 
 
 #%%Plot clusters by Aerosolomics source
-from scipy.stats import percentileofscore
+
 
 def plot_cluster_aerosolomics(cluster_labels,df_aero_concs):
     """
@@ -979,80 +979,12 @@ def plot_cluster_aerosolomics(cluster_labels,df_aero_concs):
     sns.reset_orig()
     
     
-def plot_cluster_aerosolomics_spectra(cluster_labels,df_aero_concs,**kwargs):
-    """
-    Box plots of aerosolomics sources, averaged for each cluster label. Plotted like a spectrum
 
-    Parameters
-    ----------
-    cluster_labels : array of integers
-        Cluster labels
-    df_aero_concs : dataframe
-        Concentrations of species from the different Aerosolomics sources
 
-    kwargs : keyword arguments (optional)
-        suptitle : string
-            Plot suptitle
-        avg : string, default: 'mean'
-            If mean, plot the 'mean' per cluster. If 'pct' plot the percentile score
-    Returns
-    -------
-    None.
+plot_cluster_aerosolomics_spectra(cluster_labels_unscaled,df_all_aerosolomics_uniquem,suptitle='Naive clustering',avg='pct',offset_zero=True)
 
-    """
-    sns.set_context("talk", font_scale=1)
-    unique_labels = np.unique(cluster_labels)
-    num_clust = len(unique_labels)
-    
-    if 'avg' in kwargs:
-        avg = kwargs.get('avg')
-    else:
-        avg = 'mean'
-    
-    
-    
-    if num_clust <=4:
-        fig,ax = plt.subplots(1,num_clust,figsize=(12,4))
-    elif num_clust <= 8:
-        fig,ax = plt.subplots(2,4,figsize=(14,8))
-    ax=ax.ravel()
-    whis=[5,95]
-    
-    df_aero_gb = df_aero_concs.groupby(cluster_labels)
-    
-    
-    for cluster in unique_labels:
-        
-        if avg == 'mean':
-            ds_toplot = df_aero_gb.mean().loc[cluster]
-        elif avg == 'pct':
-            data_thisclust = df_aero_concs.loc[cluster_labels==cluster]
-            #pdb.set_trace()
-            ds_toplot = pd.Series([percentileofscore(df_aero_concs[source],data_thisclust[source].median()) for source in df_aero_concs.columns],index=df_aero_concs.columns, dtype='float')
-            ds_toplot = ds_toplot - 50
-            ax[cluster].set_ylim(-50,50)
-            if cluster == 6:
-                #pdb.set_trace()
-                pass
-        
-        #Plot the data
-        ds_toplot.plot.bar(ax=ax[cluster])
-            
-        
-        #sns.boxplot(ax=ax[cluster],x=cluster_labels,y=df_all_aerosolomics[source],color='tab:gray',whis=whis,showfliers=False)
-        #ax[cluster].set_ylabel('')
-        #ax[cluster].set_title(source)
-
-    if 'suptitle' in kwargs:
-        plt.suptitle(kwargs.get('suptitle'))
-
-    plt.tight_layout()
-    sns.reset_orig()
-
-plot_cluster_aerosolomics_spectra(cluster_labels_unscaled,df_all_aerosolomics_uniquem,suptitle='Naive clustering',avg='pct')
-
-plot_cluster_aerosolomics_spectra(cluster_labels_normdot,df_all_aerosolomics_uniquem,suptitle='Normdot clustering',avg='pct')
-plot_cluster_aerosolomics_spectra(cluster_labels_qt,df_all_aerosolomics_uniquem,suptitle='QT clustering',avg='pct')
+plot_cluster_aerosolomics_spectra(cluster_labels_normdot,df_all_aerosolomics_uniquem,suptitle='Normdot clustering',avg='pct',offset_zero=True)
+plot_cluster_aerosolomics_spectra(cluster_labels_qt,df_all_aerosolomics_uniquem,suptitle='QT clustering',avg='pct',offset_zero=True)
 
 
 
