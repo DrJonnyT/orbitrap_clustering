@@ -31,7 +31,7 @@ from functions.optimal_nclusters_r_card import optimal_nclusters_r_card
 from functions.avg_array_clusters import avg_array_clusters
 from functions.math import normdot, normdot_1min, num_frac_above_val
 from file_loaders.load_beijingdelhi_merge import load_beijingdelhi_merge
-from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat, delhi_calc_time_cat, calc_daylight_hours_BeijingDelhi, calc_daylight_deltat
+from functions.delhi_beijing_time import delhi_beijing_datetime_cat, delhi_calc_time_cat, calc_daylight_hours_BeijingDelhi, calc_daylight_deltat
 from chem import ChemForm
 from plotting.beijingdelhi import plot_all_cluster_tseries_BeijingDelhi, plot_cluster_heatmap_BeijingDelhi, plot_n_cluster_heatmaps_BeijingDelhi
 from plotting.plot_cluster_count_hists import plot_cluster_count_hists
@@ -84,8 +84,7 @@ ds_time_cat = df_time_cat['time_cat']
 
 
 #Calculate daylight fraction for each filter
-df_daytime = calc_daytime_frac_BeijingDelhi(df_all_times)
-
+df_daytime_hours = calc_daylight_hours_BeijingDelhi(df_all_times)
 
 
 #This is a list of peaks with Sari's description from her PMF
@@ -665,6 +664,29 @@ plot_all_cluster_profiles_workflow(df_cluster_labels_mtx_normdot.loc[:,8:8],'Nor
 cluster_labels_unscaled = df_cluster_labels_mtx_unscaled.loc[:,4:4].to_numpy().ravel()
 cluster_labels_qt = df_cluster_labels_mtx_qt.loc[:,7:7].to_numpy().ravel()
 cluster_labels_normdot = df_cluster_labels_mtx_normdot.loc[:,8:8].to_numpy().ravel()
+
+
+
+
+#%%Work out total time per cluster of daylight vs night
+
+def calc_daynight_frac_per_cluster(cluster_labels,df_daytime_hours):
+    all_labels = np.unique(cluster_labels)
+    ds_frac = pd.Series(index=all_labels,dtype='float')
+    ds_frac = ds_frac.fillna('nan')  
+    
+    for label in all_labels:
+        #pdb.set_trace()
+        df_cluster = df_daytime_hours.loc[cluster_labels == label]
+        daylight_frac = df_cluster['daylight_hours'].sum() / df_cluster.sum().sum()
+        ds_frac.loc[label] = daylight_frac
+            
+    return ds_frac
+            
+ds_day_frac_unscaled = calc_daynight_frac_per_cluster(cluster_labels_unscaled,df_daytime_hours)
+ds_day_frac_qt = calc_daynight_frac_per_cluster(cluster_labels_qt,df_daytime_hours)
+ds_day_frac_normdot = calc_daynight_frac_per_cluster(cluster_labels_normdot,df_daytime_hours)
+
 
 
 #%%Plot CHO etc mols per cluster, for the accepted cluster numbers
