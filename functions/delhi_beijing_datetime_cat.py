@@ -99,7 +99,7 @@ def delhi_calc_time_cat(df_in):
 
 
 
-def calc_daytime_frac_BeijingDelhi(df_times):
+def calc_daylight_hours_BeijingDelhi(df_times):
     
     city_Beijing = LocationInfo("Beijing", "China", "Asia/Shanghai", 39.97444, 116.3711)
     city_Delhi = LocationInfo("Delhi", "India", "Asia/Calcutta", 28.664, 77.232)
@@ -110,12 +110,11 @@ def calc_daytime_frac_BeijingDelhi(df_times):
     daylight_hours = []
     night_hours = []
     
-    
 
     #Loop through each filter and calculate day and night hours
     #This seems like a janky way of doing the loop but is is not faster than looping through a dataframe with df.iter()?
-    for time_start, time_mid, time_end, cat in zip(df_times['date_start'],df_times['date_mid'],df_times['date_end'],dataset_cat):
-        
+    for time_start, time_end, cat in zip(df_times['date_start'],df_times['date_end'],dataset_cat):
+        #Choose city
         if (cat == 'Beijing_summer') or (cat == 'Beijing_winter'):
             city = city_Beijing
         elif (cat == 'Delhi_summer') or (cat == 'Delhi_autumn'):
@@ -123,10 +122,16 @@ def calc_daytime_frac_BeijingDelhi(df_times):
         
         #pdb.set_trace()
         daylight = calc_daylight_deltat(time_start,time_end,city)
-        daylight_hours.append(daylight)
-        night_hours.append((time_end-time_start) - daylight)
+        daylight_hours.append(daylight.total_seconds()/3600)
+        night_hours.append(( (time_end-time_start) - daylight).total_seconds()/3600 )
 
-    return daylight_hours
+    #Create output dataframe
+    #pdb.set_trace()
+    df_output['daylight_hours'] = daylight_hours
+    df_output['night_hours'] = night_hours
+    return df_output
+
+
 
 def calc_daylight_deltat(time_start,time_end,astral_city):
     """
@@ -147,6 +152,9 @@ def calc_daylight_deltat(time_start,time_end,astral_city):
         DESCRIPTION.
 
     """
+    
+    if time_end < time_start:
+        return np.nan
 
     
     time_start = time_start.replace(tzinfo=astral_city.tzinfo)

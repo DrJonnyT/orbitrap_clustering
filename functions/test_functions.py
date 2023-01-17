@@ -11,7 +11,7 @@ from functions.combine_multiindex import combine_multiindex
 from functions.prescale_whole_matrix import prescale_whole_matrix
 from functions.optimal_nclusters_r_card import optimal_nclusters_r_card
 from functions.avg_array_clusters import avg_array_clusters
-from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat, delhi_calc_time_cat, calc_daylight_deltat
+from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat, delhi_calc_time_cat, calc_daylight_deltat, calc_daylight_hours_BeijingDelhi
 
 from functions.math import round_to_nearest_x_even, round_to_nearest_x_odd, sqrt_sum_squares, num_frac_above_val
 from functions.math import normdot, normdot_1min
@@ -111,6 +111,23 @@ def test_calc_daylight_deltat():
     assert calc_daylight_deltat(dt.datetime(2018,8,8,12),dt.datetime(2018,8,8,13),city_Beijing).total_seconds()/3600 == 1
     assert calc_daylight_deltat(dt.datetime(2018,8,8,0),dt.datetime(2018,8,8,1),city_Beijing).total_seconds()/3600 == 0.
     assert calc_daylight_deltat(dt.datetime(2018,8,7,23),dt.datetime(2018,8,8,1),city_Beijing).total_seconds()/3600 == 0
+
+def test_calc_daylight_hours_BeijingDelhi():
+    #Additional to test_calc_daylight_deltat
+    df = pd.DataFrame()
+    df['date_start'] = [dt.datetime(2017,6,20,12),dt.datetime(2017,6,20,0),dt.datetime(2017,6,19,23)]
+    df['date_end'] = [dt.datetime(2017,6,20,13),dt.datetime(2017,6,20,1),dt.datetime(2017,6,20,1)]
+    df['date_mid'] = (df['date_end'] -df['date_start'])/2 + df['date_start']
+    
+    df_daytime = calc_daylight_hours_BeijingDelhi(df)
+    
+    assert df_daytime['daylight_hours'].iloc[0] == 1
+    assert df_daytime['daylight_hours'].iloc[1] == 0
+    assert df_daytime['daylight_hours'].iloc[2] == 0
+    assert df_daytime['night_hours'].iloc[0] == 0
+    assert df_daytime['night_hours'].iloc[1] == 1
+    assert df_daytime['night_hours'].iloc[2] == 2
+    
     
     
     
