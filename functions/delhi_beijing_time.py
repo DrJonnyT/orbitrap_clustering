@@ -100,6 +100,20 @@ def delhi_calc_time_cat(df_in):
 
 
 def calc_daylight_hours_BeijingDelhi(df_times):
+    """
+    Calculate the total number of day/night hours for each sample in Beijing/Delhi projects
+
+    Parameters
+    ----------
+    df_times : dataframe
+        Columns must be ["date_start","date_mid","date_end"]
+
+    Returns
+    -------
+    df_output : dataframe
+        Columns for total daylight hours and total night hours for the relevant sample times
+
+    """
     
     city_Beijing = LocationInfo("Beijing", "China", "Asia/Shanghai", 39.97444, 116.3711)
     city_Delhi = LocationInfo("Delhi", "India", "Asia/Calcutta", 28.664, 77.232)
