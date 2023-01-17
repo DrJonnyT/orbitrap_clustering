@@ -11,7 +11,7 @@ from functions.combine_multiindex import combine_multiindex
 from functions.prescale_whole_matrix import prescale_whole_matrix
 from functions.optimal_nclusters_r_card import optimal_nclusters_r_card
 from functions.avg_array_clusters import avg_array_clusters
-from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat, delhi_calc_time_cat, calc_daylight_deltat, calc_daylight_hours_BeijingDelhi
+from functions.delhi_beijing_time import delhi_beijing_datetime_cat, delhi_calc_time_cat, calc_daylight_deltat, calc_daylight_hours_BeijingDelhi
 
 from functions.math import round_to_nearest_x_even, round_to_nearest_x_odd, sqrt_sum_squares, num_frac_above_val
 from functions.math import normdot, normdot_1min

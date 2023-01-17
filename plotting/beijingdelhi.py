@@ -7,7 +7,7 @@ import pandas as pd
 import pdb
 
 from plotting.cmap_EOS11 import cmap_EOS11
-from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat
+from functions.delhi_beijing_time import delhi_beijing_datetime_cat
 
 
 def plot_all_cluster_tseries_BeijingDelhi(df_cluster_labels_mtx,ds_dataset_cat, title_prefix='',title_suffix=''):

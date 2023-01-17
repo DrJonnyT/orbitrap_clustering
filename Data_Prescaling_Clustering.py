@@ -22,7 +22,7 @@ import os
 os.chdir('C:/Work/Python/Github/Orbitrap_clustering')
 
 
-from orbitrap_functions import count_cluster_labels_from_mtx, cluster_extract_peaks, delhi_calc_time_cat
+from orbitrap_functions import count_cluster_labels_from_mtx, cluster_extract_peaks
 from orbitrap_functions import average_cluster_profiles, calc_cluster_elemental_ratios, plot_cluster_profile_corrs, count_clusters_project_time
 from orbitrap_functions import plot_cluster_elemental_ratios
 
@@ -31,7 +31,7 @@ from functions.optimal_nclusters_r_card import optimal_nclusters_r_card
 from functions.avg_array_clusters import avg_array_clusters
 from functions.math import normdot, normdot_1min, num_frac_above_val
 from file_loaders.load_beijingdelhi_merge import load_beijingdelhi_merge
-from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat
+from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat, delhi_calc_time_cat, calc_daylight_hours_BeijingDelhi, calc_daylight_deltat
 from chem import ChemForm
 from plotting.beijingdelhi import plot_all_cluster_tseries_BeijingDelhi, plot_cluster_heatmap_BeijingDelhi, plot_n_cluster_heatmaps_BeijingDelhi
 from plotting.plot_cluster_count_hists import plot_cluster_count_hists
@@ -81,6 +81,12 @@ ds_dataset_cat = delhi_beijing_datetime_cat(df_all_data.index)
 time_cat = delhi_calc_time_cat(df_all_times)
 df_time_cat = pd.DataFrame(delhi_calc_time_cat(df_all_times),columns=['time_cat'],index=df_all_times.index)
 ds_time_cat = df_time_cat['time_cat']
+
+
+#Calculate daylight fraction for each filter
+df_daytime = calc_daytime_frac_BeijingDelhi(df_all_times)
+
+
 
 #This is a list of peaks with Sari's description from her PMF
 Sari_peaks_list = pd.read_csv(r'C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\Sari_Peaks_Sources.csv',index_col='Formula',na_filter=False)
@@ -942,51 +948,94 @@ plt.show()
 
 sns.reset_orig()
 
-
+    
 
 
 
 #%%Plot clusters by Aerosolomics source
 
 
-def plot_cluster_aerosolomics(cluster_labels,df_aero_concs):
-    """
-    Box plots of aerosolomics sources, averaged for each cluster label
+# def plot_cluster_aerosolomics(cluster_labels,df_aero_concs):
+#     """
+#     Box plots of aerosolomics sources, averaged for each cluster label
 
-    Parameters
-    ----------
-    cluster_labels : array of integers
-        Cluster labels
-    df_aero_concs : dataframe
-        Concentrations of species from the different Aerosolomics sources
+#     Parameters
+#     ----------
+#     cluster_labels : array of integers
+#         Cluster labels
+#     df_aero_concs : dataframe
+#         Concentrations of species from the different Aerosolomics sources
 
-    Returns
-    -------
-    None.
+#     Returns
+#     -------
+#     None.
 
-    """
-    sns.set_context("talk", font_scale=1)
-    fig,ax = plt.subplots(2,5,figsize=(14,8))
-    ax=ax.ravel()
-    whis=[5,95]
+#     """
+#     sns.set_context("talk", font_scale=1)
+#     fig,ax = plt.subplots(2,5,figsize=(14,8))
+#     ax=ax.ravel()
+#     whis=[5,95]
     
-    for subp, source in enumerate(df_all_aerosolomics.columns):
-        sns.boxplot(ax=ax[subp],x=cluster_labels,y=df_all_aerosolomics[source],color='tab:gray',whis=whis,showfliers=False)
-        ax[subp].set_ylabel('')
-        ax[subp].set_title(source)
+#     for subp, source in enumerate(df_all_aerosolomics.columns):
+#         sns.boxplot(ax=ax[subp],x=cluster_labels,y=df_all_aerosolomics[source],color='tab:gray',whis=whis,showfliers=False)
+#         ax[subp].set_ylabel('')
+#         ax[subp].set_title(source)
 
-    plt.tight_layout()
-    sns.reset_orig()
+#     plt.tight_layout()
+#     sns.reset_orig()
     
     
 
 
-plot_cluster_aerosolomics_spectra(cluster_labels_unscaled,df_all_aerosolomics_uniquem,suptitle='Naive clustering',avg='pct',offset_zero=True)
+plot_cluster_aerosolomics_spectra(cluster_labels_unscaled,df_all_aerosolomics_uniquem,suptitle='Naive clustering, unique tracers',avg='pct',offset_zero=True)
 
-plot_cluster_aerosolomics_spectra(cluster_labels_normdot,df_all_aerosolomics_uniquem,suptitle='Normdot clustering',avg='pct',offset_zero=True)
-plot_cluster_aerosolomics_spectra(cluster_labels_qt,df_all_aerosolomics_uniquem,suptitle='QT clustering',avg='pct',offset_zero=True)
+plot_cluster_aerosolomics_spectra(cluster_labels_normdot,df_all_aerosolomics_uniquem,suptitle='Normdot clustering, unique tracers',avg='pct',offset_zero=True)
+plot_cluster_aerosolomics_spectra(cluster_labels_qt,df_all_aerosolomics_uniquem,suptitle='QT clustering, unique tracers',avg='pct',offset_zero=True)
 
 
+
+
+plot_cluster_aerosolomics_spectra(cluster_labels_unscaled,df_all_aerosolomics,suptitle='Naive clustering, non-unique tracers',avg='pct',offset_zero=True)
+
+plot_cluster_aerosolomics_spectra(cluster_labels_normdot,df_all_aerosolomics,suptitle='Normdot clustering, non-unique tracers',avg='pct',offset_zero=True)
+plot_cluster_aerosolomics_spectra(cluster_labels_qt,df_all_aerosolomics,suptitle='QT clustering, non-unique tracers',avg='pct',offset_zero=True)
+
+
+
+
+
+
+
+#%%Extract the most unusually high and low molecules for each cluster
+
+from scipy.stats import percentileofscore
+
+def extract_top_percentiles(df_data,cluster_labels,num,highest=True,dropRT=False):
+    unique_labels = np.unique(cluster_labels)
+    num_clust = len(unique_labels)
+    
+    df_top_pct = pd.DataFrame(columns=unique_labels)
+    df_top_pct.columns.rename('cluster',inplace=True)
+    
+    for cluster in unique_labels:
+        data_thisclust = df_data.loc[cluster_labels==cluster]
+        
+        ds_pct = pd.Series([percentileofscore(df_data[mol],data_thisclust[mol].median()) for mol in df_data.columns],index=df_data.columns, dtype='float')
+        
+        #Extract the top num peaks
+        if(highest):
+            ds_pct_top = ds_pct.sort_values(ascending=False).iloc[0:num]
+        else:
+            ds_pct_top = ds_pct.sort_values(ascending=True).iloc[0:num]
+            
+        if(dropRT):
+            df_top_pct[cluster] = ds_pct_top.index.get_level_values(0)
+        else:
+            df_top_pct[cluster] = ds_pct_top.index.values
+        
+    return df_top_pct
+        
+a = extract_top_percentiles(df_all_data,cluster_labels_unscaled,30,dropRT=True)
 
 #%%A big gap
 ##Everything below here is old and probably wont make it into the final script
