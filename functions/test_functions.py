@@ -11,7 +11,7 @@ from functions.combine_multiindex import combine_multiindex
 from functions.prescale_whole_matrix import prescale_whole_matrix
 from functions.optimal_nclusters_r_card import optimal_nclusters_r_card
 from functions.avg_array_clusters import avg_array_clusters
-from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat, delhi_calc_time_cat
+from functions.delhi_beijing_datetime_cat import delhi_beijing_datetime_cat, delhi_calc_time_cat, calc_daylight_deltat
 
 from functions.math import round_to_nearest_x_even, round_to_nearest_x_odd, sqrt_sum_squares, num_frac_above_val
 from functions.math import normdot, normdot_1min
@@ -21,6 +21,7 @@ import numpy as np
 import datetime as dt
 from sklearn.preprocessing import MinMaxScaler
 import pytest
+from astral import LocationInfo
 
 def test_combine_multiindex():
     assert combine_multiindex(pd.Index([0])) == pd.Index([0])  
@@ -102,7 +103,14 @@ def test_delhi_calc_time_cat():
     assert ds_cat[1] == 'Morning'
     assert ds_cat[2] == 'Midday'
     assert ds_cat[3] == 'Afternoon'
-    assert ds_cat[4] == '24hr'    
+    assert ds_cat[4] == '24hr'
+    
+    
+def test_calc_daylight_deltat():
+    city_Beijing = LocationInfo("Beijing", "China", "Asia/Shanghai", 39.97444, 116.3711)
+    assert calc_daylight_deltat(dt.datetime(2018,8,8,12),dt.datetime(2018,8,8,13),city_Beijing).total_seconds()/3600 == 1
+    assert calc_daylight_deltat(dt.datetime(2018,8,8,0),dt.datetime(2018,8,8,1),city_Beijing).total_seconds()/3600 == 0.
+    assert calc_daylight_deltat(dt.datetime(2018,8,7,23),dt.datetime(2018,8,8,1),city_Beijing).total_seconds()/3600 == 0
     
     
     
