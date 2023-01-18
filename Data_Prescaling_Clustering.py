@@ -35,6 +35,7 @@ from functions.delhi_beijing_time import delhi_beijing_datetime_cat, delhi_calc_
 from chem import ChemForm
 from plotting.beijingdelhi import plot_all_cluster_tseries_BeijingDelhi, plot_cluster_heatmap_BeijingDelhi, plot_n_cluster_heatmaps_BeijingDelhi
 from plotting.plot_cluster_count_hists import plot_cluster_count_hists
+from plotting.plot_clusters_project_daylight import plot_clusters_project_daylight
 
 from file_loaders.load_pre_PMF_data import load_pre_PMF_data
 
@@ -90,6 +91,7 @@ df_daytime_hours = calc_daylight_hours_BeijingDelhi(df_all_times)
 #This is a list of peaks with Sari's description from her PMF
 Sari_peaks_list = pd.read_csv(r'C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\Sari_Peaks_Sources.csv',index_col='Formula',na_filter=False)
 Sari_peaks_list = Sari_peaks_list[~Sari_peaks_list.index.duplicated(keep='first')]
+
 
 #%%Classify molecules into types
 #CHO/CHON/CHOS/CHNOS
@@ -635,7 +637,7 @@ sns.reset_orig()
 
 #%%Plot all cluster profile
 
-def plot_all_cluster_profiles_workflow(df_cluster_labels_mtx,title_prefix):
+def plot_all_cluster_profiles_workflow(df_cluster_labels_mtx,df_daytime_hours,title_prefix):
     df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
 
     df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx,df_all_data,df_element_ratios)
@@ -649,12 +651,21 @@ def plot_all_cluster_profiles_workflow(df_cluster_labels_mtx,title_prefix):
           
     df_clust_cat_counts, df_cat_clust_counts, df_clust_time_cat_counts,df_time_cat_clust_counts = count_clusters_project_time(
         df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat,title_prefix=title_prefix)
+    
+    
+    #Work out daylight hours
+    #pdb.set_trace()
+    ds_day_frac = calc_daynight_frac_per_cluster(df_cluster_labels_mtx.iloc[:,0],df_daytime_hours)
+    plot_clusters_project_daylight(
+        df_cluster_labels_mtx,ds_dataset_cat,ds_day_frac,title_prefix=title_prefix)
 
 
-plot_all_cluster_profiles_workflow(df_cluster_labels_mtx_unscaled.loc[:,4:4],'Unscaled data, ')
+plot_all_cluster_profiles_workflow(df_cluster_labels_mtx_unscaled.loc[:,4:4],df_daytime_hours,'Unscaled data, ')
 #plot_all_cluster_profiles_workflow(df_cluster_labels_mtx_unscaled.loc[:,8:8],'Unscaled data (absolute max nclusters), ')
-plot_all_cluster_profiles_workflow(df_cluster_labels_mtx_qt.loc[:,7:7],'QT data, ')
-plot_all_cluster_profiles_workflow(df_cluster_labels_mtx_normdot.loc[:,8:8],'Normdot data, ')
+
+
+plot_all_cluster_profiles_workflow(df_cluster_labels_mtx_qt.loc[:,7:7],df_daytime_hours,'QT data, ')
+plot_all_cluster_profiles_workflow(df_cluster_labels_mtx_normdot.loc[:,8:8],df_daytime_hours,'Normdot data, ')
 
 
 
@@ -810,6 +821,30 @@ df_all_merge['cluster_labels_normdot'] = cluster_labels_normdot
 
 df_all_merge_grouped = pd.concat([df_all_merge]*3).groupby(np.concatenate([cluster_labels_unscaled,cluster_labels_qt+10,cluster_labels_normdot+50]))
 
+
+#%%Diurnal profiles of air quality
+
+df_all_merge_Beijing_win = df_all_merge.loc[ds_dataset_cat == "Beijing_winter"]
+df_all_merge_Beijing_sum = df_all_merge.loc[ds_dataset_cat == "Beijing_summer"]
+df_all_merge_Delhi_sum = df_all_merge.loc[ds_dataset_cat == "Delhi_summer"]
+df_all_merge_Delhi_aut = df_all_merge.loc[ds_dataset_cat == "Delhi_autumn"]
+
+fig,ax = plt.subplots(2,3,figsize=(10,10))
+ax = ax.ravel()
+ax[0].scatter(df_all_merge_Beijing_win.index.hour,df_all_merge_Beijing_win['co_ppbv'],marker='o',facecolors='none', edgecolors='blue')
+ax[0].scatter(df_all_merge_Beijing_sum.index.hour,df_all_merge_Beijing_sum['co_ppbv'],marker='o',facecolors='none', edgecolors='red')
+ax[0].scatter(df_all_merge_Delhi_sum.index.hour,df_all_merge_Delhi_sum['co_ppbv'],marker='o',facecolors='none', edgecolors='k')
+ax[0].scatter(df_all_merge_Delhi_aut.index.hour,df_all_merge_Delhi_aut['co_ppbv'],marker='o',facecolors='none', edgecolors='gray')
+
+ax[1].scatter(df_all_merge_Beijing_win.index.hour,df_all_merge_Beijing_win['no2_ppbv'],marker='o',facecolors='none', edgecolors='blue')
+ax[1].scatter(df_all_merge_Beijing_sum.index.hour,df_all_merge_Beijing_sum['no2_ppbv'],marker='o',facecolors='none', edgecolors='red')
+ax[1].scatter(df_all_merge_Delhi_sum.index.hour,df_all_merge_Delhi_sum['no2_ppbv'],marker='o',facecolors='none', edgecolors='k')
+ax[1].scatter(df_all_merge_Delhi_aut.index.hour,df_all_merge_Delhi_aut['no2_ppbv'],marker='o',facecolors='none', edgecolors='gray')
+
+ax[2].scatter(df_all_merge_Beijing_win.index.hour,df_all_merge_Beijing_win['o3_ppbv'],marker='o',facecolors='none', edgecolors='blue')
+ax[2].scatter(df_all_merge_Beijing_sum.index.hour,df_all_merge_Beijing_sum['o3_ppbv'],marker='o',facecolors='none', edgecolors='red')
+ax[2].scatter(df_all_merge_Delhi_sum.index.hour,df_all_merge_Delhi_sum['o3_ppbv'],marker='o',facecolors='none', edgecolors='k')
+ax[2].scatter(df_all_merge_Delhi_aut.index.hour,df_all_merge_Delhi_aut['o3_ppbv'],marker='o',facecolors='none', edgecolors='gray')
 
 
 
