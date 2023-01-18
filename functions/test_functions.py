@@ -111,6 +111,8 @@ def test_calc_daylight_deltat():
     assert calc_daylight_deltat(dt.datetime(2018,8,8,12),dt.datetime(2018,8,8,13),city_Beijing).total_seconds()/3600 == 1
     assert calc_daylight_deltat(dt.datetime(2018,8,8,0),dt.datetime(2018,8,8,1),city_Beijing).total_seconds()/3600 == 0.
     assert calc_daylight_deltat(dt.datetime(2018,8,7,23),dt.datetime(2018,8,8,1),city_Beijing).total_seconds()/3600 == 0
+    #compare to known daylight hours
+    assert calc_daylight_deltat(dt.datetime(2023,1,18,1),dt.datetime(2023,1,18,23),city_Beijing).total_seconds()/3600 == pytest.approx(9.716,abs=0.1)
 
 def test_calc_daylight_hours_BeijingDelhi():
     #Additional to test_calc_daylight_deltat
