@@ -55,7 +55,7 @@ for file in glob.glob("*beijing_winter*"):
     file_times.append(filetime)
     precip_totals.append(total_precip)
 
-ds_precip_Beijing_winter = pd.Series(precip_totals,index=file_times,dtype='float')
+ds_precip_Beijing_winter = pd.Series(precip_totals,index=file_times,dtype='float',name='HYSPLIT_precip')
 
 
 ##BEIJING SUMMER
@@ -74,7 +74,7 @@ for file in glob.glob("*beijing_summer*"):
     file_times.append(filetime)
     precip_totals.append(total_precip)
 
-ds_precip_Beijing_summer = pd.Series(precip_totals,index=file_times,dtype='float')
+ds_precip_Beijing_summer = pd.Series(precip_totals,index=file_times,dtype='float',name='HYSPLIT_precip')
 
 
 ##DELHI SUMMER
@@ -93,7 +93,7 @@ for file in glob.glob("*delhi_summer*"):
     file_times.append(filetime)
     precip_totals.append(total_precip)
 
-ds_precip_Delhi_summer = pd.Series(precip_totals,index=file_times,dtype='float')
+ds_precip_Delhi_summer = pd.Series(precip_totals,index=file_times,dtype='float',name='HYSPLIT_precip')
 
 
 ##DELHI AUTUMN
@@ -112,13 +112,20 @@ for file in glob.glob("*delhi_autumn*"):
     file_times.append(filetime)
     precip_totals.append(total_precip)
 
-ds_precip_Delhi_autumn = pd.Series(precip_totals,index=file_times,dtype='float')
+ds_precip_Delhi_autumn = pd.Series(precip_totals,index=file_times,dtype='float',name='HYSPLIT_precip')
 
 
 
 #%%Concatenate all the precip data together
-ds_precip_all = pd.concat([ds_precip_Beijing_winter,ds_precip_Beijing_summer,ds_precip_Delhi_summer,ds_precip_Delhi_autumn])
-ds_precip_all.to_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\HYSPLIT_precip.csv")
+ds_precip_all = pd.concat(
+    [ds_precip_Beijing_winter,ds_precip_Beijing_summer,ds_precip_Delhi_summer,ds_precip_Delhi_autumn]
+    )
+
 #Now we want the average accumulated precip over each filter time period
-#I did this in Igor because I already had a function to do it, seems surprisingly difficult in pandas?
-#Going from a regular to an irregular time series
+ds_precip_all_avg = pd.Series(
+    [ds_precip_all.loc[start.round('H'):end.round('H')].mean() for start, end in zip(df_all_times['date_start'], df_all_times['date_end'])],
+    index = df_all_times['date_mid'],
+    dtype='float')
+
+ds_precip_all_avg.to_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\HYSPLIT_precip.csv")
+
