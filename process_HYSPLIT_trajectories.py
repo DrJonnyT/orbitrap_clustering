@@ -45,9 +45,10 @@ precip_totals = []
 for file in glob.glob("*beijing_winter*"):
     
     #A string of the release date/time
+    #The 20 is to get from e.g. 16 to 2016 for the year
     datetimestr = file[-8:]
     
-    filetime = dt.datetime(int(datetimestr[0:2]),int(datetimestr[2:4]),int(datetimestr[4:6]),int(datetimestr[6:8]))
+    filetime = dt.datetime(int(datetimestr[0:2])+2000,int(datetimestr[2:4]),int(datetimestr[4:6]),int(datetimestr[6:8]))
     
     total_precip = load_precip_from_HYSPLIT(file)
     
@@ -66,7 +67,7 @@ for file in glob.glob("*beijing_summer*"):
     #A string of the release date/time
     datetimestr = file[-8:]
     
-    filetime = dt.datetime(int(datetimestr[0:2]),int(datetimestr[2:4]),int(datetimestr[4:6]),int(datetimestr[6:8]))
+    filetime = dt.datetime(int(datetimestr[0:2])+2000,int(datetimestr[2:4]),int(datetimestr[4:6]),int(datetimestr[6:8]))
     
     total_precip = load_precip_from_HYSPLIT(file)
     
@@ -85,7 +86,7 @@ for file in glob.glob("*delhi_summer*"):
     #A string of the release date/time
     datetimestr = file[-8:]
     
-    filetime = dt.datetime(int(datetimestr[0:2]),int(datetimestr[2:4]),int(datetimestr[4:6]),int(datetimestr[6:8]))
+    filetime = dt.datetime(int(datetimestr[0:2])+2000,int(datetimestr[2:4]),int(datetimestr[4:6]),int(datetimestr[6:8]))
     
     total_precip = load_precip_from_HYSPLIT(file)
     
@@ -104,7 +105,7 @@ for file in glob.glob("*delhi_autumn*"):
     #A string of the release date/time
     datetimestr = file[-8:]
     
-    filetime = dt.datetime(int(datetimestr[0:2]),int(datetimestr[2:4]),int(datetimestr[4:6]),int(datetimestr[6:8]))
+    filetime = dt.datetime(int(datetimestr[0:2])+2000,int(datetimestr[2:4]),int(datetimestr[4:6]),int(datetimestr[6:8]))
     
     total_precip = load_precip_from_HYSPLIT(file)
     
@@ -112,3 +113,12 @@ for file in glob.glob("*delhi_autumn*"):
     precip_totals.append(total_precip)
 
 ds_precip_Delhi_autumn = pd.Series(precip_totals,index=file_times,dtype='float')
+
+
+
+#%%Concatenate all the precip data together
+ds_precip_all = pd.concat([ds_precip_Beijing_winter,ds_precip_Beijing_summer,ds_precip_Delhi_summer,ds_precip_Delhi_autumn])
+ds_precip_all.to_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\HYSPLIT_precip.csv")
+#Now we want the average accumulated precip over each filter time period
+#I did this in Igor because I already had a function to do it, seems surprisingly difficult in pandas?
+#Going from a regular to an irregular time series
