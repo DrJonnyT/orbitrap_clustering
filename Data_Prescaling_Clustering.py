@@ -551,24 +551,6 @@ plt.tight_layout()
 plt.show()
 sns.reset_orig()
 
-#%%compare cluster metrics
-
-# sns.set_context("notebook",font_scale=1.2)
-# compare_cluster_metrics_fn(df_all_data,df_cluster_labels_mtx_unscaled,suptitle='Naive clustering metrics')
-
-
-
-# ##QT data
-# compare_cluster_metrics_fn(df_all_qt,df_cluster_labels_mtx_qt,suptitle='QT clustering metrics')
-
-# ##Normdot data
-# arg_dict = {
-#     "affinity" : 'precomputed',
-#     "linkage" : "complete",
-#     }
-# compare_cluster_metrics_fn(df_all_data,df_cluster_labels_mtx_qt,suptitle='Normdot clustering metrics')
-
-# sns.reset_orig()
 
 #%%Plot stacked bar charts of cluster counts
 sns.set_context("talk", font_scale=1)
