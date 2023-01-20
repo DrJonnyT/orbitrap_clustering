@@ -635,8 +635,24 @@ sns.reset_orig()
 
 
 
-#%%Plot all cluster profile
 
+
+#%%Work out total time per cluster of daylight vs night
+def calc_daynight_frac_per_cluster(cluster_labels,df_daytime_hours):
+    all_labels = np.unique(cluster_labels)
+    ds_frac = pd.Series(index=all_labels,dtype='float')
+    ds_frac = ds_frac.fillna('nan')  
+    
+    for label in all_labels:
+        #pdb.set_trace()
+        df_cluster = df_daytime_hours.loc[cluster_labels == label]
+        daylight_frac = df_cluster['daylight_hours'].sum() / df_cluster.sum().sum()
+        ds_frac.loc[label] = daylight_frac
+            
+    return ds_frac
+
+
+#%%Plot all cluster profile
 def plot_all_cluster_profiles_workflow(df_cluster_labels_mtx,df_daytime_hours,title_prefix):
     df_cluster_counts_mtx = count_cluster_labels_from_mtx(df_cluster_labels_mtx)
 
@@ -679,24 +695,13 @@ cluster_labels_normdot = df_cluster_labels_mtx_normdot.loc[:,8:8].to_numpy().rav
 
 
 
-#%%Work out total time per cluster of daylight vs night
 
-def calc_daynight_frac_per_cluster(cluster_labels,df_daytime_hours):
-    all_labels = np.unique(cluster_labels)
-    ds_frac = pd.Series(index=all_labels,dtype='float')
-    ds_frac = ds_frac.fillna('nan')  
-    
-    for label in all_labels:
-        #pdb.set_trace()
-        df_cluster = df_daytime_hours.loc[cluster_labels == label]
-        daylight_frac = df_cluster['daylight_hours'].sum() / df_cluster.sum().sum()
-        ds_frac.loc[label] = daylight_frac
+
+
             
-    return ds_frac
-            
-ds_day_frac_unscaled = calc_daynight_frac_per_cluster(cluster_labels_unscaled,df_daytime_hours)
-ds_day_frac_qt = calc_daynight_frac_per_cluster(cluster_labels_qt,df_daytime_hours)
-ds_day_frac_normdot = calc_daynight_frac_per_cluster(cluster_labels_normdot,df_daytime_hours)
+# ds_day_frac_unscaled = calc_daynight_frac_per_cluster(cluster_labels_unscaled,df_daytime_hours)
+# ds_day_frac_qt = calc_daynight_frac_per_cluster(cluster_labels_qt,df_daytime_hours)
+# ds_day_frac_normdot = calc_daynight_frac_per_cluster(cluster_labels_normdot,df_daytime_hours)
 
 
 
@@ -818,6 +823,11 @@ df_all_merge['cluster_labels_unscaled'] = cluster_labels_unscaled
 df_all_merge['cluster_labels_qt'] = cluster_labels_qt
 df_all_merge['cluster_labels_normdot'] = cluster_labels_normdot
 
+##Load and add HYSPLIT precip data
+
+ds_HYSPLIT_precip = pd.read_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\HYSPLIT_precip.csv",index_col='date_mid',parse_dates=True)
+df_all_merge['HYSPLIT_precip'] = ds_HYSPLIT_precip
+
 
 df_all_merge_grouped = pd.concat([df_all_merge]*3).groupby(np.concatenate([cluster_labels_unscaled,cluster_labels_qt+10,cluster_labels_normdot+50]))
 
@@ -875,7 +885,7 @@ sns.boxplot(ax=ax[0], x='cluster_labels_unscaled', y="co_ppbv", data=df_all_merg
 sns.boxplot(ax=ax[1], x='cluster_labels_unscaled', y="no2_ppbv", data=df_all_merge,showfliers=False,color='tab:blue',whis=whis)
 sns.boxplot(ax=ax[3], x='cluster_labels_unscaled', y="o3_ppbv", data=df_all_merge,showfliers=False,color='tab:green',whis=whis)
 sns.boxplot(ax=ax[4], x='cluster_labels_unscaled', y="so2_ppbv", data=df_all_merge,showfliers=False,color='tab:red',whis=whis)
-sns.boxplot(ax=ax[2], x='cluster_labels_unscaled', y="temp_C", data=df_all_merge,showfliers=False,color='tab:olive',whis=whis)
+sns.boxplot(ax=ax[2], x='cluster_labels_unscaled', y="HYSPLIT_precip", data=df_all_merge,showfliers=False,color='tab:olive',whis=whis)
 sns.boxplot(ax=ax[5], x='cluster_labels_unscaled', y="RH", data=df_all_merge,showfliers=False,color='tab:cyan',whis=whis)
 [axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
 plt.suptitle('Unscaled data, 4 clusters')
@@ -890,7 +900,7 @@ sns.boxplot(ax=ax[0], x='cluster_labels_qt', y="co_ppbv", data=df_all_merge,show
 sns.boxplot(ax=ax[1], x='cluster_labels_qt', y="no2_ppbv", data=df_all_merge,showfliers=False,color='tab:blue',whis=whis)
 sns.boxplot(ax=ax[3], x='cluster_labels_qt', y="o3_ppbv", data=df_all_merge,showfliers=False,color='tab:green',whis=whis)
 sns.boxplot(ax=ax[4], x='cluster_labels_qt', y="so2_ppbv", data=df_all_merge,showfliers=False,color='tab:red',whis=whis)
-sns.boxplot(ax=ax[2], x='cluster_labels_qt', y="temp_C", data=df_all_merge,showfliers=False,color='tab:olive',whis=whis)
+sns.boxplot(ax=ax[2], x='cluster_labels_qt', y="HYSPLIT_precip", data=df_all_merge,showfliers=False,color='tab:olive',whis=whis)
 sns.boxplot(ax=ax[5], x='cluster_labels_qt', y="RH", data=df_all_merge,showfliers=False,color='tab:cyan',whis=whis)
 [axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
 plt.suptitle('qt data, 7 clusters')
@@ -904,7 +914,7 @@ sns.boxplot(ax=ax[0], x='cluster_labels_normdot', y="co_ppbv", data=df_all_merge
 sns.boxplot(ax=ax[1], x='cluster_labels_normdot', y="no2_ppbv", data=df_all_merge,showfliers=False,color='tab:blue',whis=whis)
 sns.boxplot(ax=ax[3], x='cluster_labels_normdot', y="o3_ppbv", data=df_all_merge,showfliers=False,color='tab:green',whis=whis)
 sns.boxplot(ax=ax[4], x='cluster_labels_normdot', y="so2_ppbv", data=df_all_merge,showfliers=False,color='tab:red',whis=whis)
-sns.boxplot(ax=ax[2], x='cluster_labels_normdot', y="temp_C", data=df_all_merge,showfliers=False,color='tab:olive',whis=whis)
+sns.boxplot(ax=ax[2], x='cluster_labels_normdot', y="HYSPLIT_precip", data=df_all_merge,showfliers=False,color='tab:olive',whis=whis)
 sns.boxplot(ax=ax[5], x='cluster_labels_normdot', y="RH", data=df_all_merge,showfliers=False,color='tab:cyan',whis=whis)
 [axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
 plt.suptitle('normdot data, 8 clusters')
