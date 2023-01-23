@@ -52,6 +52,6 @@ def cluster_top_percentiles(df_data,cluster_labels,num,highest=True,dropRT=False
             df_top_pct[str(cluster) + "_compound"] = ds_pct_top.index.get_level_values(0)
         else:
             df_top_pct[str(cluster) + "_compound"] = "(" + combine_multiindex(ds_pct_top.index,nospaces=True) + ")"
-        df_top_pct[str(cluster) + "_pct"] = ds_pct_top.values
+        df_top_pct[str(cluster) + "_pct"] = ds_pct_top.values.round(1)
         
     return df_top_pct
