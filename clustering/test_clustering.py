@@ -8,6 +8,7 @@ from clustering.molecule_type_math import molecule_type_pos_frac_clusters
 from clustering.cluster_n_times import cluster_n_times, cluster_n_times_fn
 from clustering.cluster_nfrac_above_avg  import cluster_nfrac_above_avg
 from clustering.correlate_cluster_profiles import correlate_cluster_profiles
+from clustering.cluster_top_percentiles import cluster_top_percentiles
 
 
 
@@ -91,5 +92,29 @@ def test_cluster_nfrac_above_avg():
     df_nfrac = cluster_nfrac_above_avg(data,labels)
     assert df_nfrac[0] == 1.0
     assert df_nfrac[1] == 0.8
+    
+    
+def test_cluster_top_percentiles():
+    #Pretend clusters. high0 is high for cluster 0, and low0 is low for cluster0. Mid is in the middle
+    arrays = [['high0', 'low0','mid'], ['1.5', '8.9','2.5']]
+    index = pd.MultiIndex.from_arrays(arrays, names=('compound', 'RT'))
+    data_high0 = [10,10,12,1,2]
+    data_low0 = [1,0,2,14,15]
+    data_mid = [5,5,5,5,5]
+    cluster_labels = [0,0,0,1,1]
+    
+    df = pd.DataFrame(np.array([data_high0,data_low0,data_mid]).T,columns = index)
+    df_top = cluster_top_percentiles(df,cluster_labels,2,highest=True)
+    df_bottom = cluster_top_percentiles(df,cluster_labels,2,highest=False)
+    
+    assert np.array_equal(df_top['0_compound'] , ['(high0, 1.5)','(mid, 2.5)'])
+    assert np.array_equal(df_top['1_compound'] , ['(low0, 8.9)','(mid, 2.5)'])
+    
+    assert np.array_equal(df_bottom['1_compound'] , ['(high0, 1.5)','(mid, 2.5)'])
+    assert np.array_equal(df_bottom['0_compound'] , ['(low0, 8.9)','(mid, 2.5)'])
+    
+    
+    
+    
     
     
