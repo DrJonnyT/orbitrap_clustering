@@ -26,8 +26,10 @@ from astral import LocationInfo
 def test_combine_multiindex():
     assert combine_multiindex(pd.Index([0])) == pd.Index([0])  
     arrays = [[1, 2], ['red', 'blue']]
+    arrays2 = [[1, 2], ['re d', 'bl ue']]
     assert (combine_multiindex(pd.MultiIndex.from_arrays(arrays, names=('number', 'color'))) == pd.Index(['1, red', '2, blue'])).all()
     assert (combine_multiindex(pd.MultiIndex.from_arrays(arrays, names=('number', 'color')), sep = "P") == pd.Index(['1Pred', '2Pblue'])).all()
+    assert (combine_multiindex(pd.MultiIndex.from_arrays(arrays2, names=('number', 'color')), sep = "P",nospaces=True) == pd.Index(['1Pred', '2Pblue'])).all()
     
     #Error if input is not a pandas index
     with pytest.raises(Exception) as e_info:
