@@ -2,6 +2,7 @@ from scipy.stats import percentileofscore
 import pandas as pd
 import numpy as np
 from functions.combine_multiindex import combine_multiindex
+import pdb
 
 def cluster_top_percentiles(df_data,cluster_labels,num,highest=True,dropRT=False):
     """
@@ -28,13 +29,21 @@ def cluster_top_percentiles(df_data,cluster_labels,num,highest=True,dropRT=False
 
     """
     unique_labels = np.unique(cluster_labels)
-        
-    column_labels = []
+       
+    #Define dataframe with multiindex. First level is cluster number, second level is the property        
+    array1 = np.repeat(unique_labels,2)
+    array2 = []
     for cluster in unique_labels:
-        column_labels.append(str(cluster) + "_compound")
-        column_labels.append(str(cluster) + "_pct")
+        if(dropRT):
+            array2.append('Formula')
+        else:
+            array2.append('(Formula/RT)')
+        array2.append('Pct')
+    
+    column_labels_multi = pd.MultiIndex.from_arrays([array1,array2], names=('Cluster', ''))
+                              
         
-    df_top_pct = pd.DataFrame(columns=column_labels)
+    df_top_pct = pd.DataFrame(index=np.arange(1,num+1,1),columns=column_labels_multi)
     
     for cluster in unique_labels:
         data_thisclust = df_data.loc[cluster_labels==cluster]
@@ -47,15 +56,18 @@ def cluster_top_percentiles(df_data,cluster_labels,num,highest=True,dropRT=False
         else:
             ds_pct_top = ds_pct.sort_values(ascending=True).iloc[0:num]
         
-               
+        #pdb.set_trace()       
         if(dropRT):
-            df_top_pct[str(cluster) + "_compound"] = ds_pct_top.index.get_level_values(0)
+            #df_top_pct[str(cluster) + "_compound"] = ds_pct_top.index.get_level_values(0)
+            df_top_pct[(cluster, 'Formula')] = ds_pct_top.index.get_level_values(0)
         else:
-            df_top_pct[str(cluster) + "_compound"] = "(" + combine_multiindex(ds_pct_top.index,nospaces=True) + ")"
+            #df_top_pct[str(cluster) + "_compound"] = "(" + combine_multiindex(ds_pct_top.index,nospaces=True) + ")"
+            df_top_pct[(cluster, '(Formula/RT)')] = "(" + combine_multiindex(ds_pct_top.index,nospaces=True) + ")"
         
         #Round to 1DP
         ds_pct_top.loc[:] = ["%.1f" % value for value in ds_pct_top.values]
         
-        df_top_pct[str(cluster) + "_pct"] = ds_pct_top.values
+        #pdb.set_trace()
+        df_top_pct[(cluster, 'Pct')] = ds_pct_top.values
         
     return df_top_pct

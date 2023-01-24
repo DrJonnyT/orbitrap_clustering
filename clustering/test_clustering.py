@@ -107,11 +107,13 @@ def test_cluster_top_percentiles():
     df_top = cluster_top_percentiles(df,cluster_labels,2,highest=True)
     df_bottom = cluster_top_percentiles(df,cluster_labels,2,highest=False)
     
-    assert np.array_equal(df_top['0_compound'] , ['(high0, 1.5)','(mid, 2.5)'])
-    assert np.array_equal(df_top['1_compound'] , ['(low0, 8.9)','(mid, 2.5)'])
+    assert df_top.shape == (2, 4)    
     
-    assert np.array_equal(df_bottom['1_compound'] , ['(high0, 1.5)','(mid, 2.5)'])
-    assert np.array_equal(df_bottom['0_compound'] , ['(low0, 8.9)','(mid, 2.5)'])
+    assert np.array_equal(df_top[0,'(Formula/RT)'] , ['(high0, 1.5)','(mid, 2.5)'])
+    assert np.array_equal(df_top[1,'(Formula/RT)'] , ['(low0, 8.9)','(mid, 2.5)'])
+    
+    assert np.array_equal(df_bottom[1,'(Formula/RT)'] , ['(high0, 1.5)','(mid, 2.5)'])
+    assert np.array_equal(df_bottom[0,'(Formula/RT)'] , ['(low0, 8.9)','(mid, 2.5)'])
     
     
     
