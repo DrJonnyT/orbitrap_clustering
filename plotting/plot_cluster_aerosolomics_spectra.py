@@ -50,7 +50,11 @@ def plot_cluster_aerosolomics_spectra(cluster_labels,df_aero_concs,**kwargs):
         offset_zero = kwargs.get('offset_zero')
     else:
         offset_zero = False
-        
+    
+    if 'x_colors' in kwargs:
+        x_colors = kwargs.get('x_colors')
+    else:
+        x_colors = ['tab:green','tab:green','tab:green','tab:green','k','tab:green','k','k','k']
     
     
     
@@ -63,7 +67,7 @@ def plot_cluster_aerosolomics_spectra(cluster_labels,df_aero_concs,**kwargs):
     
     df_aero_gb = df_aero_concs.groupby(cluster_labels)
     
-    x_colors = ['tab:green','tab:green','tab:green','tab:green','k','tab:green','k','k','k']
+    
     
     
     for cluster in unique_labels:
