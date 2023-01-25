@@ -12,7 +12,7 @@ def plot_windrose_percluster(df_merge,cluster_labels,dataset_cat, **kwargs):
     Plot 2 wind roses for each unique cluster from cluster_labels, one for Beijing and one for Delhi
     df_merge must have wind speed as 'ws_ms' and wind direction as 'wd_deg'
     """
-    
+    print("Plotting wind roses. This may take a minute or two")
     if "binsize" in kwargs:
         binsize = kwargs.get("binsize")
     else:
