@@ -14,6 +14,8 @@ import scipy
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, PowerTransformer, QuantileTransformer
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import pairwise_distances, silhouette_score
+from scipy.stats import percentileofscore
+
 
 import seaborn as sns
 import pdb
@@ -36,6 +38,7 @@ from chem import ChemForm
 from plotting.beijingdelhi import plot_all_cluster_tseries_BeijingDelhi, plot_cluster_heatmap_BeijingDelhi, plot_n_cluster_heatmaps_BeijingDelhi
 from plotting.plot_cluster_count_hists import plot_cluster_count_hists
 from plotting.plot_clusters_project_daylight import plot_clusters_project_daylight
+from plotting.windroseaxessubplot import WindroseAxesSubplot
 
 from file_loaders.load_pre_PMF_data import load_pre_PMF_data
 
@@ -102,12 +105,24 @@ molecule_types = np.array(list(ChemForm(mol).classify() for mol in df_all_data.c
 molecule_Cx = np.array(list(ChemForm(mol).C for mol in df_all_data.columns.get_level_values(0)))
 
 #Summed concentrations of all molecule types from ChemForm.classify()
-#These sum to 1 so you can do the fraction as well
 df_all_data_moltypes = df_all_data.groupby(molecule_types,axis=1).sum()
 df_all_data_moltypes_frac = df_all_data_moltypes.clip(lower=0).div(df_all_data_moltypes.clip(lower=0).sum(axis=1), axis=0)
 
+#Concenctrations as a percentile of the whole distribution from all datasets
+df_all_data_moltypes_pct = pd.DataFrame(index=df_all_data_moltypes.index,columns=df_all_data_moltypes.columns)
+for mol in df_all_data_moltypes.columns:
+    df_all_data_moltypes_pct[mol] = [percentileofscore(df_all_data_moltypes[mol],df_all_data_moltypes[mol].loc[time]) for time in df_all_data_moltypes.index]
+
+
+
+#DATA BY CARBON NUMBER
 df_all_data_Cx = df_all_data.groupby(molecule_Cx,axis=1).sum()
 df_all_data_Cx_frac = df_all_data_Cx.clip(lower=0).div(df_all_data_Cx.clip(lower=0).sum(axis=1), axis=0)
+#Concenctrations as a percentile of the whole distribution from all datasets
+df_all_data_Cx_pct = pd.DataFrame(index=df_all_data_Cx.index,columns=df_all_data_Cx.columns)
+for mol in df_all_data_Cx.columns:
+    df_all_data_Cx_pct[mol] = [percentileofscore(df_all_data_Cx[mol],df_all_data_Cx[mol].loc[time]) for time in df_all_data_Cx.index]
+
 
 
 #Just these summed molecule types (do NOT sum to 1)
@@ -116,7 +131,10 @@ df_all_data_moltypes2['CHOX'] = df_all_data_moltypes['CHO'] + df_all_data_moltyp
 df_all_data_moltypes2['CHNX'] = df_all_data_moltypes['CHN'] + df_all_data_moltypes['CHON'] + df_all_data_moltypes['CHONS'] + df_all_data_moltypes['CHNS']
 df_all_data_moltypes2['CHSX'] = df_all_data_moltypes['CHOS'] + df_all_data_moltypes['CHS'] + df_all_data_moltypes['CHONS'] + df_all_data_moltypes['CHNS']
 
-
+#Concenctrations as a percentile of the whole distribution from all datasets
+df_all_data_moltypes2_pct = pd.DataFrame(index=df_all_data_moltypes2.index,columns=df_all_data_moltypes2.columns)
+for mol in df_all_data_moltypes2.columns:
+    df_all_data_moltypes2_pct[mol] = [percentileofscore(df_all_data_moltypes2[mol],df_all_data_moltypes2[mol].loc[time]) for time in df_all_data_moltypes2.index]
 
 
 #%%Classify molecules based on Aerosolomics dataset
@@ -782,6 +800,10 @@ ax[2].scatter(df_all_merge_Beijing_sum.index.hour,df_all_merge_Beijing_sum['o3_p
 ax[2].scatter(df_all_merge_Delhi_sum.index.hour,df_all_merge_Delhi_sum['o3_ppbv'],marker='o',facecolors='none', edgecolors='k')
 ax[2].scatter(df_all_merge_Delhi_aut.index.hour,df_all_merge_Delhi_aut['o3_ppbv'],marker='o',facecolors='none', edgecolors='gray')
 
+ax[3].scatter(df_all_merge_Beijing_win.index.hour,df_all_merge_Beijing_win['AMS_NO3'],marker='o',facecolors='none', edgecolors='blue')
+ax[3].scatter(df_all_merge_Beijing_sum.index.hour,df_all_merge_Beijing_sum['AMS_NO3'],marker='o',facecolors='none', edgecolors='red')
+ax[3].scatter(df_all_merge_Delhi_sum.index.hour,df_all_merge_Delhi_sum['AMS_NO3'],marker='o',facecolors='none', edgecolors='k')
+ax[3].scatter(df_all_merge_Delhi_aut.index.hour,df_all_merge_Delhi_aut['AMS_NO3'],marker='o',facecolors='none', edgecolors='gray')
 
 
 
@@ -855,9 +877,52 @@ plt.show()
 sns.reset_orig()
 
 
+#%%Plot wind rose per city per cluster
+from windrose import WindroseAxes, plot_windrose
 
+import matplotlib.cm as cm
 
+def plot_windr_percluster(df_merge,cluster_labels,dataset_cat):
+    #dataset_cat = np.array(dataset_cat)
+    
+    unique_labels = np.unique(cluster_labels_unscaled)
+    num_clusters = len(unique_labels)
+    
+    #fig,ax = plt.subplots(2,num_clusters,figsize=(10,num_clusters*5))
+    
+    
+    fig = plt.figure()
+    
+    
+    
+    
+    
+    for cluster in unique_labels:
+        #pdb.set_trace()
+        df_wind = pd.DataFrame({"speed": df_merge['ws_ms'].loc[cluster_labels==cluster], "direction": df_merge['wd_deg'].loc[cluster_labels==cluster]})
+        df_wind_beijing = df_wind.loc[pd.DataFrame([(dataset_cat == 'Beijing_winter'), (dataset_cat == 'Beijing_summer')]).any()]
+        df_wind_delhi = df_wind.loc[pd.DataFrame([(dataset_cat == 'Delhi_summer'), (dataset_cat == 'Delhi_autumn')]).any()]
+        if (not df_wind_beijing.empty):
+            pdb.set_trace()
+            ax = fig.add_subplot(2,num_clusters,2*cluster, projection="windrose")        
+    
+            # #A fudge so the subplots work
+            # rect=ax[0][cluster].get_position()
+            # wax=WindroseAxes(fig, rect)
+            # wax.bar(df_wind_beijing['direction'], df_wind_beijing['speed'], opening=0.8, edgecolor='white')
+            # #ax[0][cluster].axis('off')
+            
+            ax.contourf(df_wind_beijing['direction'], df_wind_beijing['speed'], bins=np.arange(0, 8, 1), cmap=cm.hot)
+            ax.legend(bbox_to_anchor=(1.02, 0))
+            
+            
+            
+            # plot_windrose(df_wind_beijing, ax=ax[0], bins=np.arange(0.01,8,1), cmap='hot', lw=3)
+            # ax.bar(wd, ws, normed=True, opening=0.8, edgecolor="white")
+            #ax[0][cluster].set_legend()
+        
 
+plot_windr_percluster(df_all_merge,cluster_labels_unscaled,ds_dataset_cat)
 #%%Plot different molecules by cluster
 
 sns.set_context("talk", font_scale=1)
@@ -876,18 +941,31 @@ plt.suptitle('Unscaled data, 4 clusters')
 plt.tight_layout()
 plt.show()
 
-#Unscaled data
+
+
 fig,ax = plt.subplots(2,2,figsize=(8,8))
 ax = ax.ravel()
-sns.boxplot(ax=ax[0], x=cluster_labels_unscaled, y="CHO", data=df_all_data_moltypes_frac,showfliers=False,color='tab:green',whis=whis)
-sns.boxplot(ax=ax[1], x=cluster_labels_unscaled, y="CHON", data=df_all_data_moltypes_frac,showfliers=False,color='tab:blue',whis=whis)
-sns.boxplot(ax=ax[2], x=cluster_labels_unscaled, y="CHOS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:red',whis=whis)
-sns.boxplot(ax=ax[3], x=cluster_labels_unscaled, y="CHONS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:gray',whis=whis)
-
-#[axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
-plt.suptitle('Unscaled data fraction, 4 clusters')
+sns.boxplot(ax=ax[0], x=cluster_labels_unscaled, y="CHO", data=df_all_data_moltypes_pct,showfliers=False,color='tab:green',whis=whis)
+sns.boxplot(ax=ax[1], x=cluster_labels_unscaled, y="CHON", data=df_all_data_moltypes_pct,showfliers=False,color='tab:blue',whis=whis)
+sns.boxplot(ax=ax[2], x=cluster_labels_unscaled, y="CHOS", data=df_all_data_moltypes_pct,showfliers=False,color='tab:red',whis=whis)
+sns.boxplot(ax=ax[3], x=cluster_labels_unscaled, y="CHONS", data=df_all_data_moltypes_pct,showfliers=False,color='tab:gray',whis=whis)
+plt.suptitle('Unscaled data percentiles, 4 clusters')
 plt.tight_layout()
 plt.show()
+
+
+# #Unscaled data
+# fig,ax = plt.subplots(2,2,figsize=(8,8))
+# ax = ax.ravel()
+# sns.boxplot(ax=ax[0], x=cluster_labels_unscaled, y="CHO", data=df_all_data_moltypes_frac,showfliers=False,color='tab:green',whis=whis)
+# sns.boxplot(ax=ax[1], x=cluster_labels_unscaled, y="CHON", data=df_all_data_moltypes_frac,showfliers=False,color='tab:blue',whis=whis)
+# sns.boxplot(ax=ax[2], x=cluster_labels_unscaled, y="CHOS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:red',whis=whis)
+# sns.boxplot(ax=ax[3], x=cluster_labels_unscaled, y="CHONS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:gray',whis=whis)
+
+# #[axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
+# plt.suptitle('Unscaled data fraction, 4 clusters')
+# plt.tight_layout()
+# plt.show()
 
 
 #qt data
@@ -903,18 +981,18 @@ plt.suptitle('qt data, 7 clusters')
 plt.tight_layout()
 plt.show()
 
-#qt data
-fig,ax = plt.subplots(2,2,figsize=(8,8))
-ax = ax.ravel()
-sns.boxplot(ax=ax[0], x=cluster_labels_qt, y="CHO", data=df_all_data_moltypes_frac,showfliers=False,color='tab:green',whis=whis)
-sns.boxplot(ax=ax[1], x=cluster_labels_qt, y="CHON", data=df_all_data_moltypes_frac,showfliers=False,color='tab:blue',whis=whis)
-sns.boxplot(ax=ax[2], x=cluster_labels_qt, y="CHOS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:red',whis=whis)
-sns.boxplot(ax=ax[3], x=cluster_labels_qt, y="CHONS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:gray',whis=whis)
+# #qt data
+# fig,ax = plt.subplots(2,2,figsize=(8,8))
+# ax = ax.ravel()
+# sns.boxplot(ax=ax[0], x=cluster_labels_qt, y="CHO", data=df_all_data_moltypes_frac,showfliers=False,color='tab:green',whis=whis)
+# sns.boxplot(ax=ax[1], x=cluster_labels_qt, y="CHON", data=df_all_data_moltypes_frac,showfliers=False,color='tab:blue',whis=whis)
+# sns.boxplot(ax=ax[2], x=cluster_labels_qt, y="CHOS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:red',whis=whis)
+# sns.boxplot(ax=ax[3], x=cluster_labels_qt, y="CHONS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:gray',whis=whis)
 
-#[axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
-plt.suptitle('qt data fraction, 7 clusters')
-plt.tight_layout()
-plt.show()
+# #[axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
+# plt.suptitle('qt data fraction, 7 clusters')
+# plt.tight_layout()
+# plt.show()
 
 
 #normdot data
@@ -926,27 +1004,162 @@ sns.boxplot(ax=ax[2], x=cluster_labels_normdot, y="CHOS", data=df_all_data_molty
 sns.boxplot(ax=ax[3], x=cluster_labels_normdot, y="CHONS", data=df_all_data_moltypes,showfliers=False,color='tab:gray',whis=whis)
 
 #[axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
-plt.suptitle('normdot data, 7 clusters')
+plt.suptitle('normdot data, 8 clusters')
 plt.tight_layout()
 plt.show()
 
-#normdot data
-fig,ax = plt.subplots(2,2,figsize=(8,8))
-ax = ax.ravel()
-sns.boxplot(ax=ax[0], x=cluster_labels_normdot, y="CHO", data=df_all_data_moltypes_frac,showfliers=False,color='tab:green',whis=whis)
-sns.boxplot(ax=ax[1], x=cluster_labels_normdot, y="CHON", data=df_all_data_moltypes_frac,showfliers=False,color='tab:blue',whis=whis)
-sns.boxplot(ax=ax[2], x=cluster_labels_normdot, y="CHOS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:red',whis=whis)
-sns.boxplot(ax=ax[3], x=cluster_labels_normdot, y="CHONS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:gray',whis=whis)
+# #normdot data
+# fig,ax = plt.subplots(2,2,figsize=(8,8))
+# ax = ax.ravel()
+# sns.boxplot(ax=ax[0], x=cluster_labels_normdot, y="CHO", data=df_all_data_moltypes_frac,showfliers=False,color='tab:green',whis=whis)
+# sns.boxplot(ax=ax[1], x=cluster_labels_normdot, y="CHON", data=df_all_data_moltypes_frac,showfliers=False,color='tab:blue',whis=whis)
+# sns.boxplot(ax=ax[2], x=cluster_labels_normdot, y="CHOS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:red',whis=whis)
+# sns.boxplot(ax=ax[3], x=cluster_labels_normdot, y="CHONS", data=df_all_data_moltypes_frac,showfliers=False,color='tab:gray',whis=whis)
 
-#[axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
-plt.suptitle('normdot data fraction, 7 clusters')
+# #[axis.set_ylim(lim) for axis,lim in zip(ax,limits)]
+# plt.suptitle('normdot data fraction, 7 clusters')
+# plt.tight_layout()
+# plt.show()
+
+sns.reset_orig()
+
+    
+#%%Plot data by molecule type2, as percentiles
+sns.set_context("talk", font_scale=1)
+whis=[5,95]
+
+#UNSCALED DATA
+fig,ax = plt.subplots(1,3,figsize=(8,5),sharey=True)
+ax = ax.ravel()
+sns.boxplot(ax=ax[0], x=cluster_labels_unscaled, y="CHOX", data=df_all_data_moltypes2_pct,showfliers=False,color='tab:green',whis=whis)
+sns.boxplot(ax=ax[1], x=cluster_labels_unscaled, y="CHNX", data=df_all_data_moltypes2_pct,showfliers=False,color='tab:blue',whis=whis)
+sns.boxplot(ax=ax[2], x=cluster_labels_unscaled, y="CHSX", data=df_all_data_moltypes2_pct,showfliers=False,color='tab:red',whis=whis)
+ax[0].set_title('CHOX')
+ax[1].set_title('CHNX')
+ax[2].set_title('CHSX')
+ax[0].set_ylabel('Percentile')
+ax[1].set_ylabel('')
+ax[2].set_ylabel('')
+plt.suptitle('Unscaled data percentiles, 4 clusters')
+plt.tight_layout()
+plt.show()
+
+
+#qt DATA
+fig,ax = plt.subplots(1,3,figsize=(8,5),sharey=True)
+ax = ax.ravel()
+sns.boxplot(ax=ax[0], x=cluster_labels_qt, y="CHOX", data=df_all_data_moltypes2_pct,showfliers=False,color='tab:green',whis=whis)
+sns.boxplot(ax=ax[1], x=cluster_labels_qt, y="CHNX", data=df_all_data_moltypes2_pct,showfliers=False,color='tab:blue',whis=whis)
+sns.boxplot(ax=ax[2], x=cluster_labels_qt, y="CHSX", data=df_all_data_moltypes2_pct,showfliers=False,color='tab:red',whis=whis)
+ax[0].set_title('CHOX')
+ax[1].set_title('CHNX')
+ax[2].set_title('CHSX')
+ax[0].set_ylabel('Percentile')
+ax[1].set_ylabel('')
+ax[2].set_ylabel('')
+plt.suptitle('qt data percentiles, 7 clusters')
+plt.tight_layout()
+plt.show()
+
+#normdot DATA
+fig,ax = plt.subplots(1,3,figsize=(8,5),sharey=True)
+ax = ax.ravel()
+sns.boxplot(ax=ax[0], x=cluster_labels_normdot, y="CHOX", data=df_all_data_moltypes2_pct,showfliers=False,color='tab:green',whis=whis)
+sns.boxplot(ax=ax[1], x=cluster_labels_normdot, y="CHNX", data=df_all_data_moltypes2_pct,showfliers=False,color='tab:blue',whis=whis)
+sns.boxplot(ax=ax[2], x=cluster_labels_normdot, y="CHSX", data=df_all_data_moltypes2_pct,showfliers=False,color='tab:red',whis=whis)
+ax[0].set_title('CHOX')
+ax[1].set_title('CHNX')
+ax[2].set_title('CHSX')
+ax[0].set_ylabel('Percentile')
+ax[1].set_ylabel('')
+ax[2].set_ylabel('')
+plt.suptitle('normdot data percentiles, 8 clusters')
 plt.tight_layout()
 plt.show()
 
 sns.reset_orig()
 
-    
 
+#%%Plot data by molecule type2, as percentiles AND means
+sns.set_context("talk", font_scale=1)
+whis=[5,95]
+
+#UNSCALED DATA
+fig,ax = plt.subplots(2,3,figsize=(10,8))
+ax = ax.ravel()
+sns.boxplot(ax=ax[0], x=cluster_labels_unscaled, y="CHOX", data=df_all_data_moltypes2,showfliers=False,color='tab:green',whis=whis)
+sns.boxplot(ax=ax[1], x=cluster_labels_unscaled, y="CHNX", data=df_all_data_moltypes2,showfliers=False,color='tab:blue',whis=whis)
+sns.boxplot(ax=ax[2], x=cluster_labels_unscaled, y="CHSX", data=df_all_data_moltypes2,showfliers=False,color='tab:red',whis=whis)
+sns.boxplot(ax=ax[3], x=cluster_labels_unscaled, y="CHOX", data=df_all_data_moltypes2_pct,showfliers=False,color='tab:green',whis=whis)
+sns.boxplot(ax=ax[4], x=cluster_labels_unscaled, y="CHNX", data=df_all_data_moltypes2_pct,showfliers=False,color='tab:blue',whis=whis)
+sns.boxplot(ax=ax[5], x=cluster_labels_unscaled, y="CHSX", data=df_all_data_moltypes2_pct,showfliers=False,color='tab:red',whis=whis)
+ax[0].set_title('CHOX')
+ax[1].set_title('CHNX')
+ax[2].set_title('CHSX')
+ax[0].set_ylabel('µg$\,$m$^{-3}$')
+ax[1].set_ylabel('')
+ax[2].set_ylabel('')
+ax[4].set_ylabel('')
+ax[5].set_ylabel('')
+ax[3].set_ylabel('Percentile')
+ax[4].set_ylabel('')
+ax[5].set_ylabel('')
+plt.suptitle('Unscaled data, 4 clusters')
+plt.tight_layout()
+plt.show()
+
+#qt DATA
+fig,ax = plt.subplots(2,3,figsize=(10,8))
+ax = ax.ravel()
+sns.boxplot(ax=ax[0], x=cluster_labels_qt, y="CHOX", data=df_all_data_moltypes2,showfliers=False,color='tab:green',whis=whis)
+sns.boxplot(ax=ax[1], x=cluster_labels_qt, y="CHNX", data=df_all_data_moltypes2,showfliers=False,color='tab:blue',whis=whis)
+sns.boxplot(ax=ax[2], x=cluster_labels_qt, y="CHSX", data=df_all_data_moltypes2,showfliers=False,color='tab:red',whis=whis)
+sns.boxplot(ax=ax[3], x=cluster_labels_qt, y="CHOX", data=df_all_data_moltypes2_pct,showfliers=False,color='tab:green',whis=whis)
+sns.boxplot(ax=ax[4], x=cluster_labels_qt, y="CHNX", data=df_all_data_moltypes2_pct,showfliers=False,color='tab:blue',whis=whis)
+sns.boxplot(ax=ax[5], x=cluster_labels_qt, y="CHSX", data=df_all_data_moltypes2_pct,showfliers=False,color='tab:red',whis=whis)
+ax[0].set_title('CHOX')
+ax[1].set_title('CHNX')
+ax[2].set_title('CHSX')
+ax[0].set_ylabel('µg$\,$m$^{-3}$')
+ax[1].set_ylabel('')
+ax[2].set_ylabel('')
+ax[4].set_ylabel('')
+ax[5].set_ylabel('')
+ax[3].set_ylabel('Percentile')
+ax[4].set_ylabel('')
+ax[5].set_ylabel('')
+plt.suptitle('qt data, 7 clusters')
+plt.tight_layout()
+plt.show()
+
+
+#normdot DATA
+fig,ax = plt.subplots(2,3,figsize=(10,8))
+ax = ax.ravel()
+sns.boxplot(ax=ax[0], x=cluster_labels_normdot, y="CHOX", data=df_all_data_moltypes2,showfliers=False,color='tab:green',whis=whis)
+sns.boxplot(ax=ax[1], x=cluster_labels_normdot, y="CHNX", data=df_all_data_moltypes2,showfliers=False,color='tab:blue',whis=whis)
+sns.boxplot(ax=ax[2], x=cluster_labels_normdot, y="CHSX", data=df_all_data_moltypes2,showfliers=False,color='tab:red',whis=whis)
+sns.boxplot(ax=ax[3], x=cluster_labels_normdot, y="CHOX", data=df_all_data_moltypes2_pct,showfliers=False,color='tab:green',whis=whis)
+sns.boxplot(ax=ax[4], x=cluster_labels_normdot, y="CHNX", data=df_all_data_moltypes2_pct,showfliers=False,color='tab:blue',whis=whis)
+sns.boxplot(ax=ax[5], x=cluster_labels_normdot, y="CHSX", data=df_all_data_moltypes2_pct,showfliers=False,color='tab:red',whis=whis)
+ax[0].set_title('CHOX')
+ax[1].set_title('CHNX')
+ax[2].set_title('CHSX')
+ax[0].set_ylabel('µg$\,$m$^{-3}$')
+ax[1].set_ylabel('')
+ax[2].set_ylabel('')
+ax[4].set_ylabel('')
+ax[5].set_ylabel('')
+ax[3].set_ylabel('Percentile')
+ax[4].set_ylabel('')
+ax[5].set_ylabel('')
+plt.suptitle('normdot data, 8 clusters')
+plt.tight_layout()
+plt.show()
+
+
+
+#%%
 
 
 #%%Plot clusters by Aerosolomics source
@@ -1006,13 +1219,15 @@ plot_cluster_aerosolomics_spectra(cluster_labels_qt,df_all_aerosolomics,suptitle
 #%%Extract the most unusually high and low molecules for each cluster
 
 #Calculate the top30 unusually high or low peaks in each cluster
-top_peaks_unscaled = cluster_top_percentiles(df_all_data,cluster_labels_unscaled,30)
-top_peaks_qt = cluster_top_percentiles(df_all_data,cluster_labels_qt,30)
-top_peaks_normdot= cluster_top_percentiles(df_all_data,cluster_labels_normdot,30)
+#top_peaks_unscaled = cluster_top_percentiles(df_all_data,cluster_labels_unscaled,30)
 
-bottom_peaks_unscaled= cluster_top_percentiles(df_all_data,cluster_labels_unscaled,30,highest=False)
-bottom_peaks_qt= cluster_top_percentiles(df_all_data,cluster_labels_qt,30,highest=False)
-bottom_peaks_normdot= cluster_top_percentiles(df_all_data,cluster_labels_normdot,30,highest=False)
+
+top_peaks_unscaled = cluster_top_percentiles(df_all_data,cluster_labels_unscaled,30,mol_labels=ds_mol_aerosolomics)
+top_peaks_qt = cluster_top_percentiles(df_all_data,cluster_labels_qt,30,mol_labels=ds_mol_aerosolomics)
+top_peaks_normdot= cluster_top_percentiles(df_all_data,cluster_labels_normdot,30,mol_labels=ds_mol_aerosolomics)
+bottom_peaks_unscaled= cluster_top_percentiles(df_all_data,cluster_labels_unscaled,30,highest=False,mol_labels=ds_mol_aerosolomics)
+bottom_peaks_qt= cluster_top_percentiles(df_all_data,cluster_labels_qt,30,highest=False,mol_labels=ds_mol_aerosolomics)
+bottom_peaks_normdot= cluster_top_percentiles(df_all_data,cluster_labels_normdot,30,highest=False,mol_labels=ds_mol_aerosolomics)
 
 #Export to CSV
 export_path = r'C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Unusual_Peaks'
