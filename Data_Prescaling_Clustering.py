@@ -38,7 +38,7 @@ from chem import ChemForm
 from plotting.beijingdelhi import plot_all_cluster_tseries_BeijingDelhi, plot_cluster_heatmap_BeijingDelhi, plot_n_cluster_heatmaps_BeijingDelhi
 from plotting.plot_cluster_count_hists import plot_cluster_count_hists
 from plotting.plot_clusters_project_daylight import plot_clusters_project_daylight
-from plotting.windroseaxessubplot import WindroseAxesSubplot
+#from plotting.windroseaxessubplot import WindroseAxesSubplot
 
 from file_loaders.load_pre_PMF_data import load_pre_PMF_data
 
@@ -50,6 +50,7 @@ from plotting.compare_cluster_metrics import compare_cluster_metrics, compare_cl
 from plotting.plot_binned_mol_data import bin_mol_data_for_plot, plot_binned_mol_data
 from plotting.plot_cluster_profiles import plot_all_cluster_profiles
 from plotting.plot_cluster_aerosolomics_spectra import plot_cluster_aerosolomics_spectra
+from plotting.plot_windrose_percluster import plot_windrose_percluster
 
 
 #%%Load data from HDF
@@ -645,7 +646,6 @@ def calc_daynight_frac_per_cluster(cluster_labels,df_daytime_hours):
     ds_frac = ds_frac.fillna('nan')  
     
     for label in all_labels:
-        #pdb.set_trace()
         df_cluster = df_daytime_hours.loc[cluster_labels == label]
         daylight_frac = df_cluster['daylight_hours'].sum() / df_cluster.sum().sum()
         ds_frac.loc[label] = daylight_frac
@@ -673,6 +673,7 @@ def plot_all_cluster_profiles_workflow(df_cluster_labels_mtx,df_daytime_hours,ti
     #Work out daylight hours
     #pdb.set_trace()
     ds_day_frac = calc_daynight_frac_per_cluster(df_cluster_labels_mtx.iloc[:,0],df_daytime_hours)
+    print(ds_day_frac)
     plot_clusters_project_daylight(
         df_cluster_labels_mtx,ds_dataset_cat,ds_day_frac,title_prefix=title_prefix)
 
@@ -878,51 +879,12 @@ sns.reset_orig()
 
 
 #%%Plot wind rose per city per cluster
-from windrose import WindroseAxes, plot_windrose
 
-import matplotlib.cm as cm
 
-def plot_windr_percluster(df_merge,cluster_labels,dataset_cat):
-    #dataset_cat = np.array(dataset_cat)
-    
-    unique_labels = np.unique(cluster_labels_unscaled)
-    num_clusters = len(unique_labels)
-    
-    #fig,ax = plt.subplots(2,num_clusters,figsize=(10,num_clusters*5))
-    
-    
-    fig = plt.figure()
-    
-    
-    
-    
-    
-    for cluster in unique_labels:
-        #pdb.set_trace()
-        df_wind = pd.DataFrame({"speed": df_merge['ws_ms'].loc[cluster_labels==cluster], "direction": df_merge['wd_deg'].loc[cluster_labels==cluster]})
-        df_wind_beijing = df_wind.loc[pd.DataFrame([(dataset_cat == 'Beijing_winter'), (dataset_cat == 'Beijing_summer')]).any()]
-        df_wind_delhi = df_wind.loc[pd.DataFrame([(dataset_cat == 'Delhi_summer'), (dataset_cat == 'Delhi_autumn')]).any()]
-        if (not df_wind_beijing.empty):
-            pdb.set_trace()
-            ax = fig.add_subplot(2,num_clusters,2*cluster, projection="windrose")        
-    
-            # #A fudge so the subplots work
-            # rect=ax[0][cluster].get_position()
-            # wax=WindroseAxes(fig, rect)
-            # wax.bar(df_wind_beijing['direction'], df_wind_beijing['speed'], opening=0.8, edgecolor='white')
-            # #ax[0][cluster].axis('off')
-            
-            ax.contourf(df_wind_beijing['direction'], df_wind_beijing['speed'], bins=np.arange(0, 8, 1), cmap=cm.hot)
-            ax.legend(bbox_to_anchor=(1.02, 0))
-            
-            
-            
-            # plot_windrose(df_wind_beijing, ax=ax[0], bins=np.arange(0.01,8,1), cmap='hot', lw=3)
-            # ax.bar(wd, ws, normed=True, opening=0.8, edgecolor="white")
-            #ax[0][cluster].set_legend()
-        
+plot_windrose_percluster(df_all_merge,cluster_labels_unscaled,ds_dataset_cat,suptitle='Unscaled data')
+plot_windrose_percluster(df_all_merge,cluster_labels_qt,ds_dataset_cat,suptitle='qt data')
+plot_windrose_percluster(df_all_merge,cluster_labels_normdot,ds_dataset_cat,suptitle='normdot data')
 
-plot_windr_percluster(df_all_merge,cluster_labels_unscaled,ds_dataset_cat)
 #%%Plot different molecules by cluster
 
 sns.set_context("talk", font_scale=1)
@@ -1240,6 +1202,45 @@ bottom_peaks_unscaled.to_csv(export_path + '\pct_bottom_peaks_unscaled.csv')
 bottom_peaks_qt.to_csv(export_path + '\pct_bottom_peaks_qt.csv')
 bottom_peaks_normdot.to_csv(export_path + '\pct_bottom_peaks_normdot.csv')
 
+
+
+
+#%%Classify unusually high peaks
+
+#What fraction of CHOX/CHNX/CHSX are unusually high versus unusually low??
+#What are each of the molecules doing?
+
+def plot_peak_fraction_quantiles(df_moltypes,cluster_labels):
+    #Pick out the clusters
+    unique_clusters = np.unique(cluster_labels)
+    num_moltypes = len(df_moltypes.columns)
+    bins=[0,25,50,75,100]
+    bins_Q = ['Q1','Q2','Q3','Q4']
+    
+    fig,axes = plt.subplots(1,3,sharey=True,figsize=(10,5))
+    
+    for mol, ax in zip(df_moltypes.columns,axes):
+        ax.set_title(mol)
+        df_mol = pd.DataFrame(index=unique_clusters,columns=bins_Q)
+        
+        for cluster in unique_clusters:
+            #pdb.set_trace()
+            ds_this_cluster = df_moltypes[mol].loc[cluster_labels == cluster]
+            cluster_counts = np.histogram(ds_this_cluster,bins=bins)[0]
+            cluster_counts = cluster_counts / cluster_counts.sum()
+            df_mol.loc[cluster] = cluster_counts
+                       
+        #df_mol.plot.bar(ax=ax,stacked=True,cmap='copper')
+        pdb.set_trace()
+        df_mol.plot.box(ax=ax)
+        #sns.boxplot(df_mol,x=bins_Q,y=)
+            
+        
+        
+    
+        #For this cluster, pick out each molecule type and count the molecules in different quantile bins
+
+plot_peak_fraction_quantiles(df_all_data_moltypes2_pct,cluster_labels_unscaled)
 #%%A big gap
 ##Everything below here is old and probably wont make it into the final script
 
