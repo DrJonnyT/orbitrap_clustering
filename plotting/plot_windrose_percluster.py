@@ -10,6 +10,7 @@ import matplotlib.cm as cm
 def plot_windrose_percluster(df_merge,cluster_labels,dataset_cat, **kwargs):
     """
     Plot 2 wind roses for each unique cluster from cluster_labels, one for Beijing and one for Delhi
+    df_merge must have wind speed as 'ws_ms' and wind direction as 'wd_deg'
     """
     
     if "binsize" in kwargs:
@@ -42,10 +43,9 @@ def plot_windrose_percluster(df_merge,cluster_labels,dataset_cat, **kwargs):
         
         #Plot Beijing
         ax = fig.add_subplot(2,num_clusters,cluster+1, projection="windrose")
-        ax.set_title('Cluster' + str(cluster))
+        ax.set_title('Cluster ' + str(cluster),fontweight='bold')
         if (not df_wind_beijing.empty):
             ax.bar(df_wind_beijing['direction'], df_wind_beijing['speed'], bins=bins, cmap=cm.hot,normed=True)
-            pass
         
         #Plot Delhi
         ax = fig.add_subplot(2,num_clusters,(num_clusters+cluster+1), projection="windrose")
@@ -53,14 +53,15 @@ def plot_windrose_percluster(df_merge,cluster_labels,dataset_cat, **kwargs):
             ax.bar(df_wind_delhi['direction'], df_wind_delhi['speed'], bins=bins, cmap=cm.hot,normed=True)
         
     #Legend to last plot
-    ax.legend(bbox_to_anchor=(1.7, 1.5),loc='upper right',title=r'Wind speed (ms$^{-1}$)')
+    ax.legend(bbox_to_anchor=(1.9, 1.5),loc='upper right',title=r'Wind speed (ms$^{-1}$)')
     
     if 'suptitle' in kwargs:
-        fig.suptitle(kwargs.get("suptitle"))
+        fig.suptitle(kwargs.get("suptitle"),fontweight='bold')
     
     #pdb.set_trace()
     #Add text to rows
     fig.text(0.1,0.9,"Beijing",fontweight='bold')
     fig.text(0.1,0.48,"Delhi",fontweight='bold')
-        
+    
+    #plt.tight_layout()
     reset_orig()
