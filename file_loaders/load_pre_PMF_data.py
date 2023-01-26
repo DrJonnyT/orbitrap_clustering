@@ -5,7 +5,7 @@ import h5py
 from functions.math import round_to_nearest_x_odd, sqrt_sum_squares
 from functions.igor_time_to_unix import igor_time_to_unix
 
-def load_pre_PMF_data(filepath,join='inner'):
+def load_pre_PMF_data(filepath,join='inner',justBeijing=False,justDelhi=False):
     
     with h5py.File(filepath, 'r') as hf:
         Beijing_winter_mz = np.array(hf['Beijing_Winter']['noNaNs_mz']).astype(float).round(3)
@@ -60,9 +60,18 @@ def load_pre_PMF_data(filepath,join='inner'):
     df_Delhi_autumn_mz = pd.DataFrame(Delhi_autumn_mz).T.groupby([Delhi_autumn_formula,Delhi_autumn_RT],axis=1).aggregate("first")
     
     #Merge the datasets
-    df_all_data = pd.concat([df_Beijing_winter_data,df_Beijing_summer_data,df_Delhi_summer_data,df_Delhi_autumn_data],join=join).fillna(0)
-    df_all_err = pd.concat([df_Beijing_winter_err,df_Beijing_summer_err,df_Delhi_summer_err,df_Delhi_autumn_err],join=join).fillna(0)  
-    ds_all_mz = pd.concat([df_Beijing_winter_mz,df_Beijing_summer_mz,df_Delhi_summer_mz,df_Delhi_autumn_mz],join=join).mean()
+    if justBeijing:
+        df_all_data = pd.concat([df_Beijing_winter_data,df_Beijing_summer_data],join=join).fillna(0)
+        df_all_err = pd.concat([df_Beijing_winter_err,df_Beijing_summer_err],join=join).fillna(0)  
+        ds_all_mz = pd.concat([df_Beijing_winter_mz,df_Beijing_summer_mz],join=join).mean()
+    elif justDelhi:
+        df_all_data = pd.concat([df_Delhi_summer_data,df_Delhi_autumn_data],join=join).fillna(0)
+        df_all_err = pd.concat([df_Delhi_summer_err,df_Delhi_autumn_err],join=join).fillna(0)  
+        ds_all_mz = pd.concat([df_Delhi_summer_mz,df_Delhi_autumn_mz],join=join).mean()
+    else:
+        df_all_data = pd.concat([df_Beijing_winter_data,df_Beijing_summer_data,df_Delhi_summer_data,df_Delhi_autumn_data],join=join).fillna(0)
+        df_all_err = pd.concat([df_Beijing_winter_err,df_Beijing_summer_err,df_Delhi_summer_err,df_Delhi_autumn_err],join=join).fillna(0)  
+        ds_all_mz = pd.concat([df_Beijing_winter_mz,df_Beijing_summer_mz,df_Delhi_summer_mz,df_Delhi_autumn_mz],join=join).mean()
 
     
     #Sort by mz
