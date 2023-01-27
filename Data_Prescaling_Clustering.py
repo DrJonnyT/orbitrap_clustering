@@ -825,8 +825,12 @@ rh_scale_min = 0.9 * df_all_merge_grouped['RH'].quantile(0.05,interpolation='low
 precip_scale_max = 1.1 * df_all_merge_grouped['HYSPLIT_precip'].quantile(0.95,interpolation='lower').max()
 precip_scale_min = 0.9 * df_all_merge_grouped['HYSPLIT_precip'].quantile(0.05,interpolation='lower').min()
 
+wind_scale_max = 1.1 * df_all_merge_grouped['ws_ms'].quantile(0.95,interpolation='lower').max()
+wind_scale_min = 0.9 * df_all_merge_grouped['ws_ms'].quantile(0.05,interpolation='lower').min()
+
 
 limits = [[0,co_scale_max],[0,no2_scale_max],[precip_scale_min,precip_scale_max],[0,o3_scale_max],[0,so2_scale_max],[rh_scale_min,rh_scale_max]]
+#limits = [[0,co_scale_max],[0,no2_scale_max],[precip_scale_min,precip_scale_max],[0,o3_scale_max],[0,so2_scale_max],[wind_scale_min,wind_scale_max]]
 
 whis=[5,95]
 sns.set_context("talk", font_scale=1)
@@ -877,6 +881,14 @@ plt.show()
 
 sns.reset_orig()
 
+
+
+#%%Plot AQ vs wind/precip
+
+plt.scatter(df_all_merge['HYSPLIT_precip'],df_all_data_moltypes['CHO'])
+plt.show()
+plt.scatter(df_all_merge['ws_ms'],df_all_data_moltypes['CHO'])
+plt.show()
 
 #%%Plot wind rose per city per cluster
 
@@ -1204,43 +1216,84 @@ bottom_peaks_normdot.to_csv(export_path + '\pct_bottom_peaks_normdot.csv')
 
 
 
+#%%Extract the top peaks for each cluster
+
+#Extract the top n peaks for each cluster, tag with labels from SAri and aerosolomics, and save as csv
+def extract_clusters_top_peaks(df_data,cluster_labels,n_peaks,Sari_peaks,ds_aerosolomics,csvpath,**kwargs):
+    #make empty csv
+    with open(csvpath, "w") as my_empty_csv:
+        pass
+
+    unique_clusters = np.unique(cluster_labels)
+    
+    for cluster in unique_clusters:
+        df_top_peaks = cluster_extract_peaks(df_all_data.loc[cluster_labels == cluster].mean(axis=0), df_all_data.T,n_peaks,dp=1,dropRT=False)
+        df_top_peaks.index = np.arange(0,n_peaks)+1
+        df_top_peaks = df_top_peaks.drop('Name',axis=1)
+        
+        #Extract the labels from Sari's list and the aerosolomics list
+        ds_Sari_list = pd.Series(np.empty(n_peaks,dtype='<U10'),index=df_top_peaks.index)
+        ds_aero_list = pd.Series(np.empty(n_peaks,dtype='<U10'),index=df_top_peaks.index)
+        
+        for peak in df_top_peaks.index:
+            mol_nospace = df_top_peaks['Formula'].loc[peak].replace(" ","")              
+            try:
+                ds_Sari_list.loc[peak] = Sari_peaks.loc[mol_nospace].values[0]
+            except:
+                ds_Sari_list.loc[peak] = ''
+            #pdb.set_trace()
+            try:
+                ds_aero_list.loc[peak] = ds_aerosolomics.loc[df_top_peaks['Formula'].loc[peak]]
+            except:
+                ds_aero_list.loc[peak] = ''
+            
+        df_top_peaks['Sari'] = ds_Sari_list
+        df_top_peaks['Aerosolomics'] = ds_aero_list
+        
+        #append to csv
+        if "prefix" in kwargs:
+            header = kwargs.get("prefix")
+        else:
+            header = ""
+        header = header + 'Cluster ' + str(cluster) + '\n'
+        footer = '\n\n'
+        with open(csvpath, 'a', newline='\n') as file_buffer:
+            #Add a header 
+            file_buffer.write(header)
+            #Append to csv
+            df_top_peaks.to_csv(file_buffer,line_terminator='')
+            #Add footer
+            file_buffer.write(footer)
+        
+        
+    
+    
+
+path_unscaled = r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\top_peaks_unscaled.csv"
+path_qt = r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\top_peaks_qt.csv"
+path_normdot = r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\top_peaks_normdot.csv"
+extract_clusters_top_peaks(df_all_data,cluster_labels_unscaled,30,Sari_peaks_list,ds_mol_aerosolomics_nodup,path_unscaled, prefix="Unscaled")
+extract_clusters_top_peaks(df_all_data,cluster_labels_qt,30,Sari_peaks_list,ds_mol_aerosolomics_nodup,path_qt, prefix="qt")
+extract_clusters_top_peaks(df_all_data,cluster_labels_normdot,30,Sari_peaks_list,ds_mol_aerosolomics_nodup,path_normdot, prefix="normdot")
+
+
+#df_top_peaks_Beijing_winter = cluster_extract_peaks(df_all_data.loc[ds_dataset_cat == 'Beijing_winter'].mean(axis=0), df_all_data.T,n_peaks,dp=1,dropRT=False)
+
+
+
 
 #%%Classify unusually high peaks
 
 #What fraction of CHOX/CHNX/CHSX are unusually high versus unusually low??
 #What are each of the molecules doing?
 
-def plot_peak_fraction_quantiles(df_moltypes,cluster_labels):
-    #Pick out the clusters
-    unique_clusters = np.unique(cluster_labels)
-    num_moltypes = len(df_moltypes.columns)
-    bins=[0,25,50,75,100]
-    bins_Q = ['Q1','Q2','Q3','Q4']
-    
-    fig,axes = plt.subplots(1,3,sharey=True,figsize=(10,5))
-    
-    for mol, ax in zip(df_moltypes.columns,axes):
-        ax.set_title(mol)
-        df_mol = pd.DataFrame(index=unique_clusters,columns=bins_Q)
-        
-        for cluster in unique_clusters:
-            #pdb.set_trace()
-            ds_this_cluster = df_moltypes[mol].loc[cluster_labels == cluster]
-            cluster_counts = np.histogram(ds_this_cluster,bins=bins)[0]
-            cluster_counts = cluster_counts / cluster_counts.sum()
-            df_mol.loc[cluster] = cluster_counts
-                       
-        #df_mol.plot.bar(ax=ax,stacked=True,cmap='copper')
-        pdb.set_trace()
-        df_mol.plot.box(ax=ax)
-        #sns.boxplot(df_mol,x=bins_Q,y=)
-            
-        
-        
-    
-        #For this cluster, pick out each molecule type and count the molecules in different quantile bins
 
-plot_peak_fraction_quantiles(df_all_data_moltypes2_pct,cluster_labels_unscaled)
+fig,ax= plt.subplots(1,3,figsize=(10,5))
+ax = ax.ravel()
+sns.boxplot(y=df_all_data_moltypes2['CHOX'],x=cluster_labels_unscaled,ax=ax[0])
+sns.boxplot(y=df_all_data_moltypes2['CHSX'],x=cluster_labels_unscaled,ax=ax[1])
+sns.boxplot(y=df_all_data_moltypes2['CHNX'],x=cluster_labels_unscaled,ax=ax[2])
+
 #%%A big gap
 ##Everything below here is old and probably wont make it into the final script
 
