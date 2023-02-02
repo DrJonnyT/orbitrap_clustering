@@ -33,10 +33,11 @@ def load_beijingdelhi_merge(newindex=None):
     #HOA already there
     df_merge_beijing_summer['AMS_OOA'] = df_merge_beijing_summer['AMS_OOA1'] + df_merge_beijing_summer['AMS_OOA2'] + df_merge_beijing_summer['AMS_OOA3']
     #COA already there
-    #No BBOA data so put nans in
-    a = np.empty(df_merge_beijing_summer.shape[0])
-    a[:] = np.nan
-    df_merge_beijing_summer['BBOA'] = a
+    #No BBOA data so put zeros in
+    #a = np.empty(df_merge_beijing_summer.shape[0])
+    #a[:] = np.nan
+    a = np.zeros(df_merge_beijing_summer.shape[0])
+    df_merge_beijing_summer['AMS_BBOA'] = a
     
     #Delhi summer
     #HOA already there as sum of HOA0 + nHOA
@@ -56,12 +57,13 @@ def load_beijingdelhi_merge(newindex=None):
     
     #Add in AMS BBOA
        
-    a = np.empty(df_merge_beijing_summer.shape[1])
-    a[:] = np.nan
-    df_all_merge['AMS_BBOA'] = pd.concat([df_merge_beijing_winter['AMS_BBOA'],
-                                          pd.Series(a),
-                                          df_merge_delhi_summer['AMS_BBOA'],
-                                          df_merge_delhi_autumn['AMS_BBOA']])
+    # # a = np.empty(df_merge_beijing_summer.shape[1])
+    # # a[:] = np.nan
+    # a = np.zeros(df_merge_beijing_summer.shape[1])
+    # df_all_merge['AMS_BBOA'] = pd.concat([df_merge_beijing_winter['AMS_BBOA'],
+    #                                       pd.Series(a,index=),
+    #                                       df_merge_delhi_summer['AMS_BBOA'],
+    #                                       df_merge_delhi_autumn['AMS_BBOA']])
 
 
     
