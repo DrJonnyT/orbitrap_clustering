@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
+import numpy as np
 def load_beijingdelhi_merge(newindex=None):
 
     #Load the met data
@@ -17,44 +18,66 @@ def load_beijingdelhi_merge(newindex=None):
 
     df_merge_delhi_autumn = pd.read_csv(rootpath + r'\Delhi autumn 2018\Delhi_Autumn_merge_JT.csv',
                                       parse_dates=[0,1,2],dayfirst=True)
-    df_merge_delhi_autumn.set_index('date_mid',inplace=True)
-    
-    
-    # #Merge PMF for comparability
-    #     Beijing winter
-    # AMS_COA, AMS_aqOOA, AMS_FFOA, AMS_BBOA, AMS_OOA, AMS_OPOA
+    df_merge_delhi_autumn.set_index('date_mid',inplace=True)      
 
-    # Beijing summer
-    # AMS_OOA1/2/3, AMS_HOA, AMS_COA
-
-    # Delhi summer and autumn
-    # AMS_COA, AMS_HOA0, AMS_HOA, AMS_BBOA, AMS_NHOA, AMS_SFOA, AMS_SVBBOA, AMS_SVOOA
-
-    # AMS_HOA0+AMS_NHOA = AMS_HOA => just use AMS_HOA
-    
-    #BUT should BBOA be in OOA or HOA?? That's the big question
 
     
+    ##Prepare the AMS PMF data
+    #Beijing winter
+    df_merge_beijing_winter['AMS_HOA'] = df_merge_beijing_winter['AMS_FFOA']
+    df_merge_beijing_winter['AMS_OOA'] = df_merge_beijing_winter['AMS_OOA'] + df_merge_beijing_winter['AMS_OPOA'] + df_merge_beijing_winter['AMS_aqOOA']
+    #COA already there
+    #BBOA already there
     
+    #Beijing summer
+    #HOA already there
+    df_merge_beijing_summer['AMS_OOA'] = df_merge_beijing_summer['AMS_OOA1'] + df_merge_beijing_summer['AMS_OOA2'] + df_merge_beijing_summer['AMS_OOA3']
+    #COA already there
+    #No BBOA data so put nans in
+    a = np.empty(df_merge_beijing_summer.shape[0])
+    a[:] = np.nan
+    df_merge_beijing_summer['BBOA'] = a
     
+    #Delhi summer
+    #HOA already there as sum of HOA0 + nHOA
+    df_merge_delhi_summer['AMS_OOA'] = df_merge_delhi_summer['AMS_SVOOA']
+    #COA already there
+    #BBOA already there as sum of SFOA and SVBBOA
     
-    # df_merge_beijing_winter['AMS_HOA'] = df_merge_beijing_winter['AMS_FFOA']
-    # df_merge_beijing_winter['AMS_OOA'] = df_merge_beijing_winter['BBOA'] + df_merge_beijing_winter['aqOOA'] + df_merge_beijing_winter['OOA'] + df_merge_beijing_winter['OPOA']
-    
-    # df_merge_beijing_summer['AMS_OOA'] = df_merge_beijing_summer['AMS_OOA1'] + df_merge_beijing_summer['AMS_OOA2'] + df_merge_beijing_summer['AMS_OOA3']
-    
-    
-    # df_merge_delhi_summer['HOA'] = df_merge_delhi_summer['HOA'] + df_merge_delhi_summer['SFOA']
-    
-    # df_merge_delhi_summer.drop(['AMS_HOA0','AMS_NHOA'],axis=1,inplace=True)
-    # df_merge_delhi_autumn.drop(['AMS_HOA0','AMS_NHOA'],axis=1,inplace=True)
+    #Delhi autumn
+    #HOA already there as sum of HOA0 + nHOA
+    df_merge_delhi_autumn['AMS_OOA'] = df_merge_delhi_autumn['AMS_SVOOA']
+    #COA already there
+    #BBOA already there as sum of SFOA and SVBBOA
     
 
-    
     #Join together data frames
     df_all_merge = pd.concat([df_merge_beijing_winter,df_merge_beijing_summer,df_merge_delhi_summer,df_merge_delhi_autumn],join='inner')
+    
+    #Add in AMS BBOA
+       
+    a = np.empty(df_merge_beijing_summer.shape[1])
+    a[:] = np.nan
+    df_all_merge['AMS_BBOA'] = pd.concat([df_merge_beijing_winter['AMS_BBOA'],
+                                          pd.Series(a),
+                                          df_merge_delhi_summer['AMS_BBOA'],
+                                          df_merge_delhi_autumn['AMS_BBOA']])
+
+
     
     #Fuzzy merge with time index of the orbitrap data
     df_all_merge = pd.merge_asof(pd.DataFrame(index=newindex),df_all_merge,left_index=True,right_index=True,direction='nearest',tolerance=pd.Timedelta(hours=1.25))
 
+    #Scale the AMS PMF to sum to AMS_Org
+    # import pdb
+    # pdb.set_trace()
+    ds_scalefac = df_all_merge['AMS_Org'] / (df_all_merge['AMS_OOA'] + df_all_merge['AMS_HOA'] + df_all_merge['AMS_COA'] + df_all_merge['AMS_BBOA'])
+    df_all_merge['AMS_OOA'] = df_all_merge['AMS_OOA'] * ds_scalefac
+    df_all_merge['AMS_HOA'] = df_all_merge['AMS_HOA'] * ds_scalefac
+    df_all_merge['AMS_COA'] = df_all_merge['AMS_COA'] * ds_scalefac
+    df_all_merge['AMS_BBOA'] = df_all_merge['AMS_BBOA'] * ds_scalefac
+    
+    
+    
+    
     return df_all_merge, df_merge_beijing_winter,df_merge_beijing_summer,df_merge_delhi_summer,df_merge_delhi_autumn
