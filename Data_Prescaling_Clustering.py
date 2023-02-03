@@ -966,6 +966,15 @@ sns.reset_orig()
 
 #%%Now the same for the AMS data
 
+#Make dataframes of the mean of each pmf factor for each cluster, as a fraction so all add up to 1
+df_all_merge_AMS_PMF_frac_unscaled = df_all_merge[['AMS_FFOA','AMS_COA','AMS_BBOA','AMS_OOA']].groupby(df_all_merge['cluster_labels_unscaled']).mean()
+df_all_merge_AMS_PMF_frac_unscaled = df_all_merge_AMS_PMF_frac_unscaled.div(df_all_merge_AMS_PMF_frac_unscaled.sum(axis=1,skipna=False),axis=0)
+df_all_merge_AMS_PMF_frac_qt = df_all_merge[['AMS_FFOA','AMS_COA','AMS_BBOA','AMS_OOA']].groupby(df_all_merge['cluster_labels_qt']).mean()
+df_all_merge_AMS_PMF_frac_qt = df_all_merge_AMS_PMF_frac_qt.div(df_all_merge_AMS_PMF_frac_qt.sum(axis=1,skipna=False),axis=0)
+df_all_merge_AMS_PMF_frac_normdot = df_all_merge[['AMS_FFOA','AMS_COA','AMS_BBOA','AMS_OOA']].groupby(df_all_merge['cluster_labels_normdot']).mean()
+df_all_merge_AMS_PMF_frac_normdot = df_all_merge_AMS_PMF_frac_normdot.div(df_all_merge_AMS_PMF_frac_normdot.sum(axis=1,skipna=False),axis=0)
+
+
 #Make all the y scales the same
 scale=1.1
 limits = [
@@ -978,53 +987,78 @@ limits = [
 
 sns.set_context("talk", font_scale=1)
 
-#Unscaled data
-fig,ax = plt.subplots(2,3,figsize=(10,10))
+#unscaled data
+fig,ax = plt.subplots(2,4,figsize=(12,8))
 ax = ax.ravel()
 sns.boxplot(ax=ax[0], x='cluster_labels_unscaled', y="AMS_Org", data=df_all_merge,showfliers=False,color='tab:green')
 sns.boxplot(ax=ax[1], x='cluster_labels_unscaled', y="AMS_NO3", data=df_all_merge,showfliers=False,color='tab:blue')
 sns.boxplot(ax=ax[2], x='cluster_labels_unscaled', y="AMS_SO4", data=df_all_merge,showfliers=False,color='tab:red')
-sns.boxplot(ax=ax[3], x='cluster_labels_unscaled', y="AMS_HOA", data=df_all_merge,showfliers=False,color='k')
-sns.boxplot(ax=ax[4], x='cluster_labels_unscaled', y="AMS_COA", data=df_all_merge,showfliers=False,color='tab:gray')
-sns.boxplot(ax=ax[5], x='cluster_labels_unscaled', y="AMS_BBOA", data=df_all_merge,showfliers=False,color='tab:brown')
-
-(ax[i].set_ylim(limits[i]) for i in range(len(limits)))
-plt.suptitle('Unscaled data, 4 clusters')
+df_all_merge_AMS_PMF_frac_unscaled.plot(ax=ax[3],kind='bar', stacked=True,
+                                       color=['dimgray', 'silver', 'tab:brown','mediumpurple'],
+                                       legend=False,width=0.9)
+ax[3].set_ylabel('PMF fraction')
+sns.boxplot(ax=ax[4], x='cluster_labels_unscaled', y="AMS_FFOA", data=df_all_merge,showfliers=False,color='dimgray')
+sns.boxplot(ax=ax[5], x='cluster_labels_unscaled', y="AMS_COA", data=df_all_merge,showfliers=False,color='silver')
+sns.boxplot(ax=ax[6], x='cluster_labels_unscaled', y="AMS_BBOA", data=df_all_merge,showfliers=False,color='tab:brown')
+sns.boxplot(ax=ax[7], x='cluster_labels_unscaled', y="AMS_OOA", data=df_all_merge,showfliers=False,color='mediumpurple')
+#[ax[i].set_ylim(limits[i]) for i in range(len(limits))]
+plt.suptitle('unscaled data, 7 clusters')
+[axis.set_xlabel('')  for axis in ax]
 plt.tight_layout()
 plt.show()
 
 
 #qt data
-fig,ax = plt.subplots(2,3,figsize=(10,10))
+fig,ax = plt.subplots(2,4,figsize=(14,8))
 ax = ax.ravel()
 sns.boxplot(ax=ax[0], x='cluster_labels_qt', y="AMS_Org", data=df_all_merge,showfliers=False,color='tab:green')
 sns.boxplot(ax=ax[1], x='cluster_labels_qt', y="AMS_NO3", data=df_all_merge,showfliers=False,color='tab:blue')
 sns.boxplot(ax=ax[2], x='cluster_labels_qt', y="AMS_SO4", data=df_all_merge,showfliers=False,color='tab:red')
-sns.boxplot(ax=ax[3], x='cluster_labels_qt', y="AMS_HOA", data=df_all_merge,showfliers=False,color='k')
-sns.boxplot(ax=ax[4], x='cluster_labels_qt', y="AMS_COA", data=df_all_merge,showfliers=False,color='tab:gray')
-sns.boxplot(ax=ax[5], x='cluster_labels_qt', y="AMS_BBOA", data=df_all_merge,showfliers=False,color='tab:brown')
-(ax[i].set_ylim(limits[i]) for i in range(len(limits)))
+df_all_merge_AMS_PMF_frac_qt.plot(ax=ax[3],kind='bar', stacked=True,
+                                       color=['dimgray', 'silver', 'tab:brown','mediumpurple'],
+                                       legend=False,width=0.9)
+ax[3].set_ylabel('PMF fraction')
+sns.boxplot(ax=ax[4], x='cluster_labels_qt', y="AMS_FFOA", data=df_all_merge,showfliers=False,color='dimgray')
+sns.boxplot(ax=ax[5], x='cluster_labels_qt', y="AMS_COA", data=df_all_merge,showfliers=False,color='silver')
+sns.boxplot(ax=ax[6], x='cluster_labels_qt', y="AMS_BBOA", data=df_all_merge,showfliers=False,color='tab:brown')
+sns.boxplot(ax=ax[7], x='cluster_labels_qt', y="AMS_OOA", data=df_all_merge,showfliers=False,color='mediumpurple')
+#(ax[i].set_ylim(limits[i]) for i in range(len(limits)))
 plt.suptitle('qt data, 7 clusters')
+[axis.set_xlabel('')  for axis in ax]
 plt.tight_layout()
 plt.show()
 
 #normdot data
-fig,ax = plt.subplots(2,3,figsize=(10,10))
+fig,ax = plt.subplots(2,4,figsize=(14,8))
 ax = ax.ravel()
 sns.boxplot(ax=ax[0], x='cluster_labels_normdot', y="AMS_Org", data=df_all_merge,showfliers=False,color='tab:green')
 sns.boxplot(ax=ax[1], x='cluster_labels_normdot', y="AMS_NO3", data=df_all_merge,showfliers=False,color='tab:blue')
 sns.boxplot(ax=ax[2], x='cluster_labels_normdot', y="AMS_SO4", data=df_all_merge,showfliers=False,color='tab:red')
-sns.boxplot(ax=ax[3], x='cluster_labels_normdot', y="AMS_HOA", data=df_all_merge,showfliers=False,color='k')
-sns.boxplot(ax=ax[4], x='cluster_labels_normdot', y="AMS_COA", data=df_all_merge,showfliers=False,color='tab:gray')
-sns.boxplot(ax=ax[5], x='cluster_labels_normdot', y="AMS_BBOA", data=df_all_merge,showfliers=False,color='tab:brown')
-(ax[i].set_ylim(limits[i]) for i in range(len(limits)))
+df_all_merge_AMS_PMF_frac_normdot.plot(ax=ax[3],kind='bar', stacked=True,
+                                       color=['dimgray', 'silver', 'tab:brown','mediumpurple'],
+                                       legend=False,width=0.9)
+ax[3].set_ylabel('PMF fraction')
+sns.boxplot(ax=ax[4], x='cluster_labels_normdot', y="AMS_FFOA", data=df_all_merge,showfliers=False,color='dimgray')
+sns.boxplot(ax=ax[5], x='cluster_labels_normdot', y="AMS_COA", data=df_all_merge,showfliers=False,color='silver')
+sns.boxplot(ax=ax[6], x='cluster_labels_normdot', y="AMS_BBOA", data=df_all_merge,showfliers=False,color='tab:brown')
+sns.boxplot(ax=ax[7], x='cluster_labels_normdot', y="AMS_OOA", data=df_all_merge,showfliers=False,color='mediumpurple')
+#(ax[i].set_ylim(limits[i]) for i in range(len(limits)))
 plt.suptitle('normdot data, 8 clusters')
+[axis.set_xlabel('')  for axis in ax]
 plt.tight_layout()
 plt.show()
 
 sns.reset_orig()
 
 
+
+
+#%%Check precip vs AMS org vs co
+fig,ax = plt.subplots()
+df_all_merge.loc[df_all_merge['HYSPLIT_precip']==0].plot.scatter(x='co_ppbv',y='AMS_Org',c='k',ax=ax)
+df_all_merge.loc[df_all_merge['HYSPLIT_precip']>0].plot.scatter(x='co_ppbv',y='AMS_Org',c='b',ax=ax)
+
+plt.show()
 
 #%%Plot AQ vs wind/precip
 
@@ -1361,7 +1395,7 @@ bottom_peaks_normdot.to_csv(export_path + '\pct_bottom_peaks_normdot.csv')
 df_JT_peaks = pd.read_csv(r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\JT_mol_list.csv",index_col='Formula')
 
 #Extract the top n peaks for each cluster, tag with labels from SAri and aerosolomics, and save as csv
-def extract_clusters_top_peaks(df_data,cluster_labels,n_peaks,csvpath,**kwargs):
+def extract_clusters_top_peaks_csv(df_data,cluster_labels,n_peaks,csvpath,**kwargs):
     
     #Check if peak labels are there
     if "sari_peaks" in kwargs:
@@ -1418,12 +1452,12 @@ def extract_clusters_top_peaks(df_data,cluster_labels,n_peaks,csvpath,**kwargs):
             
         #Same for JT's peaks
         if(JT_peaks):
-            df_JT_list = pd.DataFrame(np.empty([n_peaks,2]),dtype='<U10',index=df_top_peaks.index,columns=df_JT_peaks.columns)
+            df_JT_list = pd.DataFrame(np.empty([n_peaks,4]),dtype='<U10',index=df_top_peaks.index,columns=df_JT_peaks.columns)
             for peak in df_top_peaks.index:
                 try:
                     df_JT_list.loc[peak] = df_JT_peaks.loc[df_top_peaks['Formula'].loc[peak]]
                 except:
-                    df_JT_list.loc[peak] = ['','']
+                    df_JT_list.loc[peak] = ['','','','']
             df_top_peaks[['JT_source','JT_ref']] = df_JT_list[['Source','Reference']]
         
         
@@ -1449,9 +1483,9 @@ def extract_clusters_top_peaks(df_data,cluster_labels,n_peaks,csvpath,**kwargs):
 path_unscaled = r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\top_peaks_unscaled.csv"
 path_qt = r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\top_peaks_qt.csv"
 path_normdot = r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\top_peaks_normdot.csv"
-extract_clusters_top_peaks(df_all_data,cluster_labels_unscaled,30,path_unscaled, prefix="Unscaled ",sari_peaks=Sari_peaks_list,aerosolomics_peaks=ds_mol_aerosolomics_nodup,JT_peaks=df_JT_peaks)
-extract_clusters_top_peaks(df_all_data,cluster_labels_qt,30,path_qt, prefix="qt ",sari_peaks=Sari_peaks_list,aerosolomics_peaks=ds_mol_aerosolomics_nodup,JT_peaks=df_JT_peaks)
-extract_clusters_top_peaks(df_all_data,cluster_labels_normdot,30,path_normdot, prefix="normdot ",sari_peaks=Sari_peaks_list,aerosolomics_peaks=ds_mol_aerosolomics_nodup,JT_peaks=df_JT_peaks)
+extract_clusters_top_peaks_csv(df_all_data,cluster_labels_unscaled,30,path_unscaled, prefix="Unscaled ",sari_peaks=Sari_peaks_list,aerosolomics_peaks=ds_mol_aerosolomics_nodup,JT_peaks=df_JT_peaks)
+extract_clusters_top_peaks_csv(df_all_data,cluster_labels_qt,30,path_qt, prefix="qt ",sari_peaks=Sari_peaks_list,aerosolomics_peaks=ds_mol_aerosolomics_nodup,JT_peaks=df_JT_peaks)
+extract_clusters_top_peaks_csv(df_all_data,cluster_labels_normdot,30,path_normdot, prefix="normdot ",sari_peaks=Sari_peaks_list,aerosolomics_peaks=ds_mol_aerosolomics_nodup,JT_peaks=df_JT_peaks)
 
 
 #df_top_peaks_Beijing_winter = cluster_extract_peaks(df_all_data.loc[ds_dataset_cat == 'Beijing_winter'].mean(axis=0), df_all_data.T,n_peaks,dp=1,dropRT=False)
