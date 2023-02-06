@@ -1413,6 +1413,12 @@ def extract_clusters_top_peaks_csv(df_data,cluster_labels,n_peaks,csvpath,**kwar
         JT_peaks = True
     else:
         JT_peaks = False
+    #Percentage threshold rather than top n peaks
+    if "pct" in kwargs:
+        pct = kwargs.get("pct")
+    else:
+        pct = 0
+    
     
     
     
@@ -1461,6 +1467,11 @@ def extract_clusters_top_peaks_csv(df_data,cluster_labels,n_peaks,csvpath,**kwar
             df_top_peaks[['JT_source','JT_ref']] = df_JT_list[['Source','Reference']]
         
         
+        #Use percentage threshold, percentage > pct
+        if pct>0:
+            df_top_peaks = df_top_peaks.loc[df_top_peaks['peak_pct']>=pct]
+        
+        
         #append to csv
         if "prefix" in kwargs:
             header = kwargs.get("prefix")
@@ -1483,9 +1494,9 @@ def extract_clusters_top_peaks_csv(df_data,cluster_labels,n_peaks,csvpath,**kwar
 path_unscaled = r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\top_peaks_unscaled.csv"
 path_qt = r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\top_peaks_qt.csv"
 path_normdot = r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\top_peaks_normdot.csv"
-extract_clusters_top_peaks_csv(df_all_data,cluster_labels_unscaled,30,path_unscaled, prefix="Unscaled ",sari_peaks=Sari_peaks_list,aerosolomics_peaks=ds_mol_aerosolomics_nodup,JT_peaks=df_JT_peaks)
-extract_clusters_top_peaks_csv(df_all_data,cluster_labels_qt,30,path_qt, prefix="qt ",sari_peaks=Sari_peaks_list,aerosolomics_peaks=ds_mol_aerosolomics_nodup,JT_peaks=df_JT_peaks)
-extract_clusters_top_peaks_csv(df_all_data,cluster_labels_normdot,30,path_normdot, prefix="normdot ",sari_peaks=Sari_peaks_list,aerosolomics_peaks=ds_mol_aerosolomics_nodup,JT_peaks=df_JT_peaks)
+extract_clusters_top_peaks_csv(df_all_data,cluster_labels_unscaled,30,path_unscaled, prefix="Unscaled ",sari_peaks=Sari_peaks_list,aerosolomics_peaks=ds_mol_aerosolomics_nodup,JT_peaks=df_JT_peaks,pct=1.)
+extract_clusters_top_peaks_csv(df_all_data,cluster_labels_qt,30,path_qt, prefix="qt ",sari_peaks=Sari_peaks_list,aerosolomics_peaks=ds_mol_aerosolomics_nodup,JT_peaks=df_JT_peaks,pct=1.)
+extract_clusters_top_peaks_csv(df_all_data,cluster_labels_normdot,30,path_normdot, prefix="normdot ",sari_peaks=Sari_peaks_list,aerosolomics_peaks=ds_mol_aerosolomics_nodup,JT_peaks=df_JT_peaks,pct=1.)
 
 
 #df_top_peaks_Beijing_winter = cluster_extract_peaks(df_all_data.loc[ds_dataset_cat == 'Beijing_winter'].mean(axis=0), df_all_data.T,n_peaks,dp=1,dropRT=False)
