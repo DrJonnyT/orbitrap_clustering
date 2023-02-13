@@ -8,6 +8,7 @@ Created on Wed Nov  2 10:45:01 2022
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as plticker
+import matplotlib.transforms as mtransforms
 import numpy as np
 import scipy
 
@@ -496,13 +497,15 @@ for n_clusters in df_cluster_labels_mtx_unscaled:
 
 
 #%%Plot cluster metrics
-sns.set_context("talk", font_scale=1)
-fig,ax = plt.subplots(3,1,figsize=(9,12),sharex=True)
+trans = mtransforms.ScaledTranslation(5/72, -5/72, fig.dpi_scale_trans)
+
+sns.set_context("talk", font_scale=0.8)
+fig,ax = plt.subplots(3,1,figsize=(8,12),sharex=True)
 ax[0].plot(df_cluster_labels_mtx_unscaled.columns,df_cluster_counts_mtx_unscaled.min(axis=1),label='Naive',linewidth=2,c='k')
-ax[0].plot(df_cluster_labels_mtx_unscaled.columns,df_cluster_counts_mtx_normdot.min(axis=1),label='NormDot',linewidth=2,c='tab:blue')
 ax[0].plot(df_cluster_labels_mtx_qt.columns,df_cluster_counts_mtx_qt.min(axis=1),label='QT',linewidth=2,c='tab:red')
+ax[0].plot(df_cluster_labels_mtx_unscaled.columns,df_cluster_counts_mtx_normdot.min(axis=1),label='NormDot',linewidth=2,c='tab:blue')
 #ax[0].plot(df_cluster_labels_mtx_signoise.columns,df_cluster_counts_mtx_signoise.min(axis=1),label='Sig/noise',c='k',linewidth=2)
-ax[0].set_title('Cardinality of smallest cluster')
+#ax[0].set_title('Cardinality of smallest cluster')
 ax[0].set_ylabel('Number of samples')
 ax[0].set_xlabel('Num clusters')
 ax[0].yaxis.set_major_locator(plticker.MultipleLocator(2))
@@ -511,54 +514,45 @@ ax[0].grid(axis='y')
 ax[0].set_ylim([0,20])
 ax[0].label_outer()
 ax[0].xaxis.set_tick_params(labelbottom=True)
+ax[0].text(0.0, 1.0, '(a)', transform=ax[0].transAxes + trans,
+            fontsize='medium', verticalalignment='top', fontfamily='serif',
+            bbox=dict(facecolor='1.0', edgecolor='none', pad=1.0))
+
+
 
 
 ax[1].plot(df_cluster_labels_mtx_unscaled.columns,df_cluster_corr_mtx_unscaled.max(axis=1),label='Naive',linewidth=2,c='k')
-ax[1].plot(df_cluster_labels_mtx_unscaled.columns,df_cluster_corr_mtx_normdot.max(axis=1),label='Normdot',linewidth=2,c='tab:blue')
 ax[1].plot(df_cluster_labels_mtx_qt.columns,df_cluster_corr_mtx_qt.max(axis=1),label='QT',linewidth=2,c='tab:red')
-#ax[1].plot(df_cluster_labels_mtx_signoise.columns,df_cluster_corr_mtx_signoise.max(axis=1),label='Sig/noise (unscaled)',c='k',linewidth=2)
-
-#ax[1].plot(df_cluster_labels_mtx_minmax.columns,df_cluster_corr_mtx_minmax_s.max(axis=1),label='MinMax (scaled ms data)',linewidth=2,linestyle='--',c='tab:blue')
-#ax[1].plot(df_cluster_labels_mtx_qt.columns,df_cluster_corr_mtx_qt_s.max(axis=1),label='QT (scaled ms data)',linewidth=2,linestyle='--',c='tab:red')
-#ax[1].plot(df_cluster_labels_mtx_signoise.columns,df_cluster_corr_mtx_signoise_s.max(axis=1),label='Sig/noise (scaled)',c='k',linewidth=2,linestyle='--')
-
+ax[1].plot(df_cluster_labels_mtx_unscaled.columns,df_cluster_corr_mtx_normdot.max(axis=1),label='Normdot',linewidth=2,c='tab:blue')
 ax[1].legend(title='Cluster labels',framealpha=1.,loc='center right',bbox_to_anchor=(1.5, 0.5))
 ax[1].set_ylabel('Correlation')
-ax[1].set_title('Max normdot between mean unscaled cluster profiles')
 ax[1].set_ylim(0.7)
 ax[1].yaxis.set_major_locator(plticker.MultipleLocator(0.05))
 ax[1].yaxis.set_minor_locator(plticker.MultipleLocator(0.025))
-
 ax[1].grid(axis='y')
 ax[1].xaxis.set_major_locator(plticker.MaxNLocator(integer=True))
 ax[1].xaxis.set_minor_locator(plticker.MultipleLocator(1))
-
 ax[1].label_outer()
 ax[1].xaxis.set_tick_params(labelbottom=True)
-
+ax[1].text(0.0, 1.0, '(b)', transform=ax[1].transAxes + trans,
+            fontsize='medium', verticalalignment='top', fontfamily='serif',
+            bbox=dict(facecolor='1.0', edgecolor='none', pad=1.0))
 
 ax[2].plot(df_cluster_labels_mtx_unscaled.columns,Silhouette_scores_unscaled,label='Naive',linewidth=2,c='k')
-ax[2].plot(df_cluster_labels_mtx_qt.columns,Silhouette_scores_normdot,label='normdot',linewidth=2,c='tab:blue')
-#ax2t = ax[2].twinx()
-#ax2t.plot(df_cluster_labels_mtx_unscaled.columns,Silhouette_scores_qt,label='QT',linewidth=2,c='tab:red')
 ax[2].plot(df_cluster_labels_mtx_unscaled.columns,Silhouette_scores_qt,label='QT',linewidth=2,c='tab:red')
-ax[2].set_title('Silhouette score in data used for clustering')
+ax[2].plot(df_cluster_labels_mtx_qt.columns,Silhouette_scores_normdot,label='normdot',linewidth=2,c='tab:blue')
 ax[2].set_ylabel('Silhouette score')
-ax[2].set_xlabel('Num clusters')
+ax[2].set_xlabel('Number of clusters')
 ax[2].grid(axis='y')
-ax[2].set_ylim(0.13,0.6)
+ax[2].set_ylim(0.13,0.65)
 ax[2].yaxis.set_major_locator(plticker.MultipleLocator(0.1))
 ax[2].yaxis.set_minor_locator(plticker.MultipleLocator(0.05))
+ax[2].text(0.0, 1.0, '(c)', transform=ax[2].transAxes + trans,
+            fontsize='medium', verticalalignment='top', fontfamily='serif',
+            bbox=dict(facecolor='1.0', edgecolor='none', pad=1.0))
 
-#ax2t.set_yticks(np.arange(0.13,0.23,0.02))
 
-
-#ax2t.yaxis.set_minor_locator(plticker.MultipleLocator(0.025))
-#ax2t.set_ylabel('Silhouette score (QT data)')
-#ax2t.set_ylim(0.14,0.21)
-
-fig.suptitle('Cluster cardinality and similarity')
-
+fig.suptitle('Cluster cardinality and similarity',x=0.4)
 plt.tight_layout()
 plt.show()
 sns.reset_orig()
