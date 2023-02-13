@@ -336,8 +336,8 @@ df_top_peaks_qt = df_all_qt[df_top_peaks_list.index]
 #df_top_peaks_unscaled.columns = df_top_peaks_unscaled.columns.get_level_values(0) + ", " +  df_top_peaks_unscaled.columns.get_level_values(1).astype(str)
 
 
-df_top_peaks_unscaled.columns = combine_multiindex(df_top_peaks_unscaled.columns)
-df_top_peaks_qt.columns = combine_multiindex(df_top_peaks_qt.columns)
+df_top_peaks_unscaled.columns = combine_multiindex(df_top_peaks_unscaled.columns,nospaces=True)
+df_top_peaks_qt.columns = combine_multiindex(df_top_peaks_qt.columns,nospaces=True)
 #df_top_peaks_minmax.columns = combine_multiindex(df_top_peaks_minmax.columns)
 #df_top_peaks_signoise.columns = combine_multiindex(df_top_peaks_signoise.columns)
     
@@ -347,78 +347,70 @@ df_top_peaks_qt.columns = combine_multiindex(df_top_peaks_qt.columns)
 #%%Pairplots distributions of these n biggest peaks
 
 #Set Seaborn context so plots have better font sizes
-sns.set_context("talk", font_scale=1)
+sns.set_context("talk", font_scale=0.9)
 
 #Unscaled data
-#g = sns.pairplot(df_top_peaks_unscaled,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("Unscaled data", y=1.01,fontsize=20)
 g = sns.PairGrid(df_top_peaks_unscaled,corner=True)
-g.fig.suptitle("Unscaled data", y=0.95,fontsize=26)
+g.fig.suptitle("No prescaling", y=0.95,fontsize=26)
 g.map_lower(sns.scatterplot, hue=ds_dataset_cat.cat.codes,palette = 'RdBu',linewidth=0.5,s=50)
 g.map_diag(plt.hist, color='grey',edgecolor='black', linewidth=1.2)
-g.add_legend(fontsize=26)
-g.legend.get_texts()[0].set_text('Beijing Winter') # You can also change the legend title
-g.legend.get_texts()[1].set_text('Beijing Summer')
-g.legend.get_texts()[2].set_text('Delhi Summer')
-g.legend.get_texts()[3].set_text('Delhi Autumn')
+g.add_legend(fontsize=26,frameon=True)
+g.legend.get_texts()[0].set_text('Beijing winter') # You can also change the legend title
+g.legend.get_texts()[1].set_text('Beijing summer')
+g.legend.get_texts()[2].set_text('Delhi pre-monsoon')
+g.legend.get_texts()[3].set_text('Delhi post-monsoon')
 sns.move_legend(g, "center right", bbox_to_anchor=(0.8, 0.55), title='Dataset')
-plt.setp(g.legend.get_title(), fontsize='24')
-plt.setp(g.legend.get_texts(), fontsize='24')
+plt.setp(g.legend.get_title(), fontsize='20')
+plt.setp(g.legend.get_texts(), fontsize='20')
 plt.show()
 
-
-# #MinMax data
-# #sns.pairplot(df_top_peaks_minmax,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("MinMax data", y=1.01,fontsize=20)
-# g = sns.PairGrid(df_top_peaks_minmax,corner=True)
-# g.fig.suptitle("MinMax data", y=0.95,fontsize=26)
-# g.map_lower(sns.scatterplot, hue=ds_dataset_cat.cat.codes,palette = 'RdBu',linewidth=0.5,s=50)
-# g.map_diag(plt.hist, color='grey',edgecolor='black', linewidth=1.2)
-# g.add_legend(fontsize=26)
-# g.legend.get_texts()[0].set_text('Beijing Winter') # You can also change the legend title
-# g.legend.get_texts()[1].set_text('Beijing Summer')
-# g.legend.get_texts()[2].set_text('Delhi Summer')
-# g.legend.get_texts()[3].set_text('Delhi Autumn')
-# sns.move_legend(g, "center right", bbox_to_anchor=(0.8, 0.55), title='Dataset')
-# plt.setp(g.legend.get_title(), fontsize='24')
-# plt.setp(g.legend.get_texts(), fontsize='24')
-# plt.show()
 
 
 #QT data
 #sns.pairplot(df_top_peaks_qt,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("QT data", y=1.01,fontsize=20)
 g = sns.PairGrid(df_top_peaks_qt,corner=True)
-g.fig.suptitle("QuantileTansformer data", y=0.95,fontsize=26)
+g.fig.suptitle("Quantile transformer prescaling", y=0.95,fontsize=26)
 g.map_lower(sns.scatterplot, hue=ds_dataset_cat.cat.codes,palette = 'RdBu',linewidth=0.5,s=50)
 g.map_diag(plt.hist, color='grey',edgecolor='black', linewidth=1.2)
-g.add_legend(fontsize=26)
-g.legend.get_texts()[0].set_text('Beijing Winter') # You can also change the legend title
-g.legend.get_texts()[1].set_text('Beijing Summer')
-g.legend.get_texts()[2].set_text('Delhi Summer')
-g.legend.get_texts()[3].set_text('Delhi Autumn')
+g.add_legend(fontsize=26,frameon=True)
+g.legend.get_texts()[0].set_text('Beijing winter') # You can also change the legend title
+g.legend.get_texts()[1].set_text('Beijing summer')
+g.legend.get_texts()[2].set_text('Delhi pre-monsoon')
+g.legend.get_texts()[3].set_text('Delhi post-monsoon')
 sns.move_legend(g, "center right", bbox_to_anchor=(0.8, 0.55), title='Dataset')
-plt.setp(g.legend.get_title(), fontsize='24')
-plt.setp(g.legend.get_texts(), fontsize='24')
+plt.setp(g.legend.get_title(), fontsize='20')
+plt.setp(g.legend.get_texts(), fontsize='20')
 plt.show()
-
-
-# #Sig/noise data
-# #sns.pairplot(df_top_peaks_signoise,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("Sig/noise data", y=1.01,fontsize=20)
-# g = sns.PairGrid(df_top_peaks_signoise,corner=True)
-# g.fig.suptitle("Sig/noise data", y=0.95,fontsize=26)
-# g.map_lower(sns.scatterplot, hue=ds_dataset_cat.cat.codes,palette = 'RdBu',linewidth=0.5,s=50)
-# g.map_diag(plt.hist, color='grey',edgecolor='black', linewidth=1.2)
-# g.add_legend(fontsize=26)
-# g.legend.get_texts()[0].set_text('Beijing Winter') # You can also change the legend title
-# g.legend.get_texts()[1].set_text('Beijing Summer')
-# g.legend.get_texts()[2].set_text('Delhi Summer')
-# g.legend.get_texts()[3].set_text('Delhi Autumn')
-# sns.move_legend(g, "center right", bbox_to_anchor=(0.8, 0.55), title='Dataset')
-# plt.setp(g.legend.get_title(), fontsize='24')
-# plt.setp(g.legend.get_texts(), fontsize='24')
-# plt.show()
 
 
 #Reset seaborn context so matplotlib plots are not messed up
 sns.reset_orig()
+
+
+
+
+#%%How many compounds are the highest compound at any given time in the dataset?
+
+df_all_max = df_all_data.idxmax(axis=1)
+df_all_max_qt = df_all_qt.idxmax(axis=1)
+
+#11 compounds
+np.unique(df_all_max)
+#240 compounds
+np.unique(df_all_max_qt)
+
+
+
+#Top 8 at any given time?
+#107
+top8_at_any_point = df_all_data.apply(lambda s: s.abs().nlargest(8).index.tolist(), axis=1)
+np.unique(np.hstack(top8_at_any_point.to_numpy()).ravel()).shape
+#510
+top8_at_any_point_qt = df_all_qt.apply(lambda s: s.abs().nlargest(8).index.tolist(), axis=1)
+np.unique(np.hstack(top8_at_any_point_qt.to_numpy()).ravel()).shape
+
+
+
 
 
 #%%Cluster metrics for four different data prescaling
@@ -1390,9 +1382,19 @@ bottom_peaks_normdot.to_csv(export_path + '\pct_bottom_peaks_normdot.csv')
 
 
 
+
+#%%
+import chardet
+
+rawdata = open("C:/Users\mbcx5jt5/Dropbox (The University of Manchester)/Complex-SOA\Clustering/Cluster_Top_Peaks/JT_mol_list.csv", "rb").read()
+result = chardet.detect(rawdata)
+print(result)
+
+
+
 #%%Extract the top peaks for each cluster
 
-df_JT_peaks = pd.read_csv(r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\JT_mol_list.csv",index_col='Formula')
+df_JT_peaks = pd.read_csv(r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\JT_mol_list.csv",index_col='Formula',encoding='ISO-8859-1')
 
 #Extract the top n peaks for each cluster, tag with labels from SAri and aerosolomics, and save as csv
 def extract_clusters_top_peaks_csv(df_data,cluster_labels,n_peaks,csvpath,**kwargs):
@@ -1458,12 +1460,12 @@ def extract_clusters_top_peaks_csv(df_data,cluster_labels,n_peaks,csvpath,**kwar
             
         #Same for JT's peaks
         if(JT_peaks):
-            df_JT_list = pd.DataFrame(np.empty([n_peaks,4]),dtype='<U10',index=df_top_peaks.index,columns=df_JT_peaks.columns)
+            df_JT_list = pd.DataFrame(np.empty([n_peaks,3]),dtype='<U10',index=df_top_peaks.index,columns=df_JT_peaks.columns)
             for peak in df_top_peaks.index:
                 try:
                     df_JT_list.loc[peak] = df_JT_peaks.loc[df_top_peaks['Formula'].loc[peak]]
                 except:
-                    df_JT_list.loc[peak] = ['','','','']
+                    df_JT_list.loc[peak] = ['','','']
             df_top_peaks[['JT_source','JT_ref']] = df_JT_list[['Source','Reference']]
         
         
