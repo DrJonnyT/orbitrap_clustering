@@ -4,3 +4,4 @@ ipython_log.py
 model.png
 /Performance_Metrics/
 /functions/__pycache__/
+.ipynb_checkpoints/
