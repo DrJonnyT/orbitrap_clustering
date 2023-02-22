@@ -6,10 +6,22 @@ import pdb
 
 
 def plot_clusters_project_daylight(cluster_labels,ds_dataset_cat,ds_day_frac,**kwargs):
+    """
+    Plot the fraction of each cluster from the different datasets (panel (a)), and the fraction from day/night (panel (b))
+
+    Parameters
+    ----------
+    cluster_labels : array
+        Cluster labels
+    ds_dataset_cat : Pandas Series
+        Index is time, values are the category of the dataset from Beijing/Delhi
+    ds_day_frac : Pandas Series
+        Index is time, values are the fraction of daylight vs night
+    
+    """
     
     #Count clusters by project and time, and plot them
-    
-    sns.set_context("paper", font_scale=1.)    
+    sns.set_context('talk')
     
     cluster_labels = np.array(cluster_labels)
     a = pd.DataFrame(cluster_labels,columns=['clust'],index=ds_dataset_cat.index)
@@ -22,7 +34,7 @@ def plot_clusters_project_daylight(cluster_labels,ds_dataset_cat,ds_day_frac,**k
     df_day_frac['Day'] = ds_day_frac
     df_day_frac['Night'] = 1 - ds_day_frac
     
-    
+    #Make the figure
     fig,ax = plt.subplots(1,2,figsize=(12,5),sharey=True)
     ax = ax.ravel()
     cmap = 'RdYlBu'
@@ -39,14 +51,11 @@ def plot_clusters_project_daylight(cluster_labels,ds_dataset_cat,ds_day_frac,**k
 
     #Set legend handles and size
     handles, labels = ax[0].get_legend_handles_labels()
-    ax[0].legend(handles, ['Beijing Winter','Beijing Summer','Delhi Premonsoon', 'Delhi Postmonsoon'], bbox_to_anchor=(0.5, -0.5),loc='lower center',ncol=2,handletextpad=0.4)            
-    ax[1].legend(bbox_to_anchor=(0.5, -0.5),loc='lower center',ncol=3,handletextpad=0.4)
-    
-    
+    ax[0].legend(handles, ['Beijing Winter','Beijing Summer','Delhi Premonsoon', 'Delhi Postmonsoon'], bbox_to_anchor=(0.5, -0.4),loc='lower center',ncol=2,handletextpad=0.4)            
+    ax[1].legend(bbox_to_anchor=(0.5, -0.32),loc='lower center',ncol=3,handletextpad=0.4)
+        
     if "suptitle" in kwargs:
         plt.suptitle(kwargs.get("suptitle"))
         
-        
-    
     sns.reset_orig()
     
