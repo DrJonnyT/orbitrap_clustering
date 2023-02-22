@@ -59,7 +59,7 @@ def plot_orbitrap_ams_aqmet(cluster_labels,df_orbitrap_moltypes,df_merge,**kwarg
     
     [axis.set_xlabel('')  for axis in ax]
     
-    [axis.set_ylabel(ylab)  for axis, ylab in zip(ax,ylabels)]
+    [axis.set_ylabel(ylab,labelpad=0)  for axis, ylab in zip(ax,ylabels)]
     
     #Add letters in boxes for each subfigure
     trans = ScaledTranslation(2/72, -5/72, fig.dpi_scale_trans)
@@ -68,8 +68,7 @@ def plot_orbitrap_ams_aqmet(cluster_labels,df_orbitrap_moltypes,df_merge,**kwarg
         axis.text(0.0, 1.0, ('(' + letter + ')'), transform=axis.transAxes + trans,
                 fontsize='medium', verticalalignment='top', fontfamily='serif',
                 bbox=dict(facecolor='1.0', edgecolor='none', pad=1.0))
-    
-    ax[0].set_ylabel(ylabels[0])
+
     
     if 'suptitle' in kwargs:    
         plt.suptitle(kwargs.get('suptitle'))
