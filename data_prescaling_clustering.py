@@ -665,9 +665,13 @@ cluster_labels_normdot = df_cluster_labels_mtx_normdot.loc[:,8:8].to_numpy().rav
 
 
 
-#Work out daylight hours
+#Work out daylight hours and plot fractions
 ds_day_frac_unscaled = calc_daynight_frac_per_cluster(cluster_labels_unscaled,df_daytime_hours)
-plot_clusters_project_daylight(df_cluster_labels_mtx,ds_dataset_cat,ds_day_frac,title_prefix=title_prefix)
+ds_day_frac_qt = calc_daynight_frac_per_cluster(cluster_labels_qt,df_daytime_hours)
+ds_day_frac_normdot = calc_daynight_frac_per_cluster(cluster_labels_normdot,df_daytime_hours)
+plot_clusters_project_daylight(cluster_labels_unscaled,ds_dataset_cat,ds_day_frac_unscaled,suptitle='Naive workflow, 4 clusters')
+plot_clusters_project_daylight(cluster_labels_qt,ds_dataset_cat,ds_day_frac_unscaled,suptitle='QT workflow, 7 clusters')
+plot_clusters_project_daylight(cluster_labels_normdot,ds_dataset_cat,ds_day_frac_unscaled,suptitle='Normdot workflow, 8 clusters')
 
 
 #%%Plot cluster elemental ratios
