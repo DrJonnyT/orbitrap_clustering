@@ -34,11 +34,12 @@ from functions.optimal_nclusters_r_card import optimal_nclusters_r_card
 from functions.avg_array_clusters import avg_array_clusters
 from functions.math import normdot, normdot_1min, num_frac_above_val
 from file_loaders.load_beijingdelhi_merge import load_beijingdelhi_merge
-from functions.delhi_beijing_time import delhi_beijing_datetime_cat, delhi_calc_time_cat, calc_daylight_hours_BeijingDelhi, calc_daylight_deltat
+from functions.delhi_beijing_time import delhi_beijing_datetime_cat, delhi_calc_time_cat, calc_daylight_hours_BeijingDelhi, calc_daylight_deltat, calc_daynight_frac_per_cluster
 from chem import ChemForm
 from plotting.beijingdelhi import plot_all_cluster_tseries_BeijingDelhi, plot_cluster_heatmap_BeijingDelhi, plot_n_cluster_heatmaps_BeijingDelhi
 from plotting.plot_cluster_count_hists import plot_cluster_count_hists
 from plotting.plot_clusters_project_daylight import plot_clusters_project_daylight
+from plotting.plot_orbitrap_ams_aqmet import plot_orbitrap_ams_aqmet
 #from plotting.windroseaxessubplot import WindroseAxesSubplot
 
 from file_loaders.load_pre_PMF_data import load_pre_PMF_data
@@ -625,18 +626,7 @@ sns.reset_orig()
 
 
 
-#%%Work out total time per cluster of daylight vs night
-def calc_daynight_frac_per_cluster(cluster_labels,df_daytime_hours):
-    all_labels = np.unique(cluster_labels)
-    ds_frac = pd.Series(index=all_labels,dtype='float')
-    ds_frac = ds_frac.fillna('nan')  
-    
-    for label in all_labels:
-        df_cluster = df_daytime_hours.loc[cluster_labels == label]
-        daylight_frac = df_cluster['daylight_hours'].sum() / df_cluster.sum().sum()
-        ds_frac.loc[label] = daylight_frac
-            
-    return ds_frac
+
 
 
 #%%Plot all cluster profile
@@ -655,12 +645,6 @@ def plot_all_cluster_profiles_workflow(df_cluster_labels_mtx,df_daytime_hours,ti
     df_clust_cat_counts, df_cat_clust_counts, df_clust_time_cat_counts,df_time_cat_clust_counts = count_clusters_project_time(
         df_cluster_labels_mtx,ds_dataset_cat,ds_time_cat,title_prefix=title_prefix)
     
-    
-    #Work out daylight hours
-    #pdb.set_trace()
-    ds_day_frac = calc_daynight_frac_per_cluster(df_cluster_labels_mtx.iloc[:,0],df_daytime_hours)
-    plot_clusters_project_daylight(
-        df_cluster_labels_mtx,ds_dataset_cat,ds_day_frac,title_prefix=title_prefix)
 
 
 plot_all_cluster_profiles_workflow(df_cluster_labels_mtx_unscaled.loc[:,4:4],df_daytime_hours,'Unscaled data, ')
@@ -680,6 +664,10 @@ cluster_labels_qt = df_cluster_labels_mtx_qt.loc[:,7:7].to_numpy().ravel()
 cluster_labels_normdot = df_cluster_labels_mtx_normdot.loc[:,8:8].to_numpy().ravel()
 
 
+
+#Work out daylight hours
+ds_day_frac_unscaled = calc_daynight_frac_per_cluster(cluster_labels_unscaled,df_daytime_hours)
+plot_clusters_project_daylight(df_cluster_labels_mtx,ds_dataset_cat,ds_day_frac,title_prefix=title_prefix)
 
 
 #%%Plot cluster elemental ratios
@@ -1300,98 +1288,14 @@ plt.show()
 #%%Plot molecule type, plus air quality and met for one cluster workflow
 
 
-#%%Plot different molecules by cluster
-
-#Make dataframes of the mean of each pmf factor for each cluster, as a fraction so all add up to 1
-df_all_merge_AMS_PMF_frac_unscaled = df_all_merge[['AMS_FFOA','AMS_COA','AMS_BBOA','AMS_OOA']].groupby(df_all_merge['cluster_labels_unscaled']).mean()
-df_all_merge_AMS_PMF_frac_unscaled = df_all_merge_AMS_PMF_frac_unscaled.div(df_all_merge_AMS_PMF_frac_unscaled.sum(axis=1,skipna=False),axis=0)
-df_all_merge_AMS_PMF_frac_qt = df_all_merge[['AMS_FFOA','AMS_COA','AMS_BBOA','AMS_OOA']].groupby(df_all_merge['cluster_labels_qt']).mean()
-df_all_merge_AMS_PMF_frac_qt = df_all_merge_AMS_PMF_frac_qt.div(df_all_merge_AMS_PMF_frac_qt.sum(axis=1,skipna=False),axis=0)
-df_all_merge_AMS_PMF_frac_normdot = df_all_merge[['AMS_FFOA','AMS_COA','AMS_BBOA','AMS_OOA']].groupby(df_all_merge['cluster_labels_normdot']).mean()
-df_all_merge_AMS_PMF_frac_normdot = df_all_merge_AMS_PMF_frac_normdot.div(df_all_merge_AMS_PMF_frac_normdot.sum(axis=1,skipna=False),axis=0)
-
-  
-
-def plot_orbitrap_ams_aqmet(cluster_labels,df_orbitrap_moltypes,df_merge,**kwargs):
-    sns.set_context("paper", font_scale=1)
-    
-    ylabels = ["CHO (µg m$^{-3}$)","CHON (µg m$^{-3}$)","CHOS (µg m$^{-3}$)","CHONS (µg m$^{-3}$)",
-               "AMS OA (µg m$^{-3}$)", "AMS NO$_3^-$ (µg m$^{-3}$)", "AMS SO$_4^{2-}$ (µg m$^{-3}$)", "AMS PMF fraction",
-               "AMS FFOA (µg m$^{-3}$)","AMS COA (µg m$^{-3}$)","AMS BBOA (µg m$^{-3}$)","AMS OOA (µg m$^{-3}$)",
-               "CO (ppbv)", "NO$_2$ (ppbv)", "O$_3$ (ppbv)", "SO$_2$ (ppbv)",
-               "Precip (mm)", "RH(%)","",""
-               ]
-    
-    
-    whis=[5,95]
-    
-    
-    #Make dataframes of the mean of each pmf factor for each cluster, as a fraction so all add up to 1
-    df_merge_AMS_PMF_frac = df_merge[['AMS_FFOA','AMS_COA','AMS_BBOA','AMS_OOA']].groupby(cluster_labels).mean()
-    df_merge_AMS_PMF_frac = df_merge_AMS_PMF_frac.div(df_merge_AMS_PMF_frac.sum(axis=1,skipna=False),axis=0)
-    
-    
-    
-    
-    fig,ax = plt.subplots(5,4,figsize=(8,12))
-    ax = ax.ravel()
-    
-    #Orbitrap data
-    sns.boxplot(ax=ax[0], x=cluster_labels, y="CHO", data=df_orbitrap_moltypes,showfliers=False,color='tab:green',whis=whis)
-    sns.boxplot(ax=ax[1], x=cluster_labels, y="CHON", data=df_orbitrap_moltypes,showfliers=False,color='tab:blue',whis=whis)
-    sns.boxplot(ax=ax[2], x=cluster_labels, y="CHOS", data=df_orbitrap_moltypes,showfliers=False,color='tab:red',whis=whis)
-    sns.boxplot(ax=ax[3], x=cluster_labels, y="CHONS", data=df_orbitrap_moltypes,showfliers=False,color='tab:gray',whis=whis)
-    
-    #AMS data
-    sns.boxplot(ax=ax[4], x=cluster_labels, y="AMS_Org", data=df_merge,showfliers=False,color='tab:green')
-    sns.boxplot(ax=ax[5], x=cluster_labels, y="AMS_NO3", data=df_merge,showfliers=False,color='tab:blue')
-    sns.boxplot(ax=ax[6], x=cluster_labels, y="AMS_SO4", data=df_merge,showfliers=False,color='tab:red')
-    df_merge_AMS_PMF_frac.plot(ax=ax[7],kind='bar', stacked=True,
-                                           color=['dimgray', 'silver', 'tab:brown','mediumpurple'],
-                                           legend=False,width=0.9)
-    ax[7].set_ylabel('PMF fraction')
-    sns.boxplot(ax=ax[8], x=cluster_labels, y="AMS_FFOA", data=df_merge,showfliers=False,color='dimgray')
-    sns.boxplot(ax=ax[9], x=cluster_labels, y="AMS_COA", data=df_merge,showfliers=False,color='silver')
-    sns.boxplot(ax=ax[10], x=cluster_labels, y="AMS_BBOA", data=df_merge,showfliers=False,color='tab:brown')
-    sns.boxplot(ax=ax[11], x=cluster_labels, y="AMS_OOA", data=df_merge,showfliers=False,color='mediumpurple')
-    
-    
-    #AQ and met data
-    sns.boxplot(ax=ax[12], x=cluster_labels, y="co_ppbv", data=df_merge,showfliers=False,color='tab:gray',whis=whis)
-    sns.boxplot(ax=ax[13], x=cluster_labels, y="no2_ppbv", data=df_merge,showfliers=False,color='tab:blue',whis=whis)
-    sns.boxplot(ax=ax[14], x=cluster_labels, y="o3_ppbv", data=df_merge,showfliers=False,color='tab:green',whis=whis)
-    sns.boxplot(ax=ax[15], x=cluster_labels, y="so2_ppbv", data=df_merge,showfliers=False,color='tab:red',whis=whis)
-    sns.boxplot(ax=ax[16], x=cluster_labels, y="HYSPLIT_precip", data=df_merge,showfliers=False,color='tab:olive',whis=whis)
-    sns.boxplot(ax=ax[17], x=cluster_labels, y="RH", data=df_merge,showfliers=False,color='tab:cyan',whis=whis)
-    
-    
-    [axis.set_xlabel('')  for axis in ax]
-    
-    [axis.set_ylabel(ylab)  for axis, ylab in zip(ax,ylabels)]
-    
-    #Add letters in boxes for each subfigure
-    trans = mtransforms.ScaledTranslation(2/72, -5/72, fig.dpi_scale_trans)
-    
-    for axis, letter in zip(ax,string.ascii_lowercase):
-        axis.text(0.0, 1.0, ('(' + letter + ')'), transform=axis.transAxes + trans,
-                fontsize='medium', verticalalignment='top', fontfamily='serif',
-                bbox=dict(facecolor='1.0', edgecolor='none', pad=1.0))
-    
-    
-    
-    
-    
-    ax[0].set_ylabel(ylabels[0])
-    
-    if 'suptitle' in kwargs:    
-        plt.suptitle(kwargs.get('suptitle'))
-    plt.tight_layout()
-    plt.show()
+#%%Plot different molecules by cluster, massive plot
 
 
-#plot_orbitrap_ams_aqmet(cluster_labels_unscaled,df_all_data_moltypes,df_all_merge,suptitle='Naive workflow, 4 clusters')
+
+
+plot_orbitrap_ams_aqmet(cluster_labels_unscaled,df_all_data_moltypes,df_all_merge,suptitle='Naive workflow, 4 clusters')
 plot_orbitrap_ams_aqmet(cluster_labels_qt,df_all_data_moltypes,df_all_merge,suptitle='QT workflow, 7 clusters')
-#plot_orbitrap_ams_aqmet(cluster_labels_normdot,df_all_data_moltypes,df_all_merge,suptitle='Normdot workflow, 8 clusters')
+plot_orbitrap_ams_aqmet(cluster_labels_normdot,df_all_data_moltypes,df_all_merge,suptitle='Normdot workflow, 8 clusters')
 
 
 
