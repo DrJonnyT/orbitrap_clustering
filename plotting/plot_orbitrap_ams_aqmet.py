@@ -5,6 +5,26 @@ from matplotlib.transforms import ScaledTranslation
 import string
 
 def plot_orbitrap_ams_aqmet(cluster_labels,df_orbitrap_moltypes,df_merge,**kwargs):
+    """
+    Plot a large matrix with box and whiskers of orbitrap molecule types, AMS data, and AQ/met data, segregated by cluster label
+
+    Parameters
+    ----------
+    cluster_labels : array
+        Cluster labels
+    df_orbitrap_moltypes : DataFrame
+        Orbitrap data segregated by molecule types CHO, CHON, CHOS, CHONS. Index is time
+    df_merge : DataFrame
+        Merge air quality / met data. Index is time
+    **kwargs : 
+        Additional keyword arguments
+    suptitle : suptitle for the figure
+
+    Returns
+    -------
+    None.
+
+    """
     sns.set_context("paper", font_scale=1)
     
     ylabels = ["CHO (µg m$^{-3}$)","CHON (µg m$^{-3}$)","CHOS (µg m$^{-3}$)","CHONS (µg m$^{-3}$)",
