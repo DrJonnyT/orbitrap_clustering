@@ -11,7 +11,7 @@ from functions.combine_multiindex import combine_multiindex
 from functions.prescale_whole_matrix import prescale_whole_matrix
 from functions.optimal_nclusters_r_card import optimal_nclusters_r_card
 from functions.avg_array_clusters import avg_array_clusters
-from functions.delhi_beijing_time import delhi_beijing_datetime_cat, delhi_calc_time_cat, calc_daylight_deltat, calc_daylight_hours_BeijingDelhi
+from functions.delhi_beijing_time import delhi_beijing_datetime_cat, delhi_calc_time_cat, calc_daylight_deltat, calc_daylight_hours_BeijingDelhi, calc_daynight_frac_per_cluster
 
 from functions.math import round_to_nearest_x_even, round_to_nearest_x_odd, sqrt_sum_squares, num_frac_above_val
 from functions.math import normdot, normdot_1min
@@ -131,6 +131,20 @@ def test_calc_daylight_hours_BeijingDelhi():
     assert df_daytime['night_hours'].iloc[0] == 0
     assert df_daytime['night_hours'].iloc[1] == 1
     assert df_daytime['night_hours'].iloc[2] == 2
+    
+    
+def test_calc_daynight_frac_per_cluster():
+    idx = pd.Index([dt.datetime(2016,11,15),dt.datetime(2017,5,25),dt.datetime(2018,6,2),dt.datetime(2018,11,5)])
+    df_daytime_hours = pd.DataFrame(index=idx)
+    df_daytime_hours['daylight_hours'] = [5,6,7,0]
+    df_daytime_hours['night_hours'] = [8,4,0,6]
+    
+    cluster_labels = [0,0,0,1]
+    
+    ds_out = calc_daynight_frac_per_cluster(cluster_labels,df_daytime_hours)
+    
+    assert ds_out.loc[0] == 0.6
+    assert ds_out.loc[1] == 0
     
     
     

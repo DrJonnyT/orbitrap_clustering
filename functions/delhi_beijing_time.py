@@ -162,8 +162,8 @@ def calc_daylight_deltat(time_start,time_end,astral_city):
 
     Returns
     -------
-    TYPE
-        DESCRIPTION.
+    datetime.timedelta
+        The time length of daylight between the start and end times
 
     """
     
@@ -214,3 +214,32 @@ def calc_daylight_deltat(time_start,time_end,astral_city):
     
     
 
+def calc_daynight_frac_per_cluster(cluster_labels,df_daytime_hours):
+    """
+    Work out total time per cluster of daylight vs night
+
+    Parameters
+    ----------
+    cluster_labels : array
+        Start time in LOCAL TIME
+    df_daytime_hours : Pandas DataFrame
+        Index is time. Columns are 'daylight_hours' and 'night_hours'. Output from calc_daylight_hours_BeijingDelhi
+
+    Returns
+    -------
+    ds_frac : Pandas Series
+        The total daytime fraction for each cluster label
+
+    """
+    
+    
+    all_labels = np.unique(cluster_labels)
+    ds_frac = pd.Series(index=all_labels,dtype='float')
+    ds_frac = ds_frac.fillna('nan')  
+    
+    for label in all_labels:
+        df_cluster = df_daytime_hours.loc[cluster_labels == label]
+        daylight_frac = df_cluster['daylight_hours'].sum() / df_cluster.sum().sum()
+        ds_frac.loc[label] = daylight_frac
+            
+    return ds_frac
