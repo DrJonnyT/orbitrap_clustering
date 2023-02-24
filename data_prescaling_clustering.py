@@ -9,16 +9,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as plticker
 import matplotlib.transforms as mtransforms
+import seaborn as sns
 import numpy as np
-import scipy
 
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, PowerTransformer, QuantileTransformer
+from sklearn.preprocessing import QuantileTransformer
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import pairwise_distances, silhouette_score
 from scipy.stats import percentileofscore
 
-import string
-import seaborn as sns
 import pdb
 
 import os
@@ -26,33 +24,35 @@ os.chdir('C:/Work/Python/Github/Orbitrap_clustering')
 
 
 from orbitrap_functions import count_cluster_labels_from_mtx, cluster_extract_peaks
-from orbitrap_functions import average_cluster_profiles, calc_cluster_elemental_ratios, plot_cluster_profile_corrs, count_clusters_project_time
-from orbitrap_functions import plot_cluster_elemental_ratios
+from orbitrap_functions import average_cluster_profiles, calc_cluster_elemental_ratios, count_clusters_project_time
+
+from file_loaders.load_pre_PMF_data import load_pre_PMF_data
+from file_loaders.load_beijingdelhi_merge import load_beijingdelhi_merge
+
 
 from functions.combine_multiindex import combine_multiindex
-from functions.optimal_nclusters_r_card import optimal_nclusters_r_card
-from functions.avg_array_clusters import avg_array_clusters
+#from functions.optimal_nclusters_r_card import optimal_nclusters_r_card
+#from functions.avg_array_clusters import avg_array_clusters
 from functions.math import normdot, normdot_1min, num_frac_above_val
-from file_loaders.load_beijingdelhi_merge import load_beijingdelhi_merge
+
 from functions.delhi_beijing_time import delhi_beijing_datetime_cat, delhi_calc_time_cat, calc_daylight_hours_BeijingDelhi, calc_daylight_deltat, calc_daynight_frac_per_cluster
 from chem import ChemForm
+
 from plotting.beijingdelhi import plot_all_cluster_tseries_BeijingDelhi, plot_cluster_heatmap_BeijingDelhi, plot_n_cluster_heatmaps_BeijingDelhi
 from plotting.plot_cluster_count_hists import plot_cluster_count_hists
 from plotting.plot_clusters_project_daylight import plot_clusters_project_daylight
 from plotting.plot_orbitrap_ams_aqmet import plot_orbitrap_ams_aqmet
-#from plotting.windroseaxessubplot import WindroseAxesSubplot
-
-from file_loaders.load_pre_PMF_data import load_pre_PMF_data
-
-from clustering.molecule_type_math import molecule_type_pos_frac_clusters_mtx
-from clustering.cluster_n_times import cluster_n_times, cluster_n_times_fn
-from clustering.correlate_cluster_profiles import correlate_cluster_profiles
-from clustering.cluster_top_percentiles import cluster_top_percentiles
-from plotting.compare_cluster_metrics import compare_cluster_metrics, compare_cluster_metrics_fn
+#from plotting.compare_cluster_metrics import compare_cluster_metrics, compare_cluster_metrics_fn
 from plotting.plot_binned_mol_data import bin_mol_data_for_plot, plot_binned_mol_data
 from plotting.plot_cluster_profiles import plot_all_cluster_profiles
 from plotting.plot_cluster_aerosolomics_spectra import plot_cluster_aerosolomics_spectra
 from plotting.plot_windrose_percluster import plot_windrose_percluster
+
+#from clustering.molecule_type_math import molecule_type_pos_frac_clusters_mtx
+from clustering.cluster_n_times import cluster_n_times, cluster_n_times_fn
+from clustering.correlate_cluster_profiles import correlate_cluster_profiles
+from clustering.cluster_top_percentiles import cluster_top_percentiles
+
 
 
 #%%Load data from HDF
@@ -61,20 +61,13 @@ df_all_data, df_all_err, ds_all_mz = load_pre_PMF_data(filepath,join='inner')
 
 df_all_signoise = (df_all_data / df_all_err).abs().fillna(0)
 
-#Save data to CSV
-#df_all_data.to_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\df_all_data.csv")
-#df_all_err.to_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\df_all_err.csv")
-#ds_all_mz.to_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\ds_all_mz.csv",index=False,header=False)
-
-#pd.DataFrame(df_all_data.columns.get_level_values(0),df_all_data.columns.get_level_values(1)).to_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\RT_formula.csv",header=False)
-
 #Load all time data, ie start/mid/end
 df_all_times = pd.read_csv(r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\Times_all.csv")
 df_all_times['date_start'] = pd.to_datetime(df_all_times['date_start'],dayfirst=True)
 df_all_times['date_mid'] = pd.to_datetime(df_all_times['date_mid'],dayfirst=True)
 df_all_times['date_end'] = pd.to_datetime(df_all_times['date_end'],dayfirst=True)
 
-#Now make sure the samples line but for the times and the previously-loaded data
+#Now make sure the sample times line up but for the times and the previously-loaded data
 df_all_times.set_index(df_all_times['date_mid'],inplace=True)
 fuzzy_index = pd.merge_asof(pd.DataFrame(index=df_all_data.index),df_all_times,left_index=True,right_index=True,direction='nearest',tolerance=pd.Timedelta(hours=1.25))
 df_all_times = df_all_times.loc[fuzzy_index['date_mid']]
@@ -82,10 +75,8 @@ df_all_times = df_all_times.loc[fuzzy_index['date_mid']]
 df_all_data.index = df_all_times.index
 df_all_err.index = df_all_err.index
 
-
+#Generate dataset categories
 ds_dataset_cat = delhi_beijing_datetime_cat(df_all_data.index)
-
-
 time_cat = delhi_calc_time_cat(df_all_times)
 df_time_cat = pd.DataFrame(delhi_calc_time_cat(df_all_times),columns=['time_cat'],index=df_all_times.index)
 ds_time_cat = df_time_cat['time_cat']
@@ -115,7 +106,6 @@ df_all_data_moltypes_frac = df_all_data_moltypes.clip(lower=0).div(df_all_data_m
 df_all_data_moltypes_pct = pd.DataFrame(index=df_all_data_moltypes.index,columns=df_all_data_moltypes.columns)
 for mol in df_all_data_moltypes.columns:
     df_all_data_moltypes_pct[mol] = [percentileofscore(df_all_data_moltypes[mol],df_all_data_moltypes[mol].loc[time]) for time in df_all_data_moltypes.index]
-
 
 
 #DATA BY CARBON NUMBER
