@@ -182,19 +182,6 @@ ds_aerosolomics_known = df_all_data.iloc[:,~(ds_mol_aerosolomics == '').to_numpy
 
 
 
-#Need to make it so we calculate the clusters that are particularly rich or not in unique markers for each source
-#get the list of ds_mol_aerosolomics with no semicolons
-
-
-# #%%Plot hist of unique markers
-# fig,ax = plt.subplots(3,3)
-# ax = ax.ravel()
-
-# for num,source in enumerate(df_all_aerosolomics_uniquem.columns):
-#     df_all_aerosolomics_uniquem[source].plot.hist(ax=ax[num])
-
-
-
 #%%Work out O:C, H:C, S:C, N:C ratios for all peaks
 #df_element_ratios = df_all_data.columns.get_level_values(0).to_series().apply(lambda x: chemform_ratios(x)[0])
 df_element_ratios = pd.DataFrame()
@@ -217,18 +204,6 @@ df_element_ratios_tseries['S/C'] = df_all_data.set_axis(df_all_data.columns.get_
 #quantile transformer
 qt = QuantileTransformer(output_distribution="normal",n_quantiles=df_all_data.shape[0])
 df_all_qt = pd.DataFrame(qt.fit_transform(df_all_data.to_numpy()),index=df_all_data.index,columns=df_all_data.columns)
-
-# #MinMax transformer
-# minmax = MinMaxScaler()
-# df_all_minmax = pd.DataFrame(minmax.fit_transform(df_all_data.to_numpy()),index=df_all_data.index,columns=df_all_data.columns)
-
-# compare_cluster_metrics(df_all_data,2,12,cluster_type='agglom',suptitle_prefix='Unscaled data', suptitle_suffix='')
-
-# compare_cluster_metrics(df_qt,2,12,cluster_type='agglom',suptitle_prefix='Quantile transformed data', suptitle_suffix='')
-
-# compare_cluster_metrics(df_minmax,2,12,cluster_type='agglom',suptitle_prefix='MinMax scaled data', suptitle_suffix='')
-
-# compare_cluster_metrics(df_all_signoise,2,12,cluster_type='agglom',suptitle_prefix='Sig/noise data', suptitle_suffix='')
 
 #Normalised so sum of every sample is 1
 df_all_data_norm = df_all_data.divide(df_all_data.sum(axis=1),axis=0)
