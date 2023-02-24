@@ -59,8 +59,8 @@ def plot_clusters_project_daylight(cluster_labels,ds_dataset_cat,ds_day_frac,**k
     ax[1].legend(bbox_to_anchor=(0.5, -0.35),loc='lower center')
     
     #Add boxes for (a) and (b) outside axes
-    ax[0].text(-1,0.925,'(a)',ha='right',va='top')
-    ax[1].text(-1,0.925,'(b)',ha='right',va='top')
+    ax[0].text(-0.2,0.89,'(a)',ha='left',va='top',transform=ax[0].transAxes)
+    ax[1].text(-0.2,0.89,'(b)',ha='left',va='top',transform=ax[1].transAxes)
         
     if "suptitle" in kwargs:
         plt.suptitle(kwargs.get("suptitle"))
