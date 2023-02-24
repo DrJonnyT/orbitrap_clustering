@@ -35,11 +35,15 @@ def plot_clusters_project_daylight(cluster_labels,ds_dataset_cat,ds_day_frac,**k
     df_day_frac['Night'] = 1 - ds_day_frac
     
     #Make the figure
-    fig,ax = plt.subplots(1,2,figsize=(12,5),sharey=True)
+    fig,ax = plt.subplots(2,1,figsize=(5,12),sharey=True)
     ax = ax.ravel()
+    
+    #Adjust margins
+    plt.subplots_adjust(left=0, bottom=0, right=1, top=0.92, wspace=0, hspace=0.4)
+    
+    #Plot data
     cmap = 'RdYlBu'
     df_cat_clust_counts.plot.bar(ax=ax[0],stacked=True,colormap='RdBu',width=0.8)
-    
     df_day_frac.plot.bar(ax=ax[1],stacked=True,colormap='viridis_r',width=0.8)
     
     #Set labels          
@@ -51,11 +55,18 @@ def plot_clusters_project_daylight(cluster_labels,ds_dataset_cat,ds_day_frac,**k
 
     #Set legend handles and size
     handles, labels = ax[0].get_legend_handles_labels()
-    ax[0].legend(handles, ['Beijing Winter','Beijing Summer','Delhi Premonsoon', 'Delhi Postmonsoon'], bbox_to_anchor=(0.5, -0.4),loc='lower center',ncol=2,handletextpad=0.4)            
-    ax[1].legend(bbox_to_anchor=(0.5, -0.32),loc='lower center',ncol=3,handletextpad=0.4)
+    ax[0].legend(handles, ['Beijing Winter','Beijing Summer','Delhi Premonsoon', 'Delhi Postmonsoon'], bbox_to_anchor=(0.5, -0.35),loc='lower center',ncol=2,handletextpad=0.4)            
+    ax[1].legend(bbox_to_anchor=(0.5, -0.35),loc='lower center')
+    
+    #Add boxes for (a) and (b) outside axes
+    ax[0].text(-1,0.925,'(a)',ha='right',va='top')
+    ax[1].text(-1,0.925,'(b)',ha='right',va='top')
         
     if "suptitle" in kwargs:
         plt.suptitle(kwargs.get("suptitle"))
-        
+    
+    
+    
+    #plt.tight_layout()
     sns.reset_orig()
     
