@@ -297,18 +297,9 @@ n_peaks = 8
 df_top_peaks_list = cluster_extract_peaks(df_all_data.mean(), df_all_data.T,n_peaks,dp=1,dropRT=False)
 df_top_peaks_unscaled = df_all_data[df_top_peaks_list.index]
 df_top_peaks_qt = df_all_qt[df_top_peaks_list.index]
-#df_top_peaks_minmax = df_all_minmax[df_top_peaks_list.index]
-#df_top_peaks_signoise = df_all_signoise[df_top_peaks_list.index]
-
-#df_top_peaks_unscaled.columns = df_top_peaks_unscaled.columns.get_level_values(0) + ", " +  df_top_peaks_unscaled.columns.get_level_values(1).astype(str)
-
 
 df_top_peaks_unscaled.columns = combine_multiindex(df_top_peaks_unscaled.columns,nospaces=True)
-df_top_peaks_qt.columns = combine_multiindex(df_top_peaks_qt.columns,nospaces=True)
-#df_top_peaks_minmax.columns = combine_multiindex(df_top_peaks_minmax.columns)
-#df_top_peaks_signoise.columns = combine_multiindex(df_top_peaks_signoise.columns)
-    
-
+df_top_peaks_qt.columns = combine_multiindex(df_top_peaks_qt.columns,nospaces=True)  
 
 
 #%%Pairplots distributions of these n biggest peaks
@@ -334,7 +325,6 @@ plt.show()
 
 
 #QT data
-#sns.pairplot(df_top_peaks_qt,plot_kws=dict(marker="+", linewidth=1)).fig.suptitle("QT data", y=1.01,fontsize=20)
 g = sns.PairGrid(df_top_peaks_qt,corner=True)
 g.fig.suptitle("Quantile transformer prescaling", y=0.95,fontsize=26)
 g.map_lower(sns.scatterplot, hue=ds_dataset_cat.cat.codes,palette = 'RdBu',linewidth=0.5,s=50)
@@ -390,10 +380,6 @@ maxclust = 20
 df_cluster_labels_mtx_unscaled = cluster_n_times(df_all_data,minclust,maxclust,cluster_type='agglom')
 df_cluster_counts_mtx_unscaled = count_cluster_labels_from_mtx(df_cluster_labels_mtx_unscaled)
 
-#df_cluster_labels_mtx_minmax = cluster_n_times(df_all_minmax,2,13,min_num_clusters=2,cluster_type='agglom')
-#df_cluster_counts_mtx_minmax = count_cluster_labels_from_mtx(df_cluster_labels_mtx_minmax)
-
-#df_cluster_labels_mtx_qt = cluster_n_times(df_all_qt,2,13,cluster_type='agglom')
 
 #QuantileTransformed data using Manhattan distance and complete linkage
 arg_dict = {
@@ -408,14 +394,6 @@ df_cluster_counts_mtx_qt = count_cluster_labels_from_mtx(df_cluster_labels_mtx_q
 #Clustering based on normalised dot product
 # Method to calculate distances between all sample pairs
 
-# def normdot_1min_affinity(X):
-#     return pairwise_distances(X, metric=normdot_1min)
-
-def dot_1over(X,Y):
-    return np.reciprocal(np.dot(X,Y))
-
-# def dot_1over_affinity(X):
-#     return pairwise_distances(X, metric=dot_1over)
 
 arg_dict = {
     "affinity" : 'precomputed',
@@ -427,26 +405,20 @@ df_cluster_labels_mtx_normdot = cluster_n_times_fn(distance_matrix,minclust,maxc
 df_cluster_labels_mtx_normdot = df_cluster_labels_mtx_normdot.set_index(df_all_data.index)
 df_cluster_counts_mtx_normdot = count_cluster_labels_from_mtx(df_cluster_labels_mtx_normdot)
 
-# df_cluster_labels_mtx_signoise = cluster_n_times(df_all_signoise,2,10,min_num_clusters=2,cluster_type='agglom')
-# df_cluster_counts_mtx_signoise = count_cluster_labels_from_mtx(df_cluster_labels_mtx_signoise)
 
 #Correlations between unscaled data, using the different cluster labels
 #This tells you about the clusters meaningfulness in the real world
 df_cluster_corr_mtx_unscaled, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_unscaled,df_all_data)[1:])
-#df_cluster_corr_mtx_minmax, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_minmax,df_all_data)[1:])
 df_cluster_corr_mtx_qt, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_qt,df_all_data)[1:])
-#df_cluster_corr_mtx_signoise, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_signoise,df_all_data)[1:])
 df_cluster_corr_mtx_normdot, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_normdot,df_all_data)[1:])
 
 
 #Correlations between SCALED data, using the different cluster labels
 #This tells you about the clustering itself
-#df_cluster_corr_mtx_minmax_s, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_minmax,df_all_minmax)[1:])
 df_cluster_corr_mtx_qt_s, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_qt,df_all_qt)[1:])
-#df_cluster_corr_mtx_signoise_s, _ = correlate_cluster_profiles(*average_cluster_profiles(df_cluster_labels_mtx_signoise,df_all_signoise)[1:])
 
 
-###Calculate Silhouette scores
+#Calculate Silhouette scores
 Silhouette_scores_unscaled = []
 Silhouette_scores_qt = []
 Silhouette_scores_normdot = []
