@@ -58,7 +58,7 @@ def plot_clusters_project_daylight(cluster_labels,ds_dataset_cat,ds_day_frac,**k
     #Set legend handles and size
     handles, labels = ax[0].get_legend_handles_labels()
     ax[0].legend(handles, ['Beijing Winter','Beijing Summer','Delhi Premonsoon', 'Delhi Postmonsoon'], bbox_to_anchor=(0.5, -0.35),loc='lower center',ncol=2,handletextpad=0.4)            
-    ax[1].legend(bbox_to_anchor=(0.5, -0.35),loc='lower center')
+    ax[1].legend(['Majority day','Majority night'],bbox_to_anchor=(0.5, -0.35),loc='lower center')
     
     #Add boxes for (a) and (b) outside axes
     ax[0].text(-0.2,0.89,'(a)',ha='left',va='top',transform=ax[0].transAxes)
