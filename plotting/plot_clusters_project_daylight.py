@@ -17,6 +17,8 @@ def plot_clusters_project_daylight(cluster_labels,ds_dataset_cat,ds_day_frac,**k
         Index is time, values are the category of the dataset from Beijing/Delhi
     ds_day_frac : Pandas Series
         Index is time, values are the fraction of daylight vs night
+    kwargs: list of keyword arguments
+        'suptitle' : String, figure suptitle.
     
     """
     
@@ -26,13 +28,14 @@ def plot_clusters_project_daylight(cluster_labels,ds_dataset_cat,ds_day_frac,**k
     cluster_labels = np.array(cluster_labels)
     a = pd.DataFrame(cluster_labels,columns=['clust'],index=ds_dataset_cat.index)
     
-    #IF THIS FAILS ITS BECAUSE IT NEEDS DF NOT DS
-    df_clust_cat_counts = a.groupby(ds_dataset_cat)['clust'].value_counts(normalize=True).unstack()
+    
+    #Data grouped by cluster
     df_cat_clust_counts = ds_dataset_cat.groupby(a['clust']).value_counts(normalize=True).unstack()
     
+    #Day frac day and night grouped by cluster
     df_day_frac = pd.DataFrame()
     df_day_frac['Day'] = ds_day_frac
-    df_day_frac['Night'] = 1 - ds_day_frac
+    df_day_frac['Night'] = 1 - ds_day_frac 
     
     #Make the figure
     fig,ax = plt.subplots(2,1,figsize=(5,12),sharey=True)
@@ -42,7 +45,6 @@ def plot_clusters_project_daylight(cluster_labels,ds_dataset_cat,ds_day_frac,**k
     plt.subplots_adjust(left=0, bottom=0, right=1, top=0.92, wspace=0, hspace=0.4)
     
     #Plot data
-    cmap = 'RdYlBu'
     df_cat_clust_counts.plot.bar(ax=ax[0],stacked=True,colormap='RdBu',width=0.8)
     df_day_frac.plot.bar(ax=ax[1],stacked=True,colormap='viridis_r',width=0.8)
     
@@ -66,7 +68,5 @@ def plot_clusters_project_daylight(cluster_labels,ds_dataset_cat,ds_day_frac,**k
         plt.suptitle(kwargs.get("suptitle"))
     
     
-    
-    #plt.tight_layout()
     sns.reset_orig()
     
