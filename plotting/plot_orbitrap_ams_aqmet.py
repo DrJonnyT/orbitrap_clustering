@@ -31,7 +31,7 @@ def plot_orbitrap_ams_aqmet(cluster_labels,df_orbitrap_moltypes,df_merge,**kwarg
                "AMS OA (µg m$^{-3}$)", "AMS NO$_3^-$ (µg m$^{-3}$)", "AMS SO$_4^{2-}$ (µg m$^{-3}$)", "AMS PMF fraction",
                "AMS FFOA (µg m$^{-3}$)","AMS COA (µg m$^{-3}$)","AMS BBOA (µg m$^{-3}$)","AMS OOA (µg m$^{-3}$)",
                "CO (ppbv)", "NO$_2$ (ppbv)", "O$_3$ (ppbv)", "SO$_2$ (ppbv)",
-               "Precip (mm)", "RH(%)","",""
+               "Precip (mm)", "RH(%)","Wind speed (m s$^{-1}$",""
                ]
     
     
@@ -73,10 +73,11 @@ def plot_orbitrap_ams_aqmet(cluster_labels,df_orbitrap_moltypes,df_merge,**kwarg
     sns.boxplot(ax=ax[15], x=cluster_labels, y="so2_ppbv", data=df_merge,showfliers=False,color='tab:red',whis=whis)
     sns.boxplot(ax=ax[16], x=cluster_labels, y="HYSPLIT_precip", data=df_merge,showfliers=False,color='tab:olive',whis=whis)
     sns.boxplot(ax=ax[17], x=cluster_labels, y="RH", data=df_merge,showfliers=False,color='tab:cyan',whis=whis)
+    sns.boxplot(ax=ax[18], x=cluster_labels, y="ws_ms", data=df_merge,showfliers=False,color='tab:purple',whis=whis)
+    ax[18].set_ylim(bottom=0)
     
-    
+    #Set axis labels
     [axis.set_xlabel('')  for axis in ax]
-    
     [axis.set_ylabel(ylab,labelpad=0)  for axis, ylab in zip(ax,ylabels)]
     
     #Add letters in boxes for each subfigure
