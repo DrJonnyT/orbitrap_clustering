@@ -11,6 +11,7 @@ import matplotlib.ticker as plticker
 import matplotlib.transforms as mtransforms
 import seaborn as sns
 import numpy as np
+import glob
 
 from sklearn.preprocessing import QuantileTransformer
 from sklearn.cluster import AgglomerativeClustering
@@ -111,11 +112,11 @@ for mol in df_all_data_moltypes.columns:
 #DATA BY CARBON NUMBER
 df_all_data_Cx = df_all_data.groupby(molecule_Cx,axis=1).sum()
 df_all_data_Cx_frac = df_all_data_Cx.clip(lower=0).div(df_all_data_Cx.clip(lower=0).sum(axis=1), axis=0)
+
 #Concenctrations as a percentile of the whole distribution from all datasets
 df_all_data_Cx_pct = pd.DataFrame(index=df_all_data_Cx.index,columns=df_all_data_Cx.columns)
 for mol in df_all_data_Cx.columns:
     df_all_data_Cx_pct[mol] = [percentileofscore(df_all_data_Cx[mol],df_all_data_Cx[mol].loc[time]) for time in df_all_data_Cx.index]
-
 
 
 #Just these summed molecule types (do NOT sum to 1)
@@ -132,7 +133,7 @@ for mol in df_all_data_moltypes2.columns:
 
 #%%Classify molecules based on Aerosolomics dataset
 aerosolomics_path = "C:/Work/Orbitrap/data/Aerosolomics"
-import glob
+
 csv_files = glob.glob(aerosolomics_path + "/*.csv")
 
 # Read each CSV file into DataFrame
