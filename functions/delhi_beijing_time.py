@@ -214,7 +214,7 @@ def calc_daylight_deltat(time_start,time_end,astral_city):
     
     
 
-def calc_daynight_frac_per_cluster(cluster_labels,df_daytime_hours):
+def calc_daynight_frac_per_cluster(cluster_labels,df_daytime_hours,maj=False):
     """
     Work out total time per cluster of daylight vs night
 
@@ -224,6 +224,8 @@ def calc_daynight_frac_per_cluster(cluster_labels,df_daytime_hours):
         Start time in LOCAL TIME
     df_daytime_hours : Pandas DataFrame
         Index is time. Columns are 'daylight_hours' and 'night_hours'. Output from calc_daylight_hours_BeijingDelhi
+    maj : Bool (default False)
+        If true, output is what fraction of filters have the majority of the time being during the day
 
     Returns
     -------
@@ -239,7 +241,16 @@ def calc_daynight_frac_per_cluster(cluster_labels,df_daytime_hours):
     
     for label in all_labels:
         df_cluster = df_daytime_hours.loc[cluster_labels == label]
-        daylight_frac = df_cluster['daylight_hours'].sum() / df_cluster.sum().sum()
+                
+        if(maj):
+            #Calculate the fraction samples that are mostly day vs mostly night
+            day_counts = df_cluster['daylight_hours'].ge(df_cluster['night_hours'],axis=0).sum(axis=0)
+            night_counts = df_cluster['night_hours'].ge(df_cluster['daylight_hours'],axis=0).sum(axis=0)
+            daylight_frac = day_counts / (day_counts + night_counts)
+        else:
+            #Calculate the fraction of time all the samples are day vs night
+            daylight_frac = df_cluster['daylight_hours'].sum() / df_cluster.sum().sum()
+            
         ds_frac.loc[label] = daylight_frac
             
     return ds_frac

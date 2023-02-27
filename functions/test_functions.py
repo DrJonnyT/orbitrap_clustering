@@ -142,9 +142,13 @@ def test_calc_daynight_frac_per_cluster():
     cluster_labels = [0,0,0,1]
     
     ds_out = calc_daynight_frac_per_cluster(cluster_labels,df_daytime_hours)
+    ds_out_maj = calc_daynight_frac_per_cluster(cluster_labels,df_daytime_hours,maj=True)
     
     assert ds_out.loc[0] == 0.6
     assert ds_out.loc[1] == 0
+    
+    assert ds_out_maj.loc[0] == 2/3
+    assert ds_out_maj.loc[1] == 0
     
     
     

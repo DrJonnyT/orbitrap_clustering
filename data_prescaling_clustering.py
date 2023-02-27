@@ -607,9 +607,15 @@ cluster_labels_normdot = df_cluster_labels_mtx_normdot.loc[:,8:8].to_numpy().rav
 ds_day_frac_unscaled = calc_daynight_frac_per_cluster(cluster_labels_unscaled,df_daytime_hours)
 ds_day_frac_qt = calc_daynight_frac_per_cluster(cluster_labels_qt,df_daytime_hours)
 ds_day_frac_normdot = calc_daynight_frac_per_cluster(cluster_labels_normdot,df_daytime_hours)
-plot_clusters_project_daylight(cluster_labels_unscaled,ds_dataset_cat,ds_day_frac_unscaled,suptitle='Naive workflow, 4 clusters')
-plot_clusters_project_daylight(cluster_labels_qt,ds_dataset_cat,ds_day_frac_qt,suptitle='QT workflow, 7 clusters')
-plot_clusters_project_daylight(cluster_labels_normdot,ds_dataset_cat,ds_day_frac_normdot,suptitle='Normdot workflow, 8 clusters')
+
+ds_day_maj_frac_unscaled = calc_daynight_frac_per_cluster(cluster_labels_unscaled,df_daytime_hours,maj=True)
+ds_day_maj_frac_qt = calc_daynight_frac_per_cluster(cluster_labels_qt,df_daytime_hours,maj=True)
+ds_day_maj_frac_normdot = calc_daynight_frac_per_cluster(cluster_labels_normdot,df_daytime_hours,maj=True)
+
+
+plot_clusters_project_daylight(cluster_labels_unscaled,ds_dataset_cat,ds_day_maj_frac_unscaled,suptitle='Naive workflow, 4 clusters')
+plot_clusters_project_daylight(cluster_labels_qt,ds_dataset_cat,ds_day_maj_frac_qt,suptitle='QT workflow, 7 clusters')
+plot_clusters_project_daylight(cluster_labels_normdot,ds_dataset_cat,ds_day_maj_frac_normdot,suptitle='Normdot workflow, 8 clusters')
 
 
 #%%Plot cluster elemental ratios
