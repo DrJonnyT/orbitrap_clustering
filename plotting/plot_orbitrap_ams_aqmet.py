@@ -42,10 +42,8 @@ def plot_orbitrap_ams_aqmet(cluster_labels,df_orbitrap_moltypes,df_merge,**kwarg
     df_merge_AMS_PMF_frac = df_merge[['AMS_FFOA','AMS_COA','AMS_BBOA','AMS_OOA']].groupby(cluster_labels).mean()
     df_merge_AMS_PMF_frac = df_merge_AMS_PMF_frac.div(df_merge_AMS_PMF_frac.sum(axis=1,skipna=False),axis=0)
     
-    
-    
-    
-    fig,ax = plt.subplots(5,4,figsize=(8,12))
+        
+    fig,ax = plt.subplots(5,4,figsize=(8,10),dpi=300)
     ax = ax.ravel()
     
     #Orbitrap data
