@@ -1171,11 +1171,6 @@ plt.tight_layout()
 plt.show()
 
 
-
-
-#%%Plot molecule type, plus air quality and met for one cluster workflow
-
-
 #%%Plot different molecules by cluster, massive plot
 
 
@@ -1356,22 +1351,3 @@ extract_clusters_top_peaks_csv(df_all_data,cluster_labels_qt,30,path_qt, prefix=
 extract_clusters_top_peaks_csv(df_all_data,cluster_labels_normdot,30,path_normdot, prefix="normdot ",JT_peaks=df_JT_peaks,pct=1.)
 
 #extract_clusters_top_peaks_csv(df_all_data,cluster_labels_normdot,30,path_normdot, prefix="normdot ",sari_peaks=Sari_peaks_list,aerosolomics_peaks=ds_mol_aerosolomics_nodup,JT_peaks=df_JT_peaks,pct=1.)
-
-
-
-
-
-
-
-#%%Classify unusually high peaks
-
-#What fraction of CHOX/CHNX/CHSX are unusually high versus unusually low??
-#What are each of the molecules doing?
-
-
-fig,ax= plt.subplots(1,3,figsize=(10,5))
-ax = ax.ravel()
-sns.boxplot(y=df_all_data_moltypes2['CHOX'],x=cluster_labels_unscaled,ax=ax[0])
-sns.boxplot(y=df_all_data_moltypes2['CHSX'],x=cluster_labels_unscaled,ax=ax[1])
-sns.boxplot(y=df_all_data_moltypes2['CHNX'],x=cluster_labels_unscaled,ax=ax[2])
-
