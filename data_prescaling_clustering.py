@@ -604,14 +604,9 @@ cluster_labels_normdot = df_cluster_labels_mtx_normdot.loc[:,8:8].to_numpy().rav
 
 
 #Work out daylight hours and plot fractions
-ds_day_frac_unscaled = calc_daynight_frac_per_cluster(cluster_labels_unscaled,df_daytime_hours)
-ds_day_frac_qt = calc_daynight_frac_per_cluster(cluster_labels_qt,df_daytime_hours)
-ds_day_frac_normdot = calc_daynight_frac_per_cluster(cluster_labels_normdot,df_daytime_hours)
-
 ds_day_maj_frac_unscaled = calc_daynight_frac_per_cluster(cluster_labels_unscaled,df_daytime_hours,maj=True)
 ds_day_maj_frac_qt = calc_daynight_frac_per_cluster(cluster_labels_qt,df_daytime_hours,maj=True)
 ds_day_maj_frac_normdot = calc_daynight_frac_per_cluster(cluster_labels_normdot,df_daytime_hours,maj=True)
-
 
 plot_clusters_project_daylight(cluster_labels_unscaled,ds_dataset_cat,ds_day_maj_frac_unscaled,suptitle='Naive workflow, 4 clusters')
 plot_clusters_project_daylight(cluster_labels_qt,ds_dataset_cat,ds_day_maj_frac_qt,suptitle='QT workflow, 7 clusters')
@@ -1244,31 +1239,6 @@ plot_cluster_aerosolomics_spectra(cluster_labels_qt,df_all_aerosolomics,suptitle
 
 
 
-
-
-#%%Extract the most unusually high and low molecules for each cluster
-
-#Calculate the top30 unusually high or low peaks in each cluster
-#top_peaks_unscaled = cluster_top_percentiles(df_all_data,cluster_labels_unscaled,30)
-
-
-top_peaks_unscaled = cluster_top_percentiles(df_all_data,cluster_labels_unscaled,30,mol_labels=ds_mol_aerosolomics)
-top_peaks_qt = cluster_top_percentiles(df_all_data,cluster_labels_qt,30,mol_labels=ds_mol_aerosolomics)
-top_peaks_normdot= cluster_top_percentiles(df_all_data,cluster_labels_normdot,30,mol_labels=ds_mol_aerosolomics)
-bottom_peaks_unscaled= cluster_top_percentiles(df_all_data,cluster_labels_unscaled,30,highest=False,mol_labels=ds_mol_aerosolomics)
-bottom_peaks_qt= cluster_top_percentiles(df_all_data,cluster_labels_qt,30,highest=False,mol_labels=ds_mol_aerosolomics)
-bottom_peaks_normdot= cluster_top_percentiles(df_all_data,cluster_labels_normdot,30,highest=False,mol_labels=ds_mol_aerosolomics)
-
-#Export to CSV
-export_path = r'C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Unusual_Peaks'
-
-top_peaks_unscaled.to_csv(export_path + '\pct_top_peaks_unscaled.csv')
-top_peaks_qt.to_csv(export_path + '\pct_top_peaks_qt.csv')
-top_peaks_normdot.to_csv(export_path + '\pct_top_peaks_normdot.csv')
-
-bottom_peaks_unscaled.to_csv(export_path + '\pct_bottom_peaks_unscaled.csv')
-bottom_peaks_qt.to_csv(export_path + '\pct_bottom_peaks_qt.csv')
-bottom_peaks_normdot.to_csv(export_path + '\pct_bottom_peaks_normdot.csv')
 
 
 
