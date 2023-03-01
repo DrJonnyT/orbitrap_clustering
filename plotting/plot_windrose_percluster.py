@@ -1,4 +1,4 @@
-from windrose import WindroseAxes#, plot_windrose
+from windrose import WindroseAxes  #You must leave this in as it adds the windrose projection
 import numpy as np
 from seaborn import set_context, reset_orig
 import matplotlib.pyplot as plt
@@ -7,12 +7,34 @@ import pdb
 
 import matplotlib.cm as cm
 
-def plot_windrose_percluster(df_merge,cluster_labels,dataset_cat, **kwargs):
+from functions.delhi_beijing_time import delhi_beijing_datetime_cat
+
+def plot_windrose_percluster(df_merge,cluster_labels,**kwargs): 
     """
     Plot 2 wind roses for each unique cluster from cluster_labels, one for Beijing and one for Delhi
     df_merge must have wind speed as 'ws_ms' and wind direction as 'wd_deg'
+    
+    Parameters
+    ----------
+    df_merge : Pandas DataFrame
+        Merge AQ/met data with columns for wind speed as 'ws_ms' and wind direction as 'wd_deg'
+    cluster_labels : Array
+        Cluster labels with same length as df_merge    
+
+    Returns
+    -------
+    variable
+        Largest number of clusters for which (maxr > maxr_threshold) or neither (mincard < mincard_threshold).
+    
+    
+    
     """
-    print("Plotting wind roses. This may take a minute or two")
+    
+    if kwargs.get('quiet', False):
+        pass
+    else:
+        print("Plotting wind roses. This may take a minute or two")
+    
     if "binsize" in kwargs:
         binsize = kwargs.get("binsize")
     else:
@@ -26,17 +48,17 @@ def plot_windrose_percluster(df_merge,cluster_labels,dataset_cat, **kwargs):
     unique_labels = np.unique(cluster_labels)
     num_clusters = len(unique_labels)
     
-    set_context("talk", font_scale=0.8)
     
+    dataset_cat = delhi_beijing_datetime_cat(df_merge.index)
     
+    #Create figure
+    set_context("talk", font_scale=0.8)  
     fig = plt.figure(figsize=(num_clusters*5,10))
     
-    
+    #Wind bins
     bins = np.arange(0, maxspeed, binsize)
     
-    
     for cluster in unique_labels:
-        #pdb.set_trace()
         df_wind = pd.DataFrame({"speed": df_merge['ws_ms'].loc[cluster_labels==cluster], "direction": df_merge['wd_deg'].loc[cluster_labels==cluster]})
         df_wind_beijing = df_wind.loc[pd.DataFrame([(dataset_cat == 'Beijing_winter'), (dataset_cat == 'Beijing_summer')]).any()]
         df_wind_delhi = df_wind.loc[pd.DataFrame([(dataset_cat == 'Delhi_summer'), (dataset_cat == 'Delhi_autumn')]).any()]
@@ -58,10 +80,9 @@ def plot_windrose_percluster(df_merge,cluster_labels,dataset_cat, **kwargs):
     if 'suptitle' in kwargs:
         fig.suptitle(kwargs.get("suptitle"),fontweight='bold')
     
-    #pdb.set_trace()
     #Add text to rows
     fig.text(0.1,0.9,"Beijing",fontweight='bold')
     fig.text(0.1,0.48,"Delhi",fontweight='bold')
     
-    #plt.tight_layout()
+    
     reset_orig()

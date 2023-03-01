@@ -932,9 +932,9 @@ plt.show()
 #%%Plot wind rose per city per cluster
 
 
-plot_windrose_percluster(df_all_merge,cluster_labels_unscaled,ds_dataset_cat,suptitle='Unscaled data')
-plot_windrose_percluster(df_all_merge,cluster_labels_qt,ds_dataset_cat,suptitle='qt data')
-plot_windrose_percluster(df_all_merge,cluster_labels_normdot,ds_dataset_cat,suptitle='normdot data')
+plot_windrose_percluster(df_all_merge,cluster_labels_unscaled,suptitle='Naive workflow, 4 clusters')
+plot_windrose_percluster(df_all_merge,cluster_labels_qt,suptitle='QT workflow, 7 clusters')
+plot_windrose_percluster(df_all_merge,cluster_labels_normdot,suptitle='Normdot workflow, 8 clusters')
 
 #%%Plot different molecules by cluster
 
@@ -1238,7 +1238,7 @@ plot_cluster_aerosolomics_spectra(cluster_labels_qt,df_all_aerosolomics,suptitle
 
 
 
-#%%Extract the top peaks for each cluster
+#%%Extract the top peaks for each cluster and save to CSV for the supplement
 
 df_JT_peaks = pd.read_csv(r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\JT_mol_list.csv",index_col='Formula',encoding='ISO-8859-1')
 
