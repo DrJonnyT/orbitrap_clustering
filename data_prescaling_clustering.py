@@ -1267,6 +1267,9 @@ def extract_clusters_top_peaks_csv(df_data,cluster_labels,n_peaks,csvpath,**kwar
     else:
         pct = 0
     
+    #Flag to return an array of the unique formulae for each cluster
+    flag_return_unique = kwargs.get("return_unique",False)
+    
     
     
     
@@ -1275,6 +1278,7 @@ def extract_clusters_top_peaks_csv(df_data,cluster_labels,n_peaks,csvpath,**kwar
         pass    
 
     unique_clusters = np.unique(cluster_labels)
+    unique_molecules = []
     
     for cluster in unique_clusters:
         df_top_peaks = cluster_extract_peaks(df_all_data.loc[cluster_labels == cluster].mean(axis=0), df_all_data.T,n_peaks,dp=1,dropRT=False)
@@ -1339,15 +1343,42 @@ def extract_clusters_top_peaks_csv(df_data,cluster_labels,n_peaks,csvpath,**kwar
             #Add footer
             file_buffer.write(footer)
         
-        
+        if flag_return_unique:
+            #Append unique molecules to array
+            unique_molecules.extend(df_top_peaks['Formula'].unique())
     
-    
+    if flag_return_unique:
+        #An array of the unique molecules from each cluster, all joined together
+        return np.array(unique_molecules)
 
 path_unscaled = r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\top_peaks_unscaled.csv"
 path_qt = r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\top_peaks_qt.csv"
 path_normdot = r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\top_peaks_normdot.csv"
-extract_clusters_top_peaks_csv(df_all_data,cluster_labels_unscaled,30,path_unscaled, prefix="Unscaled ",JT_peaks=df_JT_peaks,pct=1.)
-extract_clusters_top_peaks_csv(df_all_data,cluster_labels_qt,30,path_qt, prefix="qt ",JT_peaks=df_JT_peaks,pct=1.)
-extract_clusters_top_peaks_csv(df_all_data,cluster_labels_normdot,30,path_normdot, prefix="normdot ",JT_peaks=df_JT_peaks,pct=1.)
+unique_molecules_unscaled = extract_clusters_top_peaks_csv(df_all_data,cluster_labels_unscaled,30,path_unscaled, prefix="Unscaled ",JT_peaks=df_JT_peaks,pct=1.,return_unique=True)
+unique_molecules_qt = extract_clusters_top_peaks_csv(df_all_data,cluster_labels_qt,30,path_qt, prefix="qt ",JT_peaks=df_JT_peaks,pct=1.,return_unique=True)
+unique_molecules_normdot = extract_clusters_top_peaks_csv(df_all_data,cluster_labels_normdot,30,path_normdot, prefix="normdot ",JT_peaks=df_JT_peaks,pct=1.,return_unique=True)
 
-#extract_clusters_top_peaks_csv(df_all_data,cluster_labels_normdot,30,path_normdot, prefix="normdot ",sari_peaks=Sari_peaks_list,aerosolomics_peaks=ds_mol_aerosolomics_nodup,JT_peaks=df_JT_peaks,pct=1.)
+
+print("Unscaled clustering, unique molecules = " + str(len(np.unique(unique_molecules_unscaled))))
+print("QT clustering, unique molecules = " + str(len(np.unique(unique_molecules_qt))))
+print("Normdot clustering, unique molecules = " + str(len(np.unique(unique_molecules_normdot))))
+
+#%%Plot unique molecules in histograms
+unique_molecules_unscaled = pd.Series(unique_molecules_unscaled)
+unique_molecules_qt = pd.Series(unique_molecules_qt)
+unique_molecules_normdot = pd.Series(unique_molecules_normdot)
+
+fig,axs = plt.subplots(1,3,figsize=(12,12),sharey=True)
+axs=axs.ravel()
+sns.countplot(ax=axs[0],y=unique_molecules_unscaled,              
+              order = unique_molecules_unscaled.value_counts().index)
+sns.countplot(ax=axs[1],y=unique_molecules_qt,              
+              order = unique_molecules_qt.value_counts().index)
+sns.countplot(ax=axs[2],y=unique_molecules_normdot,              
+              order = unique_molecules_normdot.value_counts().index)
+
+axs[0].set_title('Naive workflow')
+axs[1].set_title('QT workflow')
+axs[2].set_title('Normdot workflow')
+
+
