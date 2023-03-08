@@ -58,7 +58,7 @@ from clustering.cluster_top_percentiles import cluster_top_percentiles
 
 #%%Load data from HDF
 filepath = r"C:\Users\mbcx5jt5\Google Drive\Shared_York_Man2\PMF data\ORBITRAP_Data_Pre_PMF.h5"
-df_all_data, df_all_err, ds_all_mz = load_pre_PMF_data(filepath,join='inner')
+df_all_data, df_all_err, ds_all_mz, ds_all_mw = load_pre_PMF_data(filepath,join='inner')
 
 df_all_signoise = (df_all_data / df_all_err).abs().fillna(0)
 
@@ -1248,24 +1248,42 @@ def extract_clusters_top_peaks_csv(df_data,cluster_labels,n_peaks,csvpath,**kwar
     #Check if peak labels are there
     if "sari_peaks" in kwargs:
         ds_sari_peaks = kwargs.get("sari_peaks")
-        sari_peaks = True
+        flag_sari_peaks = True
     else:
-        sari_peaks = False
+        flag_sari_peaks = False
+        
     if "aerosolomics_peaks" in kwargs:
         ds_aerosolomics_peaks = kwargs.get("aerosolomics_peaks")
-        aerosolomics = True
+        flag_aerosolomics = True
     else:
-        aerosolomics = False
+        flag_aerosolomics = False
+        
     if "JT_peaks" in kwargs:
         df_JT_peaks = kwargs.get("JT_peaks")
-        JT_peaks = True
+        flag_JT_peaks = True
     else:
-        JT_peaks = False
+        flag_JT_peaks = False
+    
     #Percentage threshold rather than top n peaks
     if "pct" in kwargs:
         pct = kwargs.get("pct")
     else:
         pct = 0
+    
+    #List of mz
+    if "mz_list" in kwargs:
+        ds_mz_list = kwargs.get("mz_list")
+        flag_mz_list = True
+    else:
+        flag_mz_list = False
+    
+    #List of molecular weights
+    if "mw_list" in kwargs:
+        ds_mw_list = kwargs.get("mw_list")
+        flag_mw_list = True
+    else:
+        flag_mw_list = False
+        
     
     #Flag to return an array of the unique formulae for each cluster
     flag_return_unique = kwargs.get("return_unique",False)
@@ -1282,12 +1300,33 @@ def extract_clusters_top_peaks_csv(df_data,cluster_labels,n_peaks,csvpath,**kwar
     
     for cluster in unique_clusters:
         df_top_peaks = cluster_extract_peaks(df_all_data.loc[cluster_labels == cluster].mean(axis=0), df_all_data.T,n_peaks,dp=1,dropRT=False)
+        orig_index = df_top_peaks.index
         df_top_peaks.index = np.arange(0,n_peaks)+1
         df_top_peaks = df_top_peaks.drop('Name',axis=1)
         
         
+        #Insert the mol weight
+        if(flag_mw_list):
+            ds_mw_list_cluster = pd.Series(np.empty(n_peaks,dtype='<U10'),index=df_top_peaks.index)
+            for peak in df_top_peaks.index:
+                try:
+                    ds_mw_list_cluster.loc[peak] = ds_mw_list.loc[orig_index[peak-1]]
+                except:
+                    ds_mw_list_cluster.loc[peak] = np.nan
+            df_top_peaks.insert(2,'Mol weight',ds_mw_list_cluster)
+        
+        #Insert the m/z
+        if(flag_mz_list):
+            ds_mz_list_cluster = pd.Series(np.empty(n_peaks,dtype='<U10'),index=df_top_peaks.index)
+            for peak in df_top_peaks.index:
+                try:
+                    ds_mz_list_cluster.loc[peak] = ds_mz_list.loc[orig_index[peak-1]]
+                except:
+                    ds_mz_list_cluster.loc[peak] = np.nan
+            df_top_peaks.insert(2,'m/z',ds_mz_list_cluster)
+        
         #Extract the labels from Sari's list
-        if(sari_peaks):
+        if(flag_sari_peaks):
             ds_Sari_list = pd.Series(np.empty(n_peaks,dtype='<U10'),index=df_top_peaks.index)
             for peak in df_top_peaks.index:
                 mol_nospace = df_top_peaks['Formula'].loc[peak].replace(" ","")              
@@ -1298,18 +1337,17 @@ def extract_clusters_top_peaks_csv(df_data,cluster_labels,n_peaks,csvpath,**kwar
             df_top_peaks['Sari'] = ds_Sari_list
         
         #Same for aerosolomics
-        if(aerosolomics):
+        if(flag_aerosolomics):
             ds_aero_list = pd.Series(np.empty(n_peaks,dtype='<U10'),index=df_top_peaks.index)
             for peak in df_top_peaks.index:
                 try:
                     ds_aero_list.loc[peak] = ds_aerosolomics_peaks.loc[df_top_peaks['Formula'].loc[peak]]
                 except:
                     ds_aero_list.loc[peak] = ''
-            #pdb.set_trace()
             df_top_peaks['Aerosolomics'] = ds_aero_list
             
         #Same for JT's peaks
-        if(JT_peaks):
+        if(flag_JT_peaks):
             df_JT_list = pd.DataFrame(np.empty([n_peaks,3]),dtype='<U10',index=df_top_peaks.index,columns=df_JT_peaks.columns)
             for peak in df_top_peaks.index:
                 try:
@@ -1317,6 +1355,8 @@ def extract_clusters_top_peaks_csv(df_data,cluster_labels,n_peaks,csvpath,**kwar
                 except:
                     df_JT_list.loc[peak] = ['','','']
             df_top_peaks[['Potential source','Reference(s)']] = df_JT_list[['Source','Reference']]
+        
+
         
         
         #Use percentage threshold, percentage > pct
@@ -1354,9 +1394,12 @@ def extract_clusters_top_peaks_csv(df_data,cluster_labels,n_peaks,csvpath,**kwar
 path_unscaled = r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\top_peaks_unscaled.csv"
 path_qt = r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\top_peaks_qt.csv"
 path_normdot = r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\top_peaks_normdot.csv"
-unique_molecules_unscaled = extract_clusters_top_peaks_csv(df_all_data,cluster_labels_unscaled,30,path_unscaled, prefix="Unscaled ",JT_peaks=df_JT_peaks,pct=1.,return_unique=True)
-unique_molecules_qt = extract_clusters_top_peaks_csv(df_all_data,cluster_labels_qt,30,path_qt, prefix="qt ",JT_peaks=df_JT_peaks,pct=1.,return_unique=True)
-unique_molecules_normdot = extract_clusters_top_peaks_csv(df_all_data,cluster_labels_normdot,30,path_normdot, prefix="normdot ",JT_peaks=df_JT_peaks,pct=1.,return_unique=True)
+unique_molecules_unscaled = extract_clusters_top_peaks_csv(df_all_data,cluster_labels_unscaled,50,path_unscaled, prefix="Unscaled ",
+                                                           JT_peaks=df_JT_peaks,pct=1.,return_unique=True,mz_list=ds_all_mz,mw_list=ds_all_mw)
+unique_molecules_qt = extract_clusters_top_peaks_csv(df_all_data,cluster_labels_qt,50,path_qt, prefix="qt ",
+                                                     JT_peaks=df_JT_peaks,pct=1.,return_unique=True,mz_list=ds_all_mz,mw_list=ds_all_mw)
+unique_molecules_normdot = extract_clusters_top_peaks_csv(df_all_data,cluster_labels_normdot,50,path_normdot, prefix="Normdot "
+                                                          ,JT_peaks=df_JT_peaks,pct=1.,return_unique=True,mz_list=ds_all_mz,mw_list=ds_all_mw)
 
 
 print("Unscaled clustering, unique molecules = " + str(len(np.unique(unique_molecules_unscaled))))
