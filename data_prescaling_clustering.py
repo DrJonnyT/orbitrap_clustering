@@ -12,6 +12,7 @@ import matplotlib.transforms as mtransforms
 import seaborn as sns
 import numpy as np
 import glob
+import string
 
 from sklearn.preprocessing import QuantileTransformer
 from sklearn.cluster import AgglomerativeClustering
@@ -649,6 +650,91 @@ df_SC_mtx = df_SC_mtx.stack()
 df_NC_mtx = df_NC_mtx.stack()
 
 
+#%%Plot elemental composition
+sns.set_context("talk", font_scale=0.7)
+
+fig,axs = plt.subplots(1,2,figsize=(8,4))
+axs=axs.ravel()
+
+#Plot O/C vs H/C for each clustering workflow
+
+axs[0].scatter(df_HC_mtx['Unscaled'],df_OC_mtx['Unscaled'],c='white')
+for x,y,text in zip(df_HC_mtx['Unscaled'],df_OC_mtx['Unscaled'],df_HC_mtx.index):
+    if np.isnan(x) or np.isnan(y):
+        pass
+    else:
+        axs[0].text(x, y, str(text), color="k", fontsize=16,fontweight='bold',alpha=0.75)
+    
+axs[0].scatter(df_HC_mtx['qt'],df_OC_mtx['qt'],c='white')
+for x,y,text in zip(df_HC_mtx['qt'],df_OC_mtx['qt'],df_HC_mtx.index):
+    if np.isnan(x) or np.isnan(y):
+        pass
+    else:
+        axs[0].text(x, y, str(text), color="tab:red", fontsize=16,fontweight='bold',alpha=0.75)
+        
+axs[0].scatter(df_HC_mtx['normdot'],df_OC_mtx['normdot'],c='white')
+for x,y,text in zip(df_HC_mtx['normdot'],df_OC_mtx['normdot'],df_HC_mtx.index):
+    if np.isnan(x) or np.isnan(y):
+        pass
+    else:
+        axs[0].text(x, y, str(text), color="tab:blue", fontsize=16,fontweight='bold',alpha=0.75)
+
+axs[0].margins(0.1,0.1)
+axs[0].set_xlabel("H/C")
+axs[0].set_ylabel("O/C")
+#Make legend
+axs[0].text(0.89,0.58,"Naive",color='k',fontweight='bold',fontsize=14)
+axs[0].text(0.89,0.555,"QT",color='tab:red',fontweight='bold',fontsize=14)
+axs[0].text(0.89,0.53,"Normdot",color='tab:blue',fontweight='bold',fontsize=14)
+
+
+#Plot S/C vs N/C for each clustering workflow
+
+axs[1].scatter(df_NC_mtx['Unscaled'],df_SC_mtx['Unscaled'],c='white')
+for x,y,text in zip(df_NC_mtx['Unscaled'],df_SC_mtx['Unscaled'],df_NC_mtx.index):
+    if np.isnan(x) or np.isnan(y):
+        pass
+    else:
+        axs[1].text(x, y, str(text), color="k", fontsize=16,fontweight='bold',alpha=0.75)
+    
+axs[1].scatter(df_NC_mtx['qt'],df_SC_mtx['qt'],c='white')
+for x,y,text in zip(df_NC_mtx['qt'],df_SC_mtx['qt'],df_NC_mtx.index):
+    if np.isnan(x) or np.isnan(y):
+        pass
+    else:
+        axs[1].text(x, y, str(text), color="tab:red", fontsize=16,fontweight='bold',alpha=0.75)
+        
+axs[1].scatter(df_NC_mtx['normdot'],df_SC_mtx['normdot'],c='white')
+for x,y,text in zip(df_NC_mtx['normdot'],df_SC_mtx['normdot'],df_NC_mtx.index):
+    if np.isnan(x) or np.isnan(y):
+        pass
+    else:
+        axs[1].text(x, y, str(text), color="tab:blue", fontsize=16,fontweight='bold',alpha=0.75)
+
+axs[1].margins(0.1,0.1)
+axs[1].set_xlabel("N/C")
+axs[1].set_ylabel("S/C")
+#Make legend
+#axs[1].text(0.9,0.63,"Naive",color='k')
+#axs[1].text(0.9,0.605,"QT",color='tab:red')
+#axs[1].text(0.9,0.58,"Normdot",color='tab:blue')
+
+
+
+#Add letters in boxes for each subfigure
+trans = mtransforms.ScaledTranslation(2/72, -5/72, fig.dpi_scale_trans)
+    
+for axis, letter in zip(axs,string.ascii_lowercase):
+    axis.text(0.02, 0.98, ('(' + letter + ')'), transform=axis.transAxes + trans,
+    fontsize='large', verticalalignment='top', fontfamily='serif',
+    bbox=dict(facecolor='1.0', edgecolor='none', pad=1.0))
+
+
+
+plt.tight_layout()
+
+
+sns.reset_orig()
 
 #%%Plot CHO etc mols per cluster, for the accepted cluster numbers
 
