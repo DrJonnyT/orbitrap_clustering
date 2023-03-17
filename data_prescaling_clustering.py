@@ -621,6 +621,35 @@ df_SC_mtx = pd.DataFrame()
 df_NC_mtx = pd.DataFrame()
 
 
+
+
+def sum_elemental_ratios(avg_spectrum,df_elemental_ratios):
+    avg_spectrum = np.array(avg_spectrum)
+    H_C = (avg_spectrum * df_elemental_ratios['H/C']).sum() / avg_spectrum.sum()
+    N_C = (avg_spectrum * df_elemental_ratios['N/C']).sum() / avg_spectrum.sum()
+    O_C = (avg_spectrum * df_elemental_ratios['O/C']).sum() / avg_spectrum.sum()
+    S_C = (avg_spectrum * df_elemental_ratios['S/C']).sum() / avg_spectrum.sum()
+    
+    return H_C, N_C, O_C, S_C
+
+def sum_elemental_ratios_cluster(cluster_labels,df_data,df_elemental_ratios):
+    unique_labels = np.unique(cluster_labels)
+    
+    ds_H_C = pd.Series(index=unique_labels,dtype='float')
+    ds_N_C = pd.Series(index=unique_labels,dtype='float')
+    ds_O_C = pd.Series(index=unique_labels,dtype='float')
+    ds_S_C = pd.Series(index=unique_labels,dtype='float')
+    
+    for label in unique_labels:
+        avg_spectrum = df_data.loc[cluster_labels==label].sum()
+        ds_H_C[label], ds_N_C[label], ds_O_C[label], ds_S_C[label]= sum_elemental_ratios(avg_spectrum,df_elemental_ratios)
+        
+    return ds_H_C, ds_N_C, ds_O_C, ds_S_C
+
+H_C_normdot, N_C_normdot,O_C_normdot,S_C_normdot = sum_elemental_ratios_cluster(cluster_labels_normdot,df_all_data,df_element_ratios)
+
+
+#%%
 #normdot cluster labels
 df_clusters_HC_mtx,df_clusters_NC_mtx,df_clusters_OC_mtx,df_clusters_SC_mtx = calc_cluster_elemental_ratios(df_cluster_labels_mtx_normdot.loc[:,8:8],df_all_data,df_element_ratios)
 df_HC_mtx['normdot'] = df_clusters_HC_mtx.loc[8]
@@ -653,35 +682,35 @@ df_NC_mtx = df_NC_mtx.stack()
 #%%Plot elemental composition
 sns.set_context("talk", font_scale=0.7)
 
-fig,axs = plt.subplots(1,2,figsize=(8,4))
+fig,axs = plt.subplots(1,2,figsize=(10,5))
 axs=axs.ravel()
 
 #Plot O/C vs H/C for each clustering workflow
 
 axs[0].scatter(df_HC_mtx['Unscaled'],df_OC_mtx['Unscaled'],c='white')
-for x,y,text in zip(df_HC_mtx['Unscaled'],df_OC_mtx['Unscaled'],df_HC_mtx.index):
+for x,y,text in zip(df_OC_mtx['Unscaled'],df_HC_mtx['Unscaled'],df_HC_mtx.index):
     if np.isnan(x) or np.isnan(y):
         pass
     else:
         axs[0].text(x, y, str(text), color="k", fontsize=16,fontweight='bold',alpha=0.75)
     
 axs[0].scatter(df_HC_mtx['qt'],df_OC_mtx['qt'],c='white')
-for x,y,text in zip(df_HC_mtx['qt'],df_OC_mtx['qt'],df_HC_mtx.index):
+for x,y,text in zip(df_OC_mtx['qt'],df_HC_mtx['qt'],df_HC_mtx.index):
     if np.isnan(x) or np.isnan(y):
         pass
     else:
         axs[0].text(x, y, str(text), color="tab:red", fontsize=16,fontweight='bold',alpha=0.75)
         
 axs[0].scatter(df_HC_mtx['normdot'],df_OC_mtx['normdot'],c='white')
-for x,y,text in zip(df_HC_mtx['normdot'],df_OC_mtx['normdot'],df_HC_mtx.index):
+for x,y,text in zip(df_OC_mtx['normdot'],df_HC_mtx['normdot'],df_HC_mtx.index):
     if np.isnan(x) or np.isnan(y):
         pass
     else:
         axs[0].text(x, y, str(text), color="tab:blue", fontsize=16,fontweight='bold',alpha=0.75)
 
 axs[0].margins(0.1,0.1)
-axs[0].set_xlabel("H/C")
-axs[0].set_ylabel("O/C")
+axs[0].set_xlabel("O/C")
+axs[0].set_ylabel("H/C")
 #Make legend
 axs[0].text(0.89,0.58,"Naive",color='k',fontweight='bold',fontsize=14)
 axs[0].text(0.89,0.555,"QT",color='tab:red',fontweight='bold',fontsize=14)
@@ -714,6 +743,8 @@ for x,y,text in zip(df_NC_mtx['normdot'],df_SC_mtx['normdot'],df_NC_mtx.index):
 axs[1].margins(0.1,0.1)
 axs[1].set_xlabel("N/C")
 axs[1].set_ylabel("S/C")
+axs[1].xaxis.set_major_locator(plticker.MultipleLocator(0.0005))
+axs[1].yaxis.set_major_locator(plticker.MultipleLocator(0.005))
 #Make legend
 #axs[1].text(0.9,0.63,"Naive",color='k')
 #axs[1].text(0.9,0.605,"QT",color='tab:red')
@@ -1472,6 +1503,7 @@ def extract_clusters_top_peaks_csv(df_data,cluster_labels,n_peaks,csvpath,**kwar
         if flag_return_unique:
             #Append unique molecules to array
             unique_molecules.extend(df_top_peaks['Formula'].unique())
+            
     
     if flag_return_unique:
         #An array of the unique molecules from each cluster, all joined together
@@ -1493,18 +1525,31 @@ print("QT clustering, unique molecules = " + str(len(np.unique(unique_molecules_
 print("Normdot clustering, unique molecules = " + str(len(np.unique(unique_molecules_normdot))))
 
 #%%Plot unique molecules in histograms
-unique_molecules_unscaled = pd.Series(unique_molecules_unscaled)
-unique_molecules_qt = pd.Series(unique_molecules_qt)
-unique_molecules_normdot = pd.Series(unique_molecules_normdot)
+ds_unique_molecules_unscaled = pd.Series(unique_molecules_unscaled)
+ds_unique_molecules_qt = pd.Series(unique_molecules_qt)
+ds_unique_molecules_normdot = pd.Series(unique_molecules_normdot)
+
+#Make a common index
+unique_mol_index = pd.concat([ds_unique_molecules_unscaled,ds_unique_molecules_qt,ds_unique_molecules_normdot]).value_counts().index
+
+
 
 fig,axs = plt.subplots(1,3,figsize=(12,12),sharey=True)
 axs=axs.ravel()
+
 sns.countplot(ax=axs[0],y=unique_molecules_unscaled,              
-              order = unique_molecules_unscaled.value_counts().index)
+              order = unique_mol_index)
 sns.countplot(ax=axs[1],y=unique_molecules_qt,              
-              order = unique_molecules_qt.value_counts().index)
-sns.countplot(ax=axs[2],y=unique_molecules_normdot,              
-              order = unique_molecules_normdot.value_counts().index)
+              order = unique_mol_index)
+sns.countplot(ax=axs[2],y=ds_unique_molecules_normdot,              
+              order = unique_mol_index)
+# sns.countplot(ax=axs[2],y=ds_unique_molecules_normdot,              
+#               order = unique_molecules_normdot.value_counts().index)
+# sns.countplot(ax=axs[0],y=unique_molecules_unscaled,              
+#               order = unique_molecules_unscaled.value_counts().index)
+# sns.countplot(ax=axs[1],y=unique_molecules_qt,              
+#               order = unique_molecules_qt.value_counts().index)
+
 
 axs[0].set_title('Naive workflow')
 axs[1].set_title('QT workflow')
