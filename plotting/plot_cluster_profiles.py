@@ -117,3 +117,71 @@ def plot_one_cluster_profile(df_all_data,cluster_profiles_mtx_norm, num_clusters
         
     
     sns.reset_orig()
+    
+    
+def plot_clusters_massspecs(df_all_data,cluster_labels,mz_columns,normalise=True,**kwargs):
+    """
+    Plot mass spectra for each cluster
+
+    Parameters
+    ----------
+    df_all_data : Pandas DataFrame
+        Concentrations of the different molecules. Index is time, columns are compounds.
+    cluster_labels : array-like
+        Array of cluster labels.
+    mz_columns : array-like
+        m/z of each compound.
+    normalise : Bool
+        Normalise the mass spectra in the plot so they sum to 1? Default is True
+    kwargs : suptitle
+    
+
+    Returns
+    -------
+    
+
+    """
+    
+    sns.set_context("talk", font_scale=0.8)
+    
+    unique_clusters = np.unique(cluster_labels)
+    num_clusters = len(unique_clusters)
+    
+    #Make axes
+    fig,axes = plt.subplots(num_clusters,1,figsize=(10,2.9*num_clusters),constrained_layout=True)
+    
+    #Loop through each cluster
+    for cluster, ax in zip(unique_clusters,axes):
+        this_cluster_profile = df_all_data.loc[cluster_labels==cluster].mean(axis=0)
+        if normalise:
+            this_cluster_profile = this_cluster_profile/this_cluster_profile.sum()
+            ax.set_ylabel('Relative concentration')
+        else:
+            ax.set_ylabel(r'Concentration ($\mu$ g m$^{-3}$')
+        
+        #Plot the data
+        if "stemcol" in kwargs:
+            linefmt = kwargs.get("stemcol")
+        else:
+            linefmt = 'gray'
+        ax.stem(mz_columns.to_numpy(),this_cluster_profile,markerfmt=' ',linefmt=linefmt,basefmt='k')
+        ax.set_xlabel('m/z')
+        
+        #ax.set_title('Cluster' + str(y_idx))
+        if "label_prefix" in kwargs:
+            label_text = 'Cluster ' + str(kwargs.get("label_prefix")) + str(cluster)
+        else:
+            label_text = 'Cluster ' + str(cluster)
+        ax.text(0.01, 0.95, label_text, transform=ax.transAxes, fontsize=12,
+                verticalalignment='top')
+        
+        if "xmin" in kwargs:
+            ax.set_xlim(left=kwargs.get("xmin"))
+        if "xmax" in kwargs:
+            ax.set_xlim(right=kwargs.get("xmax"))
+        
+        if "suptitle" in kwargs:
+            fig.suptitle(kwargs.get("suptitle"))
+        
+    
+    sns.reset_orig()
