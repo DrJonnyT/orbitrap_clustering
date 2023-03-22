@@ -46,7 +46,7 @@ from plotting.plot_clusters_project_daylight import plot_clusters_project_daylig
 from plotting.plot_orbitrap_ams_aqmet import plot_orbitrap_ams_aqmet
 #from plotting.compare_cluster_metrics import compare_cluster_metrics, compare_cluster_metrics_fn
 from plotting.plot_binned_mol_data import bin_mol_data_for_plot, plot_binned_mol_data
-from plotting.plot_cluster_profiles import plot_all_cluster_profiles
+from plotting.plot_cluster_profiles import plot_all_cluster_profiles, plot_clusters_massspecs
 from plotting.plot_cluster_aerosolomics_spectra import plot_cluster_aerosolomics_spectra
 from plotting.plot_windrose_percluster import plot_windrose_percluster
 
@@ -1401,10 +1401,29 @@ def extract_clusters_top_peaks_csv(df_data,cluster_labels,n_peaks,csvpath,**kwar
     else:
         flag_mw_list = False
         
+    #Count the num times each mol appears in *A* cluster and add to a column
+    flag_mol_counts = kwargs.get("mol_counts",False)
+        
     
     #Flag to return an array of the unique formulae for each cluster
     flag_return_unique = kwargs.get("return_unique",False)
     
+    
+    #First count and list all the unique molecules that appear in the clusters
+    if flag_return_unique or flag_mol_counts:
+        unique_clusters = np.unique(cluster_labels)
+        unique_molecules = [] 
+        for cluster in unique_clusters:
+            df_top_peaks = cluster_extract_peaks(df_all_data.loc[cluster_labels == cluster].mean(axis=0), df_all_data.T,n_peaks,dp=1,dropRT=False)     
+            
+            #Use percentage threshold, percentage > pct
+            if pct>0:
+                df_top_peaks = df_top_peaks.loc[df_top_peaks['peak_pct']>=pct]
+            
+            #Append unique molecules to array
+            unique_molecules.extend(df_top_peaks['Formula'].unique())
+        
+        unique_molecules = np.array(unique_molecules)
     
     
     
@@ -1412,9 +1431,6 @@ def extract_clusters_top_peaks_csv(df_data,cluster_labels,n_peaks,csvpath,**kwar
     with open(csvpath, "w") as my_empty_csv:
         pass    
 
-    unique_clusters = np.unique(cluster_labels)
-    unique_molecules = []
-    
     for cluster in unique_clusters:
         df_top_peaks = cluster_extract_peaks(df_all_data.loc[cluster_labels == cluster].mean(axis=0), df_all_data.T,n_peaks,dp=1,dropRT=False)
         orig_index = df_top_peaks.index
@@ -1473,8 +1489,16 @@ def extract_clusters_top_peaks_csv(df_data,cluster_labels,n_peaks,csvpath,**kwar
                     df_JT_list.loc[peak] = ['','','']
             df_top_peaks[['Potential source','Reference(s)']] = df_JT_list[['Source','Reference']]
         
-
-        
+        #Add the num clusters each molecule appears in
+        if flag_mol_counts:
+            ds_mol_counts = pd.Series(np.empty(n_peaks,dtype='<U10'),index=df_top_peaks.index)
+            for peak in df_top_peaks.index:
+                #pdb.set_trace()
+                try:
+                    ds_mol_counts.loc[peak] = pd.Series(unique_molecules).value_counts().loc[df_top_peaks['Formula'].loc[peak]]
+                except:
+                    ds_mol_counts.loc[peak] = 'a'
+            df_top_peaks['mol_total_clusters'] = ds_mol_counts
         
         #Use percentage threshold, percentage > pct
         if pct>0:
@@ -1499,25 +1523,22 @@ def extract_clusters_top_peaks_csv(df_data,cluster_labels,n_peaks,csvpath,**kwar
             df_top_peaks.to_csv(file_buffer,line_terminator='')
             #Add footer
             file_buffer.write(footer)
-        
-        if flag_return_unique:
-            #Append unique molecules to array
-            unique_molecules.extend(df_top_peaks['Formula'].unique())
-            
     
     if flag_return_unique:
         #An array of the unique molecules from each cluster, all joined together
-        return np.array(unique_molecules)
+        return unique_molecules
+    
+    
 
 path_unscaled = r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\top_peaks_unscaled.csv"
 path_qt = r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\top_peaks_qt.csv"
 path_normdot = r"C:\Users\mbcx5jt5\Dropbox (The University of Manchester)\Complex-SOA\Clustering\Cluster_Top_Peaks\top_peaks_normdot.csv"
 unique_molecules_unscaled = extract_clusters_top_peaks_csv(df_all_data,cluster_labels_unscaled,50,path_unscaled, prefix="Unscaled ",
-                                                           JT_peaks=df_JT_peaks,pct=1.,return_unique=True,mz_list=ds_all_mz,mw_list=ds_all_mw)
+                                                           JT_peaks=df_JT_peaks,pct=1.,return_unique=True,mz_list=ds_all_mz,mw_list=ds_all_mw,mol_counts=True)
 unique_molecules_qt = extract_clusters_top_peaks_csv(df_all_data,cluster_labels_qt,50,path_qt, prefix="qt ",
-                                                     JT_peaks=df_JT_peaks,pct=1.,return_unique=True,mz_list=ds_all_mz,mw_list=ds_all_mw)
+                                                     JT_peaks=df_JT_peaks,pct=1.,return_unique=True,mz_list=ds_all_mz,mw_list=ds_all_mw,mol_counts=True)
 unique_molecules_normdot = extract_clusters_top_peaks_csv(df_all_data,cluster_labels_normdot,50,path_normdot, prefix="Normdot "
-                                                          ,JT_peaks=df_JT_peaks,pct=1.,return_unique=True,mz_list=ds_all_mz,mw_list=ds_all_mw)
+                                                          ,JT_peaks=df_JT_peaks,pct=1.,return_unique=True,mz_list=ds_all_mz,mw_list=ds_all_mw,mol_counts=True)
 
 
 print("Unscaled clustering, unique molecules = " + str(len(np.unique(unique_molecules_unscaled))))
@@ -1556,3 +1577,7 @@ axs[1].set_title('QT workflow')
 axs[2].set_title('Normdot workflow')
 
 
+#%%Plot cluster mass spectras
+plot_clusters_massspecs(df_all_data,cluster_labels_unscaled,ds_all_mz,normalise=True,suptitle="Naive workflow",xmin=100,xmax=540,label_prefix='N',stemcol='dimgray')
+plot_clusters_massspecs(df_all_data,cluster_labels_qt,ds_all_mz,normalise=True,suptitle="QT workflow",xmin=100,xmax=540,label_prefix='QT',stemcol='tab:red')
+plot_clusters_massspecs(df_all_data,cluster_labels_normdot,ds_all_mz,normalise=True,suptitle="MS workflow",xmin=100,xmax=540,label_prefix='MS',stemcol='tab:blue')
