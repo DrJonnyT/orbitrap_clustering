@@ -1577,7 +1577,7 @@ axs[1].set_title('QT workflow')
 axs[2].set_title('Normdot workflow')
 
 
-#%%Plot cluster mass spectras
+#%%Plot cluster mass spectra
 plot_clusters_massspecs(df_all_data,cluster_labels_unscaled,ds_all_mz,normalise=True,suptitle="Naive workflow",xmin=100,xmax=540,label_prefix='N',stemcol='dimgray')
 plot_clusters_massspecs(df_all_data,cluster_labels_qt,ds_all_mz,normalise=True,suptitle="QT workflow",xmin=100,xmax=540,label_prefix='QT',stemcol='tab:red')
 plot_clusters_massspecs(df_all_data,cluster_labels_normdot,ds_all_mz,normalise=True,suptitle="MS workflow",xmin=100,xmax=540,label_prefix='MS',stemcol='tab:blue')
