@@ -680,29 +680,29 @@ df_NC_mtx = df_NC_mtx.stack()
 
 
 #%%Plot elemental composition
-sns.set_context("talk", font_scale=0.7)
+sns.set_context("talk", font_scale=0.8)
 
 fig,axs = plt.subplots(1,2,figsize=(10,5))
 axs=axs.ravel()
 
 #Plot O/C vs H/C for each clustering workflow
 
-axs[0].scatter(df_HC_mtx['Unscaled'],df_OC_mtx['Unscaled'],c='white')
-for x,y,text in zip(df_OC_mtx['Unscaled'],df_HC_mtx['Unscaled'],df_HC_mtx.index):
+axs[0].scatter(df_HC_mtx.xs('Unscaled',level=1),df_OC_mtx.xs('Unscaled',level=1),c='white')
+for x,y,text in zip(df_HC_mtx.xs('Unscaled',level=1),df_OC_mtx.xs('Unscaled',level=1),df_HC_mtx.xs('Unscaled',level=1).index):
     if np.isnan(x) or np.isnan(y):
         pass
     else:
         axs[0].text(x, y, str(text), color="k", fontsize=16,fontweight='bold',alpha=0.75)
     
-axs[0].scatter(df_HC_mtx['qt'],df_OC_mtx['qt'],c='white')
-for x,y,text in zip(df_OC_mtx['qt'],df_HC_mtx['qt'],df_HC_mtx.index):
+axs[0].scatter(df_HC_mtx.xs('qt',level=1),df_OC_mtx.xs('qt',level=1),c='white')
+for x,y,text in zip(df_HC_mtx.xs('qt',level=1),df_OC_mtx.xs('qt',level=1),df_HC_mtx.xs('qt',level=1).index):
     if np.isnan(x) or np.isnan(y):
         pass
     else:
         axs[0].text(x, y, str(text), color="tab:red", fontsize=16,fontweight='bold',alpha=0.75)
         
-axs[0].scatter(df_HC_mtx['normdot'],df_OC_mtx['normdot'],c='white')
-for x,y,text in zip(df_OC_mtx['normdot'],df_HC_mtx['normdot'],df_HC_mtx.index):
+axs[0].scatter(df_HC_mtx.xs('normdot',level=1),df_OC_mtx.xs('normdot',level=1),c='white')
+for x,y,text in zip(df_HC_mtx.xs('normdot',level=1),df_OC_mtx.xs('normdot',level=1),df_HC_mtx.xs('normdot',level=1).index):
     if np.isnan(x) or np.isnan(y):
         pass
     else:
@@ -719,22 +719,22 @@ axs[0].text(0.89,0.53,"MS",color='tab:blue',fontweight='bold',fontsize=14)
 
 #Plot S/C vs N/C for each clustering workflow
 
-axs[1].scatter(df_NC_mtx['Unscaled'],df_SC_mtx['Unscaled'],c='white')
-for x,y,text in zip(df_NC_mtx['Unscaled'],df_SC_mtx['Unscaled'],df_NC_mtx.index):
+axs[1].scatter(df_NC_mtx.xs('Unscaled',level=1),df_SC_mtx.xs('Unscaled',level=1),c='white')
+for x,y,text in zip(df_NC_mtx.xs('Unscaled',level=1),df_SC_mtx.xs('Unscaled',level=1),df_NC_mtx.xs('Unscaled',level=1).index):
     if np.isnan(x) or np.isnan(y):
         pass
     else:
         axs[1].text(x, y, str(text), color="k", fontsize=16,fontweight='bold',alpha=0.75)
     
-axs[1].scatter(df_NC_mtx['qt'],df_SC_mtx['qt'],c='white')
-for x,y,text in zip(df_NC_mtx['qt'],df_SC_mtx['qt'],df_NC_mtx.index):
+axs[1].scatter(df_NC_mtx.xs('qt',level=1),df_SC_mtx.xs('qt',level=1),c='white')
+for x,y,text in zip(df_NC_mtx.xs('qt',level=1),df_SC_mtx.xs('qt',level=1),df_NC_mtx.xs('qt',level=1).index):
     if np.isnan(x) or np.isnan(y):
         pass
     else:
         axs[1].text(x, y, str(text), color="tab:red", fontsize=16,fontweight='bold',alpha=0.75)
         
-axs[1].scatter(df_NC_mtx['normdot'],df_SC_mtx['normdot'],c='white')
-for x,y,text in zip(df_NC_mtx['normdot'],df_SC_mtx['normdot'],df_NC_mtx.index):
+axs[1].scatter(df_NC_mtx.xs('normdot',level=1),df_SC_mtx.xs('normdot',level=1),c='white')
+for x,y,text in zip(df_NC_mtx.xs('normdot',level=1),df_SC_mtx.xs('normdot',level=1),df_NC_mtx.xs('normdot',level=1).index):
     if np.isnan(x) or np.isnan(y):
         pass
     else:
