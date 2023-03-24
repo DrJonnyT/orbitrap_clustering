@@ -714,7 +714,7 @@ axs[0].set_ylabel("H/C")
 #Make legend
 axs[0].text(0.89,0.58,"Naive",color='k',fontweight='bold',fontsize=14)
 axs[0].text(0.89,0.555,"QT",color='tab:red',fontweight='bold',fontsize=14)
-axs[0].text(0.89,0.53,"Normdot",color='tab:blue',fontweight='bold',fontsize=14)
+axs[0].text(0.89,0.53,"MS",color='tab:blue',fontweight='bold',fontsize=14)
 
 
 #Plot S/C vs N/C for each clustering workflow
@@ -1559,11 +1559,11 @@ fig,axs = plt.subplots(1,3,figsize=(12,12),sharey=True)
 axs=axs.ravel()
 
 sns.countplot(ax=axs[0],y=unique_molecules_unscaled,              
-              order = unique_mol_index)
+              order = unique_mol_index,color='gray')
 sns.countplot(ax=axs[1],y=unique_molecules_qt,              
-              order = unique_mol_index)
+              order = unique_mol_index,color='tab:red')
 sns.countplot(ax=axs[2],y=ds_unique_molecules_normdot,              
-              order = unique_mol_index)
+              order = unique_mol_index,color='tab:blue')
 # sns.countplot(ax=axs[2],y=ds_unique_molecules_normdot,              
 #               order = unique_molecules_normdot.value_counts().index)
 # sns.countplot(ax=axs[0],y=unique_molecules_unscaled,              
