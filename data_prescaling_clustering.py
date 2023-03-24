@@ -1443,7 +1443,12 @@ def extract_clusters_top_peaks_csv(df_data,cluster_labels,n_peaks,csvpath,**kwar
             ds_mw_list_cluster = pd.Series(np.empty(n_peaks,dtype='<U10'),index=df_top_peaks.index)
             for peak in df_top_peaks.index:
                 try:
-                    ds_mw_list_cluster.loc[peak] = ds_mw_list.loc[orig_index[peak-1]]
+                    mw = str(ds_mw_list.loc[orig_index[peak-1]])
+                    if len(mw) == 6:    #Add on a zero to the end if it's not 3DP, it will have missed off the trailing zero
+                        mw = mw + '0'
+                    elif len(mw) > 7:   #Truncate string to 3DP if there's a weird numerical bug
+                        mw = mw[0:7]
+                    ds_mw_list_cluster.loc[peak] = mw
                 except:
                     ds_mw_list_cluster.loc[peak] = np.nan
             df_top_peaks.insert(2,'Mol weight',ds_mw_list_cluster)
@@ -1453,11 +1458,16 @@ def extract_clusters_top_peaks_csv(df_data,cluster_labels,n_peaks,csvpath,**kwar
             ds_mz_list_cluster = pd.Series(np.empty(n_peaks,dtype='<U10'),index=df_top_peaks.index)
             for peak in df_top_peaks.index:
                 try:
-                    ds_mz_list_cluster.loc[peak] = ds_mz_list.loc[orig_index[peak-1]]
+                    mz = str(ds_mz_list.loc[orig_index[peak-1]])
+                    if len(mz) == 6:    #Add on a zero to the end if it's not 3 DP, it will have missed off the trailing zero
+                        mz = mz + '0'
+                    elif len(mz) > 7:   #Truncate string to 3DP if there's a weird numerical bug
+                        mz = mz[0:7]
+                    ds_mz_list_cluster.loc[peak] = mz                   
                 except:
-                    ds_mz_list_cluster.loc[peak] = np.nan
+                    ds_mz_list_cluster.loc[peak] = ''
             df_top_peaks.insert(2,'m/z',ds_mz_list_cluster)
-        
+            
         #Extract the labels from Sari's list
         if(flag_sari_peaks):
             ds_Sari_list = pd.Series(np.empty(n_peaks,dtype='<U10'),index=df_top_peaks.index)
