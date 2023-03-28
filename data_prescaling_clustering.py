@@ -50,6 +50,10 @@ from plotting.plot_cluster_profiles import plot_all_cluster_profiles, plot_clust
 from plotting.plot_cluster_aerosolomics_spectra import plot_cluster_aerosolomics_spectra
 from plotting.plot_windrose_percluster import plot_windrose_percluster
 
+import plotting
+
+
+
 #from clustering.molecule_type_math import molecule_type_pos_frac_clusters_mtx
 from clustering.cluster_n_times import cluster_n_times, cluster_n_times_fn
 from clustering.correlate_cluster_profiles import correlate_cluster_profiles
@@ -1297,6 +1301,11 @@ plot_orbitrap_ams_aqmet(cluster_labels_unscaled,df_all_data_moltypes,df_all_merg
 plot_orbitrap_ams_aqmet(cluster_labels_qt,df_all_data_moltypes,df_all_merge,suptitle='QT workflow, 7 clusters')
 plot_orbitrap_ams_aqmet(cluster_labels_normdot,df_all_data_moltypes,df_all_merge,suptitle='Normdot workflow, 8 clusters')
 
+
+#%% Massive plot, with dataset and daytime frac
+plotting.plot_orbitrap_ams_aqmet.plot_orbitrap_ams_aqmet_time(cluster_labels_unscaled,df_all_data,df_all_merge,ds_day_maj_frac_unscaled,suptitle='Naive workflow')
+plotting.plot_orbitrap_ams_aqmet.plot_orbitrap_ams_aqmet_time(cluster_labels_qt,df_all_data,df_all_merge,ds_day_maj_frac_qt,suptitle='QT workflow')
+plotting.plot_orbitrap_ams_aqmet.plot_orbitrap_ams_aqmet_time(cluster_labels_normdot,df_all_data,df_all_merge,ds_day_maj_frac_normdot,suptitle='MS workflow')
 
 
 #%%Plot clusters by Aerosolomics source
