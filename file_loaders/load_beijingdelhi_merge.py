@@ -20,8 +20,11 @@ def load_beijingdelhi_merge(newindex=None):
                                       parse_dates=[0,1,2],dayfirst=True)
     df_merge_delhi_autumn.set_index('date_mid',inplace=True)      
 
-    # import pdb
-    # pdb.set_trace()
+    #Make AMS inorg
+    df_merge_beijing_winter['AMS_inorg'] = df_merge_beijing_winter['AMS_NO3'] + df_merge_beijing_winter['AMS_SO4'] + df_merge_beijing_winter['AMS_NH4'] + df_merge_beijing_winter['AMS_Chl']
+    df_merge_beijing_summer['AMS_inorg'] = df_merge_beijing_summer['AMS_NO3'] + df_merge_beijing_summer['AMS_SO4'] + df_merge_beijing_summer['AMS_NH4'] + df_merge_beijing_summer['AMS_Chl']
+    df_merge_delhi_summer['AMS_inorg'] = df_merge_delhi_summer['AMS_NO3'] + df_merge_delhi_summer['AMS_SO4'] + df_merge_delhi_summer['AMS_NH4'] + df_merge_delhi_summer['AMS_Chl']
+    df_merge_delhi_autumn['AMS_inorg'] = df_merge_delhi_autumn['AMS_NO3'] + df_merge_delhi_autumn['AMS_SO4'] + df_merge_delhi_autumn['AMS_NH4'] + df_merge_delhi_autumn['AMS_Chl']
     
     ##Prepare the AMS PMF data
     #Beijing winter
