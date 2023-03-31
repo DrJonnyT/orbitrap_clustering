@@ -124,10 +124,10 @@ def plot_orbitrap_ams_aqmet_time(cluster_labels,df_data,df_merge,ds_day_frac,**k
     None.
 
     """
-    sns.set_context("paper", font_scale=1.2)
+    sns.set_context("paper", font_scale=1.)
     
     ylabels = ["CO (ppbv)","O$_3$ (ppbv)","Orbitrap total (µg m$^{-3}$)","AMS OA (µg m$^{-3}$)",
-               "AMS PMF fraction", "Precip (mm)", "Wind speed (m s$^{-1}$", "Fraction",
+               "AMS PMF fraction", "Precip (mm)", "Wind speed (m s$^{-1}$)", "Fraction",
                "", "Fraction"
                ]
     
@@ -163,14 +163,15 @@ def plot_orbitrap_ams_aqmet_time(cluster_labels,df_data,df_merge,ds_day_frac,**k
                                            legend=False,width=0.9)
         
     #Met data
-    sns.boxplot(ax=ax[5], x=cluster_labels, y="HYSPLIT_precip", data=df_merge,showfliers=False,color='tab:olive',whis=whis)
+    sns.boxplot(ax=ax[5], x=cluster_labels, y="HYSPLIT_precip", data=df_merge,showfliers=False,color='tab:blue',whis=whis)
     sns.boxplot(ax=ax[6], x=cluster_labels, y="ws_ms", data=df_merge,showfliers=False,color='tab:red',whis=whis)
     
     #Set axis bottoms to zero
     for axis in ax:
         axis.set_ylim(bottom=0)    
-    # ax[4].set_ylim(bottom=0)
-    # ax[5].set_ylim(bottom=0)
+    #Set axis tops to avoid the (a), (b) etc boxes
+    ax[1].set_ylim(top=160)
+    ax[6].set_ylim(top=7)
     # ax[6].set_ylim(bottom=0)
     
     
@@ -217,7 +218,7 @@ def plot_orbitrap_ams_aqmet_time(cluster_labels,df_data,df_merge,ds_day_frac,**k
     
     #Set axis labels
     [axis.set_xlabel('')  for axis in ax]
-    [axis.set_ylabel(ylab,labelpad=0)  for axis, ylab in zip(ax,ylabels)]
+    [axis.set_ylabel(ylab,labelpad=1.5)  for axis, ylab in zip(ax,ylabels)]
     
     #Add letters in boxes for each subfigure
     trans = ScaledTranslation(2/72, -5/72, fig.dpi_scale_trans)
@@ -227,12 +228,12 @@ def plot_orbitrap_ams_aqmet_time(cluster_labels,df_data,df_merge,ds_day_frac,**k
             axis = ax[9]
             axis.text(0.0, 1.0, ('(' + letter + ')'), transform=axis.transAxes + trans,
                     fontsize='medium', verticalalignment='top', 
-                    bbox=dict(facecolor='1.0', edgecolor='none', pad=1.0))
+                    bbox=dict(facecolor='1.0', edgecolor='none', pad=1.0, alpha=0.75))
             break
         else:
             axis.text(0.0, 1.0, ('(' + letter + ')'), transform=axis.transAxes + trans,
                 fontsize='medium', verticalalignment='top', 
-                bbox=dict(facecolor='1.0', edgecolor='none', pad=1.0))
+                bbox=dict(facecolor='1.0', edgecolor='none', pad=1.0, alpha=0.75))
 
 
     #Delete empty subplot
