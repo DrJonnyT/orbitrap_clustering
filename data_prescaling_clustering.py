@@ -1600,3 +1600,63 @@ axs[2].set_title('Normdot workflow')
 plot_clusters_massspecs(df_all_data,cluster_labels_unscaled,ds_all_mz,normalise=True,suptitle="Naive workflow",xmin=100,xmax=540,label_prefix='N',stemcol='dimgray')
 plot_clusters_massspecs(df_all_data,cluster_labels_qt,ds_all_mz,normalise=True,suptitle="QT workflow",xmin=100,xmax=540,label_prefix='QT',stemcol='tab:red')
 plot_clusters_massspecs(df_all_data,cluster_labels_normdot,ds_all_mz,normalise=True,suptitle="MS workflow",xmin=100,xmax=540,label_prefix='MS',stemcol='tab:blue')
+
+
+
+
+#%%Compare different clustering workflow mass spectra
+
+
+#Compare the mass spectra of the different clusters, and return a matrix of the normalised dot product between them
+def compare_cluster_spectra(df_data,cluster_labels1,cluster_labels2):
+    
+    cluster_labels1 = np.array(cluster_labels1)
+    cluster_labels2 = np.array(cluster_labels2)
+    
+    unique_clusters1 = np.unique(cluster_labels1)
+    unique_clusters2 = np.unique(cluster_labels2)
+    
+    corr_mtx = pd.DataFrame(index=unique_clusters1,columns=unique_clusters2)
+    
+    for cluster1 in unique_clusters1:
+        cluster1_spectrum = df_data.loc[cluster_labels1==cluster1].mean(axis=0)
+        
+        for cluster2 in unique_clusters2:
+            cluster2_spectrum = df_data.loc[cluster_labels2==cluster2].mean(axis=0)
+            
+            corr_mtx.loc[cluster1][cluster2] = normdot(cluster1_spectrum,cluster2_spectrum)
+            
+    return corr_mtx
+  
+    
+df_cluster_spectra_corr_norm_norm = compare_cluster_spectra(df_all_data,cluster_labels_normdot,cluster_labels_normdot)        
+
+df_cluster_spectra_corr_qt_unscaled = compare_cluster_spectra(df_all_data,cluster_labels_unscaled,cluster_labels_qt)
+df_cluster_spectra_corr_qt_norm = compare_cluster_spectra(df_all_data,cluster_labels_qt,cluster_labels_normdot)
+
+#%%
+#Compare the time series of cluster labels and work out what fraction of each one overlap with the others
+def cluster_label_overlap(cluster_labels1,cluster_labels2):
+    
+    cluster_labels1 = np.array(cluster_labels1)
+    cluster_labels2 = np.array(cluster_labels2)
+    
+    unique_clusters1 = np.unique(cluster_labels1)
+    unique_clusters2 = np.unique(cluster_labels2)
+    
+    overlap_mtx = pd.DataFrame(index=unique_clusters1,columns=unique_clusters2)
+    
+    for cluster1 in unique_clusters1:
+        for cluster2 in unique_clusters2:
+            overlap1 = (np.logical_and(cluster_labels1 == cluster1,cluster_labels2 == cluster2).sum()) / (cluster_labels1 == cluster1).sum()
+            overlap2 = (np.logical_and(cluster_labels1 == cluster1,cluster_labels2 == cluster2).sum()) / (cluster_labels2 == cluster2).sum()
+            overlap_mtx.loc[cluster1][cluster2] = np.sqrt(overlap1*overlap2)
+            
+    return overlap_mtx
+    
+
+df_cluster_overlap_norm_norm = cluster_label_overlap(cluster_labels_normdot,cluster_labels_normdot)
+df_cluster_overlap_qt_unscaled = cluster_label_overlap(cluster_labels_qt,cluster_labels_unscaled)
+df_cluster_overlap_qt_normdot = cluster_label_overlap(cluster_labels_qt,cluster_labels_normdot)
+df_cluster_overlap_normdot_unscaled = cluster_label_overlap(cluster_labels_normdot,cluster_labels_unscaled)
+
